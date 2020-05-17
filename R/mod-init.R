@@ -45,10 +45,10 @@ init_covid_ship <- function(x, param, init, control, s) {
   dat <- init_tergmLite(dat)
 
   ## Infection Status and Time Modules
-  dat <- init_status_covid(dat)
+  dat <- init_status_covid_ship(dat)
 
   ## Get initial prevalence
-  dat <- prevalence_covid(dat, at = 1)
+  dat <- prevalence_covid_ship(dat, at = 1)
 
   # Network stats
   if (dat$control$save.nwstats == TRUE) {
@@ -59,8 +59,6 @@ init_covid_ship <- function(x, param, init, control, s) {
 }
 
 
-#' @rdname moduleset-ship
-#' @export
 init_status_covid_ship <- function(dat) {
 
   e.num.pass <- dat$init$e.num.pass

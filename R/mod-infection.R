@@ -218,8 +218,6 @@ infect_covid_ship <- function(dat, at) {
   return(dat)
 }
 
-#' @rdname moduleset-ship
-#' @export
 discord_edgelist_covid_ship <- function(dat, nw = 1) {
 
   status <- dat$attr$status

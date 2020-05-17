@@ -9,9 +9,7 @@
 \alias{offload_covid_ship}
 \alias{dx_covid_ship}
 \alias{infect_covid_ship}
-\alias{discord_edgelist_covid_ship}
 \alias{init_covid_ship}
-\alias{init_status_covid_ship}
 \alias{prevalence_covid_ship}
 \alias{progress_covid_ship}
 \alias{resim_nets_covid_ship}
@@ -29,11 +27,7 @@ dx_covid_ship(dat, at)
 
 infect_covid_ship(dat, at)
 
-discord_edgelist_covid_ship(dat, nw = 1)
-
 init_covid_ship(x, param, init, control, s)
-
-init_status_covid_ship(dat)
 
 prevalence_covid_ship(dat, at)
 
@@ -50,13 +44,13 @@ calc_nwstats_covid(dat, at)
 
 \item{at}{Current time step.}
 
-\item{x}{An \code{EpiModel} object of class \code{\link{netest}}.}
+\item{x}{An \code{EpiModel} object of class `netest`.}
 
-\item{param}{An \code{EpiModel} object of class \code{\link{param_msm}}.}
+\item{param}{An \code{EpiModel} object of class `param.net`.}
 
-\item{init}{An \code{EpiModel} object of class \code{\link{init_msm}}.}
+\item{init}{An \code{EpiModel} object of class `init.net`.}
 
-\item{control}{An \code{EpiModel} object of class \code{\link{control_msm}}.}
+\item{control}{An \code{EpiModel} object of class `control.net`.}
 
 \item{s}{Simulation number, used for restarting dependent simulations.}
 }
