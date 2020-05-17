@@ -13,9 +13,28 @@
 #' @name EpiModelCOVID-package
 #' @aliases EpiModelCOVID
 #'
-#' @import EpiModel tergmLite
+#' @import EpiModel tergmLite ergm network
+#' @importFrom stats rbinom rgeom rmultinom rpois runif simulate rnbinom plogis predict
 #'
 #' @docType package
 #' @keywords package
+#'
+NULL
+
+
+#' @title EpiModel Module Set for COVID Cruise Ship Model
+#'
+#' @description This set of functions is associated with the EpiModel study of
+#'              COVID on cruise ship environments.
+#'
+#' @param x An \code{EpiModel} object of class \code{\link{netest}}.
+#' @param param An \code{EpiModel} object of class \code{\link{param_msm}}.
+#' @param init An \code{EpiModel} object of class \code{\link{init_msm}}.
+#' @param control An \code{EpiModel} object of class \code{\link{control_msm}}.
+#' @param s Simulation number, used for restarting dependent simulations.
+#' @param dat Master list object of network models.
+#' @param at Current time step.
+#'
+#' @name moduleset-ship
 #'
 NULL

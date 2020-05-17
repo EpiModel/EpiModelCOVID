@@ -7,11 +7,14 @@ Authors@R: c(person("Samuel M.", "Jenness",
                     email = "samuel.m.jenness@emory.edu"))
 Description: Provides extension functionality for the EpiModel package to simulate
   the transmission SARS-CoV-2 infection and the resulting COVID-19 disease. 
+License: GPL-3
 Depends:
     R (>= 3.6.0),
-    EpiModel (>= 2.0.0),
-    tergmLite (>= 2.2.0)
-License: GPL-3
+    EpiModel (== 1.8.0),
+    tergmLite (== 2.1.7)
+Imports:
+    ergm (>= 3.9.4),
+    network (>= 1.16.0)
 Suggests: 
     testthat
 LazyData: true
