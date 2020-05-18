@@ -75,7 +75,7 @@ offload_covid_ship <- function(dat, at) {
 
   idsElig <- which(active == 1 & status %in% exit.elig.status)
   if (require.dx == TRUE) {
-    idsElig <- intersect(idsElig, which(dxStatus == 1))
+    idsElig <- intersect(idsElig, which(dxStatus == 2))
   }
   nElig <- length(idsElig)
   nExits <- 0

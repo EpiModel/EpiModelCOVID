@@ -56,7 +56,7 @@ infect_covid_ship <- function(dat, at) {
       # Set parameters on discordant edgelist data frame
       del.PP$transProb <- inf.prob
       del.PP$transProb[del.PP$stat == "a"] <- del.PP$transProb[del.PP$stat == "a"] *
-        inf.prob.a.rr
+                                              inf.prob.a.rr
       if (at >= inf.prob.pp.inter.time) {
         del.PP$transProb <- del.PP$transProb * inf.prob.pp.inter.rr
       }
@@ -65,12 +65,12 @@ infect_covid_ship <- function(dat, at) {
         del.PP$actRate <- del.PP$actRate * act.rate.pp.inter.rr
       }
       if (at >= act.rate.dx.inter.time) {
-        del.PP$actRate[del.PP$dx == 1] <- del.PP$actRate[del.PP$dx == 1] *
-          act.rate.dx.inter.rr
+        del.PP$actRate[del.PP$dx == 2] <- del.PP$actRate[del.PP$dx == 2] *
+                                          act.rate.dx.inter.rr
       }
       if (at >= act.rate.sympt.inter.time) {
         del.PP$actRate[del.PP$stat == "ic"] <- del.PP$actRate[del.PP$stat == "ic"] *
-          act.rate.sympt.inter.rr
+                                               act.rate.sympt.inter.rr
       }
       del.PP$finalProb <- 1 - (1 - del.PP$transProb)^del.PP$actRate
 
@@ -109,7 +109,7 @@ infect_covid_ship <- function(dat, at) {
       # Set parameters on discordant edgelist data frame
       del.CC$transProb <- inf.prob
       del.CC$transProb[del.CC$stat == "a"] <- del.CC$transProb[del.CC$stat == "a"] *
-        inf.prob.a.rr
+                                              inf.prob.a.rr
       if (at >= inf.prob.cc.inter.time) {
         del.CC$transProb <- del.CC$transProb * inf.prob.cc.inter.rr
       }
@@ -118,12 +118,12 @@ infect_covid_ship <- function(dat, at) {
         del.CC$actRate <- del.CC$actRate * act.rate.cc.inter.rr
       }
       if (at >= act.rate.dx.inter.time) {
-        del.CC$actRate[del.CC$dx == 1] <- del.CC$actRate[del.CC$dx == 1] *
-          act.rate.dx.inter.rr
+        del.CC$actRate[del.CC$dx == 2] <- del.CC$actRate[del.CC$dx == 2] *
+                                          act.rate.dx.inter.rr
       }
       if (at >= act.rate.sympt.inter.time) {
         del.CC$actRate[del.CC$stat == "ic"] <- del.CC$actRate[del.CC$stat == "ic"] *
-          act.rate.sympt.inter.rr
+                                               act.rate.sympt.inter.rr
       }
       del.CC$finalProb <- 1 - (1 - del.CC$transProb)^del.CC$actRate
 
@@ -162,7 +162,7 @@ infect_covid_ship <- function(dat, at) {
       # Set parameters on discordant edgelist data frame
       del.PC$transProb <- inf.prob
       del.PC$transProb[del.PC$stat == "a"] <- del.PC$transProb[del.PC$stat == "a"] *
-        inf.prob.a.rr
+                                              inf.prob.a.rr
       if (at >= inf.prob.pc.inter.time) {
         del.PC$transProb <- del.PC$transProb * inf.prob.pc.inter.rr
       }
@@ -171,12 +171,12 @@ infect_covid_ship <- function(dat, at) {
         del.PC$actRate <- del.PC$actRate * act.rate.pc.inter.rr
       }
       if (at >= act.rate.dx.inter.time) {
-        del.PC$actRate[del.PP$dx == 1] <- del.PC$actRate[del.PC$dx == 1] *
-          act.rate.dx.inter.rr
+        del.PC$actRate[del.PP$dx == 2] <- del.PC$actRate[del.PC$dx == 2] *
+                                          act.rate.dx.inter.rr
       }
       if (at >= act.rate.sympt.inter.time) {
         del.PC$actRate[del.PC$stat == "ic"] <- del.PC$actRate[del.PC$stat == "ic"] *
-          act.rate.sympt.inter.rr
+                                               act.rate.sympt.inter.rr
       }
       del.PC$finalProb <- 1 - (1 - del.PC$transProb)^del.PC$actRate
 
@@ -207,7 +207,6 @@ infect_covid_ship <- function(dat, at) {
     }
   }
 
-
   ## Save summary statistics for S->E flow
   dat$epi$se.flow[at] <- nInf.PtoP + nInf.PtoC + nInf.CtoP + nInf.CtoC
   dat$epi$se.pp.flow[at] <- nInf.PtoP
@@ -218,11 +217,11 @@ infect_covid_ship <- function(dat, at) {
   return(dat)
 }
 
+
 discord_edgelist_covid_ship <- function(dat, nw = 1) {
 
   status <- dat$attr$status
   dxStatus <- dat$attr$dxStatus
-  type <- dat$attr$type
 
   el <- dat$el[[nw]]
 
