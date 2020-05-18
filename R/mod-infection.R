@@ -171,7 +171,7 @@ infect_covid_ship <- function(dat, at) {
         del.PC$actRate <- del.PC$actRate * act.rate.pc.inter.rr
       }
       if (at >= act.rate.dx.inter.time) {
-        del.PC$actRate[del.PP$dx == 2] <- del.PC$actRate[del.PC$dx == 2] *
+        del.PC$actRate[del.PC$dx == 2] <- del.PC$actRate[del.PC$dx == 2] *
                                           act.rate.dx.inter.rr
       }
       if (at >= act.rate.sympt.inter.time) {
