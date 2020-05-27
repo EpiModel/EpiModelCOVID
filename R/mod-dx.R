@@ -7,7 +7,6 @@ dx_covid_ship <- function(dat, at) {
   status <- dat$attr$status
   dxStatus <- dat$attr$dxStatus
 
-  dx.start <- dat$param$dx.start
   dx.rate.sympt <- dat$param$dx.rate.sympt[at]
   dx.rate.other <- dat$param$dx.rate.other[at]
 
@@ -18,7 +17,7 @@ dx_covid_ship <- function(dat, at) {
   idsElig.other <- which(active == 1 & dxStatus %in% 0:1 & status %in% c("s", "e", "a", "ip", "r"))
 
   nElig.sympt <- length(idsElig.sympt)
-  if (at >= dx.start & nElig.sympt > 0) {
+  if (nElig.sympt > 0) {
     vecDx.sympt <- which(rbinom(nElig.sympt, 1, dx.rate.sympt) == 1)
     idsDx.sympt <- idsElig.sympt[vecDx.sympt]
     nDx.sympt <- length(idsDx.sympt)
@@ -28,7 +27,7 @@ dx_covid_ship <- function(dat, at) {
   }
 
   nElig.other <- length(idsElig.other)
-  if (at >= dx.start & nElig.other > 0) {
+  if (nElig.other > 0) {
     vecDx.other <- which(rbinom(nElig.other, 1, dx.rate.other) == 1)
     idsDx.other <- idsElig.other[vecDx.other]
     nDx.other <- length(idsDx.other)
