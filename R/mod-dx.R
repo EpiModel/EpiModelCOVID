@@ -9,12 +9,17 @@ dx_covid_ship <- function(dat, at) {
 
   dx.rate.sympt <- dat$param$dx.rate.sympt[at]
   dx.rate.other <- dat$param$dx.rate.other[at]
+  allow.rescreen <- dat$param$allow.rescreen
 
   nDx.sympt <- nDx.other <- 0
   idsDx.other.pos <- NULL
 
   idsElig.sympt <- which(active == 1 & dxStatus %in% 0:1 & status == "ic")
-  idsElig.other <- which(active == 1 & dxStatus %in% 0:1 & status %in% c("s", "e", "a", "ip", "r"))
+  if (allow.rescreen == TRUE) {
+    idsElig.other <- which(active == 1 & dxStatus %in% 0:1 & status %in% c("s", "e", "a", "ip", "r"))
+  } else {
+    idsElig.other <- which(active == 1 & dxStatus == 0 & status %in% c("s", "e", "a", "ip", "r"))
+  }
 
   nElig.sympt <- length(idsElig.sympt)
   if (nElig.sympt > 0) {
