@@ -14,7 +14,7 @@ prevalence_covid_ship <- function(dat, at) {
                  "i.pass.num", "i.crew.num",
                  "se.flow", "ea.flow", "ar.flow", "Rt",
                  "eip.flow", "ipic.flow", "icr.flow",
-                 "d.flow", "exit.flow", "nDx", "nDx.pos", "nDx.pos.sympt",
+                 "d.flow", "d.ic.flow", "exit.flow", "nDx", "nDx.pos", "nDx.pos.sympt",
                  "se.pp.flow", "se.pc.flow", "se.cp.flow", "se.cc.flow",
                  "meanAge", "meanClinic")
   if (at == 1) {

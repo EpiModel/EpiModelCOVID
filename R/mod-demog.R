@@ -24,7 +24,7 @@ deaths_covid_ship <- function(dat, at) {
 
   idsElig <- which(active == 1)
   nElig <- length(idsElig)
-  nDeaths <- 0
+  nDeaths <- nDeathsIC <- 0
 
   if (nElig > 0) {
 
@@ -37,6 +37,7 @@ deaths_covid_ship <- function(dat, at) {
     vecDeaths <- which(rbinom(nElig, 1, death_rates_of_elig) == 1)
     idsDeaths <- idsElig[vecDeaths]
     nDeaths <- length(idsDeaths)
+    nDeathsIC <- length(intersect(idsDeaths, idsElig.inf))
 
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
@@ -50,6 +51,7 @@ deaths_covid_ship <- function(dat, at) {
 
   ## Summary statistics ##
   dat$epi$d.flow[at] <- nDeaths
+  dat$epi$d.ic.flow[at] <- nDeathsIC
 
   return(dat)
 }
