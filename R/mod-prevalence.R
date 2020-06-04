@@ -6,12 +6,14 @@ prevalence_covid_ship <- function(dat, at) {
   active <- dat$attr$active
   status <- dat$attr$status
   type <- dat$attr$type
+  dxStatus <- dat$attr$dxStatus
 
   nsteps <- dat$control$nsteps
 
   # Initialize Outputs
   var.names <- c("num", "s.num", "e.num", "a.num", "ip.num", "ic.num", "r.num",
                  "i.pass.num", "i.crew.num",
+                 "dx.pos.num",
                  "se.flow", "ea.flow", "ar.flow", "Rt",
                  "eip.flow", "ipic.flow", "icr.flow",
                  "d.flow", "d.ic.flow", "exit.flow", "nDx", "nDx.pos", "nDx.pos.sympt",
@@ -32,6 +34,8 @@ prevalence_covid_ship <- function(dat, at) {
   dat$epi$ip.num[at] <- sum(active == 1 & status == "ip")
   dat$epi$ic.num[at] <- sum(active == 1 & status == "ic")
   dat$epi$r.num[at] <- sum(active == 1 & status == "r")
+
+  dat$epi$dx.pos.num[at] <- sum(active == 1 & dxStatus == 2, na.rm = TRUE)
 
   dat$epi$i.pass.num[at] <- sum(active == 1 & status %in% c("ip", "ic", "a") & type == "p")
   dat$epi$i.crew.num[at] <- sum(active == 1 & status %in% c("ip", "ic", "a") & type == "c")
