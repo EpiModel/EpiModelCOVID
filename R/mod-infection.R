@@ -90,7 +90,9 @@ infect_covid_ship <- function(dat, at) {
         dat$attr$status[idsNewInf.PtoP] <- "e"
         dat$attr$infTime[idsNewInf.PtoP] <- at
         dat$attr$statusTime[idsNewInf.PtoP] <- at
-        dat$attr$transmissions[transIds] <- transmissions[transIds] + 1
+        for (tt in 1:length(transIds)) {
+          dat$attr$transmissions[transIds[tt]] <- dat$attr$transmissions[transIds[tt]] + 1
+        }
       }
     }
 
@@ -143,7 +145,9 @@ infect_covid_ship <- function(dat, at) {
         dat$attr$status[idsNewInf.CtoC] <- "e"
         dat$attr$infTime[idsNewInf.CtoC] <- at
         dat$attr$statusTime[idsNewInf.CtoC] <- at
-        dat$attr$transmissions[transIds] <- transmissions[transIds] + 1
+        for (tt in 1:length(transIds)) {
+          dat$attr$transmissions[transIds[tt]] <- dat$attr$transmissions[transIds[tt]] + 1
+        }
       }
     }
 
@@ -202,7 +206,9 @@ infect_covid_ship <- function(dat, at) {
         dat$attr$status[idsNewInf.PC] <- "e"
         dat$attr$infTime[idsNewInf.PC] <- at
         dat$attr$statusTime[idsNewInf.PC] <- at
-        dat$attr$transmissions[transIds] <- transmissions[transIds] + 1
+        for (tt in 1:length(transIds)) {
+          dat$attr$transmissions[transIds[tt]] <- dat$attr$transmissions[transIds[tt]] + 1
+        }
       }
     }
   }
