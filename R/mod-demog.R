@@ -8,6 +8,17 @@ aging_covid_ship <- function(dat, at) {
   return(dat)
 }
 
+#' @rdname moduleset-corporate
+#' @export
+aging_covid_corporate <- function(dat, at) {
+
+  age <- get_attr(dat, "age")
+  age <- age + 1/365
+  dat <- set_attr(dat, "age", age)
+
+  return(dat)
+}
+
 
 #' @rdname moduleset-ship
 #' @export
@@ -50,6 +61,57 @@ deaths_covid_ship <- function(dat, at) {
   }
 
   ## Summary statistics ##
+  dat$epi$d.flow[at] <- nDeaths
+  dat$epi$d.ic.flow[at] <- nDeathsIC
+
+  return(dat)
+}
+
+
+#' @rdname moduleset-corporate
+#' @export
+deaths_covid_corporate <- function(dat, at) {
+
+  ## Attributes ##
+  active <- get_attr(dat, "attr")
+  age <- get_attr(dat, "age")
+  status <- get_attr(dat, "status")
+
+  ## Parameters ##
+  mort.rates <- get_param(dat, "mort.rates")
+  mort.dis.mult <- get_param(dat, "mort.dis.mult")
+
+  idsElig <- which(active == 1)
+  nElig <- length(idsElig)
+  nDeaths <- nDeathsIC <- 0
+
+  if (nElig > 0) {
+
+    whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86)
+    death_rates_of_elig <- mort.rates[whole_ages_of_elig]
+
+    idsElig.inf <- which(status[idsElig] == "ic")
+    death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] * mort.dis.mult
+
+    vecDeaths <- which(rbinom(nElig, 1, death_rates_of_elig) == 1)
+    idsDeaths <- idsElig[vecDeaths]
+    nDeaths <- length(idsDeaths)
+    nDeathsIC <- length(intersect(idsDeaths, idsElig.inf))
+
+    if (nDeaths > 0) {
+      active[idsDeaths] <- 0
+      inactive <- which(active == 0)
+
+      stop("TODO: this moved to nwupdate")
+      # dat$attr <- deleteAttr(dat$attr, inactive)
+      # for (i in 1:length(dat$el)) {
+      #   dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
+      # }
+    }
+  }
+
+
+    ## Summary statistics ##
   dat$epi$d.flow[at] <- nDeaths
   dat$epi$d.ic.flow[at] <- nDeathsIC
 
