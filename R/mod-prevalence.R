@@ -46,3 +46,54 @@ prevalence_covid_ship <- function(dat, at) {
 
   return(dat)
 }
+
+#' @rdname moduleset-corporate
+#' @export
+prevalence_covid_corp <- function(dat, at) {
+
+  active <- get_attr(dat, "active")
+  status <- get_attr(dat, "status")
+  type <- get_attr(dat, "type")
+  dxStatus <- get_attr(dat, "dxStatus")
+
+  nsteps <- get_control(dat, "nsteps")
+
+  # Initialize Outputs
+  var.names <- c("num", "s.num", "e.num", "a.num", "ip.num", "ic.num", "r.num",
+                 "i.pass.num", "i.crew.num",
+                 "dx.pos.num",
+                 "se.flow", "ea.flow", "ar.flow", "Rt",
+                 "eip.flow", "ipic.flow", "icr.flow",
+                 "d.flow", "d.ic.flow", "exit.flow",
+                 "nDx", "nDx.pos", "nDx.pos.sympt", "nDx.pos.fn",
+                 "se.pp.flow", "se.pc.flow", "se.cp.flow", "se.cc.flow",
+                 "meanAge", "meanClinic")
+  if (at == 1) {
+    for (i in seq_along(var.names)) {
+      dat <- add_epi(dat, var.names[i])
+    }
+  }
+
+  # Update Outputs
+  dat <- set_epi(dat, "num", at, sum(active == 1))
+
+  dat <- set_epi(dat, "s.num", at, sum(active == 1 & status == "s"))
+  dat <- set_epi(dat, "e.num", at, sum(active == 1 & status == "e"))
+  dat <- set_epi(dat, "a.num", at, sum(active == 1 & status == "a"))
+  dat <- set_epi(dat, "ip.num", at, sum(active == 1 & status == "ip"))
+  dat <- set_epi(dat, "ic.num", at, sum(active == 1 & status == "ic"))
+  dat <- set_epi(dat, "r.num", at, sum(active == 1 & status == "r"))
+
+  dat <- set_epi(dat, "dx.pos.num", at,
+                 sum(active == 1 & dxStatus == 2, na.rm = TRUE))
+
+  dat <- set_epi(dat, "i.pass.num", at,
+                 sum(active == 1 & status %in% c("ip", "ic", "a") & type == "p"))
+  dat <- set_epi(dat, "i.crew.num", at,
+                 sum(active == 1 & status %in% c("ip", "ic", "a") & type == "c"))
+
+  dat <- set_epi(dat, "meanAge", at, mean(dat$attr$age, na.rm = TRUE))
+  dat <- set_epi(dat, "meanClinic", at, mean(dat$attr$clinical, na.rm = TRUE))
+
+  return(dat)
+}
