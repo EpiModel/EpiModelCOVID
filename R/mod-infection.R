@@ -260,7 +260,6 @@ infect_covid_corporate <- function(dat, at) {
   status <- get_attr(dat, "status")
   infTime <- get_attr(dat, "infTime")
   statusTime <- get_attr(dat, "statusTime")
-  transmissions <- get_attr(dat, "transmissions")
   vax <- get_attr(dat, "vax")
 
   ## Find infected nodes ##
@@ -277,9 +276,10 @@ infect_covid_corporate <- function(dat, at) {
   vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
 
+  nLayers <- length(dat$el)
+  nInf <- rep(0, nLayers)
+
   if (length(idsInf) > 0) {
-    nLayers <- length(dat$el)
-    nInf <- rep(0, nLayers)
     for (layer in seq_len(nLayers)) {
       ## Look up discordant edgelist ##
       del <- discord_edgelist(dat, at, network = layer,
