@@ -91,7 +91,8 @@ deaths_covid_corporate <- function(dat, at) {
     death_rates_of_elig <- mort.rates[whole_ages_of_elig]
 
     idsElig.inf <- which(status[idsElig] == "ic")
-    death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] * mort.dis.mult
+    death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] *
+                                        mort.dis.mult
 
     vecDeaths <- which(rbinom(nElig, 1, death_rates_of_elig) == 1)
     idsDeaths <- idsElig[vecDeaths]
@@ -99,19 +100,16 @@ deaths_covid_corporate <- function(dat, at) {
     nDeathsIC <- length(intersect(idsDeaths, idsElig.inf))
 
     if (nDeaths > 0) {
-      active[idsDeaths] <- 0
-      inactive <- which(active == 0)
-
-      stop("TODO: this moved to nwupdate")
-      # dat$attr <- deleteAttr(dat$attr, inactive)
-      # for (i in 1:length(dat$el)) {
-      #   dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
-      # }
+      dat$attr$active[idsDeaths] <- 0
+      inactive <- which(dat$attr$active == 0)
+      dat$attr <- deleteAttr(dat$attr, inactive)
+      for (i in 1:length(dat$el)) {
+        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
+      }
     }
   }
 
-
-    ## Summary statistics ##
+  ## Summary statistics ##
   dat$epi$d.flow[at] <- nDeaths
   dat$epi$d.ic.flow[at] <- nDeathsIC
 
@@ -162,6 +160,64 @@ offload_covid_ship <- function(dat, at) {
 
   ## Summary statistics ##
   dat$epi$exit.flow[at] <- nExits
+
+  return(dat)
+}
+
+#' @keywords moduleset-corporate
+#' @export
+arrival_covid_corporate <- function(dat, at) {
+
+  # Parameters
+  a.rate   <- get_param(dat, "a.rate")
+  netstats <- get_param(dat, "netstats")
+
+  ## Process
+  num <- dat$epi$num[1]
+  nNew <- rpois(1, a.rate * num)
+
+  ## Update Attr
+  if (nNew > 0) {
+    dat <- setNewAttr_covid_corporate(dat, at, nNew)
+  }
+
+  # Update Networks
+  if (nNew > 0) {
+    for (i in 1:length(dat$el)) {
+      dat$el[[i]] <- tergmLite::add_vertices(dat$el[[i]], nNew)
+    }
+  }
+
+  ## Output
+  dat <- set_epi(dat, "nNew", at, nNew)
+
+  return(dat)
+}
+
+
+setNewAttr_covid_corporate <- function(dat, at, nNew) {
+
+  netstats <- get_param(dat, "netstats")
+  dat <- append_core_attr(dat, at, nNew)
+
+  newIds <- which(dat$attr$entrTime == at)
+
+  arrival.age <- get_param(dat, "arrival.age")
+  newAges <- rep(arrival.age, nNew)
+  dat <- append_attr(dat, "age", newAges, nNew)
+
+  age.breaks <- seq(10, 100, 10)
+  attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
+  dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
+
+  # Disease status and related
+  dat <- append_attr(dat, "status", "s", nNew)
+  dat <- append_attr(dat, "infTime", NA, nNew)
+
+  dat <- append_attr(dat, "statusTime", 0, nNew)
+  dat <- append_attr(dat, "clinical", NA, nNew)
+  dat <- append_attr(dat, "dxStatus", NA, nNew)
+  dat <- append_attr(dat, "transmissions", 0, nNew)
 
   return(dat)
 }
