@@ -30,7 +30,8 @@ progress_covid <- function(dat, at) {
   if (num.newInf > 0) {
     age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
-    prop.clin.vec[vax == 2] <-  prop.clin.vec[vax == 2] * vax.rr.clinical
+    prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
+                                           vax.rr.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clinical)
     clinical[ids.newInf] <- vec.new.clinical
