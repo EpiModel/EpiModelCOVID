@@ -1,16 +1,7 @@
 
-#' @rdname moduleset-ship
+#' @rdname moduleset-common
 #' @export
-aging_covid_ship <- function(dat, at) {
-
-  dat$attr$age <- dat$attr$age + 1/365
-
-  return(dat)
-}
-
-#' @rdname moduleset-corporate
-#' @export
-aging_covid_corporate <- function(dat, at) {
+aging_covid <- function(dat, at) {
 
   age <- get_attr(dat, "age")
   age <- age + 1/365

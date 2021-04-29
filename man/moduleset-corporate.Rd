@@ -4,7 +4,6 @@
 %   R/mod-progress.R, R/mod-simnet.R
 \name{moduleset-corporate}
 \alias{moduleset-corporate}
-\alias{aging_covid_corporate}
 \alias{deaths_covid_corporate}
 \alias{dx_covid_corporate}
 \alias{infect_covid_corporate}
@@ -14,8 +13,6 @@
 \alias{resim_nets_covid_corporate}
 \title{EpiModel Module Set for Corporate Office Model}
 \usage{
-aging_covid_corporate(dat, at)
-
 deaths_covid_corporate(dat, at)
 
 dx_covid_corporate(dat, at)

@@ -4,7 +4,6 @@
 %   R/mod-progress.R, R/mod-simnet.R
 \name{moduleset-ship}
 \alias{moduleset-ship}
-\alias{aging_covid_ship}
 \alias{deaths_covid_ship}
 \alias{offload_covid_ship}
 \alias{dx_covid_ship}
@@ -15,8 +14,6 @@
 \alias{resim_nets_covid_ship}
 \title{EpiModel Module Set for COVID Cruise Ship Model}
 \usage{
-aging_covid_ship(dat, at)
-
 deaths_covid_ship(dat, at)
 
 offload_covid_ship(dat, at)
