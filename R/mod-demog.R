@@ -187,7 +187,6 @@ arrival_covid_corporate <- function(dat, at) {
 
 setNewAttr_covid_corporate <- function(dat, at, nNew) {
 
-  netstats <- get_param(dat, "netstats")
   dat <- append_core_attr(dat, at, nNew)
 
   newIds <- which(dat$attr$entrTime == at)
@@ -196,7 +195,7 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   newAges <- rep(arrival.age, nNew)
   dat <- append_attr(dat, "age", newAges, nNew)
 
-  age.breaks <- seq(10, 100, 10)
+  age.breaks <- seq(0, 200, 10)
   attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
 
@@ -209,6 +208,7 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   dat <- append_attr(dat, "hospit", NA, nNew)
   dat <- append_attr(dat, "dxStatus", NA, nNew)
   dat <- append_attr(dat, "vax", 0, nNew)
+  dat <- append_attr(dat, "vax1Time", NA, nNew)
 
   return(dat)
 }
