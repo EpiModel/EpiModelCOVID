@@ -45,14 +45,8 @@ resim_nets_covid_corporate <- function(dat, at) {
   ## Edges correction
   dat <- edges_correct_covid(dat, at)
 
-  if (at < dat$param$network.lockdown.time) {
-    nets <- 1:3
-  } else {
-    nets <- 4:6
-  }
-
   # Network Resimulation
-  for (i in nets) {
+  for (i in 1:length(dat$el)) {
     nwparam <- EpiModel::get_nwparam(dat, network = i)
     isTERGM <- ifelse(nwparam$coef.diss$duration > 1, TRUE, FALSE)
     dat <- tergmLite::updateModelTermInputs(dat, network = i)
