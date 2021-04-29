@@ -64,7 +64,7 @@ deaths_covid_ship <- function(dat, at) {
 deaths_covid_corporate <- function(dat, at) {
 
   ## Attributes ##
-  active <- get_attr(dat, "attr")
+  active <- get_attr(dat, "active")
   age <- get_attr(dat, "age")
   status <- get_attr(dat, "status")
 
@@ -161,7 +161,6 @@ arrival_covid_corporate <- function(dat, at) {
 
   # Parameters
   a.rate   <- get_param(dat, "a.rate")
-  netstats <- get_param(dat, "netstats")
 
   ## Process
   num <- dat$epi$num[1]
