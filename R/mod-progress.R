@@ -10,9 +10,11 @@ progress_covid <- function(dat, at) {
   clinical <- get_attr(dat, "clinical")
   hospit <- get_attr(dat, "hospit")
   age <- get_attr(dat, "age")
+  vax <- get_attr(dat, "vax")
 
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
+  vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
   prop.hospit <- get_param(dat, "prop.hospit")
   ea.rate <- get_param(dat, "ea.rate")
   ar.rate <- get_param(dat, "ar.rate")
@@ -28,6 +30,7 @@ progress_covid <- function(dat, at) {
   if (num.newInf > 0) {
     age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
+    prop.clin.vec[vax == 2] <-  prop.clin.vec[vax == 2] * vax.rr.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clinical)
     clinical[ids.newInf] <- vec.new.clinical

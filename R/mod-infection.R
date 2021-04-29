@@ -261,6 +261,7 @@ infect_covid_corporate <- function(dat, at) {
   infTime <- get_attr(dat, "infTime")
   statusTime <- get_attr(dat, "statusTime")
   transmissions <- get_attr(dat, "transmissions")
+  vax <- get_attr(dat, "vax")
 
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
@@ -273,6 +274,8 @@ infect_covid_corporate <- function(dat, at) {
   act.rate.dx.inter.time <- get_param(dat, "act.rate.dx.inter.time")
   act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr")
   act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
+  vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
+  vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
 
   if (length(idsInf) > 0) {
     nLayers <- length(dat$el)
@@ -295,8 +298,19 @@ infect_covid_corporate <- function(dat, at) {
 
         # Set parameters on discordant edgelist data frame
         del$transProb <- inf.prob
+
+        # Vaccination
+        del$vaxSus <- vax[del$sus]
+        del$transProb[del$vaxSus == 1] <- del$transProb[del$vaxSus == 1] *
+                                          vax1.rr.infect
+        del$transProb[del$vaxSus == 2] <- del$transProb[del$vaxSus == 2] *
+                                          vax2.rr.infect
+
+        # Asymptomatic infection
         del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *
                                           inf.prob.a.rr
+
+        # Generic inf.prob and act.rate interventions
         if (at >= inf.prob.inter.time) {
           del$transProb <- del$transProb * inf.prob.inter.rr
         }
@@ -304,6 +318,8 @@ infect_covid_corporate <- function(dat, at) {
         if (at >= act.rate.inter.time) {
           del$actRate <- del$actRate * act.rate.inter.rr
         }
+
+        # Case isolation with diagnosed or symptomatic infection
         if (at >= act.rate.dx.inter.time) {
           del$actRate[del$dx == 2] <- del$actRate[del$dx == 2] *
                                       act.rate.dx.inter.rr
@@ -312,6 +328,7 @@ infect_covid_corporate <- function(dat, at) {
           del$actRate[del$stat == "ic"] <- del$actRate[del$stat == "ic"] *
                                            act.rate.sympt.inter.rr
         }
+
         del$finalProb <- 1 - (1 - del$transProb)^del$actRate
 
         # Stochastic transmission process
