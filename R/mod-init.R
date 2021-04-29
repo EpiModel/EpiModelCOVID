@@ -181,13 +181,11 @@ init_status_covid_corporate <- function(dat) {
   statusTime <- rep(NA, num)
   statusTime[idsInf] <- 1
   dxStatus <- rep(0, num)
-  transmissions <- rep(0, num)
 
   dat <- set_attr(dat, "statusTime", statusTime)
   dat <- set_attr(dat, "infTime", infTime)
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "dxStatus", dxStatus)
-  dat <- set_attr(dat, "transmissions", transmissions)
 
   return(dat)
 }

@@ -217,7 +217,6 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   dat <- append_attr(dat, "statusTime", 0, nNew)
   dat <- append_attr(dat, "clinical", NA, nNew)
   dat <- append_attr(dat, "dxStatus", NA, nNew)
-  dat <- append_attr(dat, "transmissions", 0, nNew)
 
   return(dat)
 }
