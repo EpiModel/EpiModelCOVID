@@ -74,21 +74,21 @@ deaths_covid_corporate <- function(dat, at) {
 
   idsElig <- which(active == 1)
   nElig <- length(idsElig)
-  nDeaths <- nDeathsIC <- 0
+  nDeaths <- nDeathsH <- 0
 
   if (nElig > 0) {
 
     whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86)
     death_rates_of_elig <- mort.rates[whole_ages_of_elig]
 
-    idsElig.inf <- which(status[idsElig] == "ic")
+    idsElig.inf <- which(status[idsElig] == "h")
     death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] *
                                         mort.dis.mult
 
     vecDeaths <- which(rbinom(nElig, 1, death_rates_of_elig) == 1)
     idsDeaths <- idsElig[vecDeaths]
     nDeaths <- length(idsDeaths)
-    nDeathsIC <- length(intersect(idsDeaths, idsElig.inf))
+    nDeathsH <- length(intersect(idsDeaths, idsElig.inf))
 
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
@@ -101,8 +101,8 @@ deaths_covid_corporate <- function(dat, at) {
   }
 
   ## Summary statistics ##
-  dat$epi$d.flow[at] <- nDeaths
-  dat$epi$d.ic.flow[at] <- nDeathsIC
+  dat <- set_epi(dat, "d.flow", at, nDeaths)
+  dat <- set_epi(dat, "d.h.flow", at, nDeathsH)
 
   return(dat)
 }
