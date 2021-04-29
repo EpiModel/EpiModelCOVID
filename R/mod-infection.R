@@ -307,6 +307,7 @@ infect_covid_corporate <- function(dat, at) {
                                           vax2.rr.infect
 
         # Asymptomatic infection
+        del$stat <- status[del$inf]
         del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *
                                           inf.prob.a.rr
 
