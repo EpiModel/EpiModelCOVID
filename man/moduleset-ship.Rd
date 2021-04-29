@@ -13,8 +13,6 @@
 \alias{prevalence_covid_ship}
 \alias{progress_covid_ship}
 \alias{resim_nets_covid_ship}
-\alias{edges_correct_covid}
-\alias{calc_nwstats_covid}
 \title{EpiModel Module Set for COVID Cruise Ship Model}
 \usage{
 aging_covid_ship(dat, at)
@@ -34,10 +32,6 @@ prevalence_covid_ship(dat, at)
 progress_covid_ship(dat, at)
 
 resim_nets_covid_ship(dat, at)
-
-edges_correct_covid(dat, at)
-
-calc_nwstats_covid(dat, at)
 }
 \arguments{
 \item{dat}{Master list object of network models.}

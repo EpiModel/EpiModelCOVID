@@ -49,7 +49,7 @@ prevalence_covid_ship <- function(dat, at) {
 
 #' @rdname moduleset-corporate
 #' @export
-prevalence_covid_corp <- function(dat, at) {
+prevalence_covid_corporate <- function(dat, at) {
 
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
