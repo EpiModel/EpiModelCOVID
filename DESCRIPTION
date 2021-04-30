@@ -13,7 +13,8 @@ Depends:
     EpiModel (>= 2.0.4)
 Imports:
     ergm (>= 3.9.4),
-    network (>= 1.16.0)
+    network (>= 1.16.0),
+    tergmLite 
 Suggests: 
     testthat
 LazyData: true
