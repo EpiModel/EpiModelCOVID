@@ -21,16 +21,6 @@ vax_covid(dat, at)
 \item{dat}{Master list object of network models.}
 
 \item{at}{Current time step.}
-
-\item{x}{An \code{EpiModel} object of class `netest`.}
-
-\item{param}{An \code{EpiModel} object of class `param.net`.}
-
-\item{init}{An \code{EpiModel} object of class `init.net`.}
-
-\item{control}{An \code{EpiModel} object of class `control.net`.}
-
-\item{s}{Simulation number, used for restarting dependent simulations.}
 }
 \description{
 This set of functions is associated with all EpiModel studies of

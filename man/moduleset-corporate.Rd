@@ -4,6 +4,7 @@
 \name{moduleset-corporate}
 \alias{moduleset-corporate}
 \alias{deaths_covid_corporate}
+\alias{arrival_covid_corporate}
 \alias{infect_covid_corporate}
 \alias{init_covid_corporate}
 \alias{prevalence_covid_corporate}
@@ -11,6 +12,8 @@
 \title{EpiModel Module Set for Corporate Office Model}
 \usage{
 deaths_covid_corporate(dat, at)
+
+arrival_covid_corporate(dat, at)
 
 infect_covid_corporate(dat, at)
 

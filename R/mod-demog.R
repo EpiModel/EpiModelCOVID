@@ -155,7 +155,7 @@ offload_covid_ship <- function(dat, at) {
   return(dat)
 }
 
-#' @keywords moduleset-corporate
+#' @rdname moduleset-corporate
 #' @export
 arrival_covid_corporate <- function(dat, at) {
 
