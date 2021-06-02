@@ -9,9 +9,9 @@ Description: Provides extension functionality for the EpiModel package to simula
   the transmission SARS-CoV-2 infection and the resulting COVID-19 disease. 
 License: GPL-3
 Depends:
-    R (>= 3.6.0),
-    EpiModel (== 1.8.0),
-    tergmLite (== 2.1.7)
+    R (>= 4.0.0),
+    EpiModel (>= 2.0.4),
+    tergmLite (>= 2.2.1)
 Imports:
     ergm (>= 3.9.4),
     network (>= 1.16.0)
