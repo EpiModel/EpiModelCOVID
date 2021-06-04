@@ -16,7 +16,8 @@ Imports:
     network (>= 1.16.0),
     tergmLite 
 Suggests: 
-    testthat
+    testthat (>= 3.0.0)
 LazyData: true
 RoxygenNote: 7.1.1
 Encoding: UTF-8
+Config/testthat/edition: 3
