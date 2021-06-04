@@ -102,7 +102,7 @@ est <- list(est1, est2, est3, est1, est2, est3)
 
 # Model Testing -----------------------------------------------------------
 
-test_that("base model parameterization", {
+test_that("base ship model parameterization", {
   param <- param.net(inf.prob.pp = 0.10455227,
                      inf.prob.pp.inter.rr = 0.6,
                      inf.prob.pp.inter.time = Inf,
