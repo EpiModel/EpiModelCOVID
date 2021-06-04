@@ -1,16 +1,22 @@
 
-#' @rdname moduleset-ship
+#' @rdname moduleset-common
 #' @export
-dx_covid_ship <- function(dat, at) {
+dx_covid <- function(dat, at) {
 
-  active <- dat$attr$active
-  status <- dat$attr$status
-  dxStatus <- dat$attr$dxStatus
+  active <- get_attr(dat, "active")
+  status <- get_attr(dat, "status")
+  dxStatus <- get_attr(dat, "dxStatus")
 
-  dx.rate.sympt <- dat$param$dx.rate.sympt[at]
-  dx.rate.other <- dat$param$dx.rate.other[at]
-  allow.rescreen <- dat$param$allow.rescreen
-  pcr.sens <- dat$param$pcr.sens
+  dx.rate.sympt <- get_param(dat, "dx.rate.sympt")
+  if (length(dx.rate.sympt) > 1) {
+    dx.rate.sympt <- dx.rate.sympt[at]
+  }
+  dx.rate.other <- get_param(dat, "dx.rate.other")
+  if (length(dx.rate.other) > 1) {
+    dx.rate.other <- dx.rate.other[at]
+  }
+  allow.rescreen <- get_param(dat, "allow.rescreen")
+  pcr.sens <- get_param(dat, "pcr.sens")
 
   idsDx.sympt <- idsDx.other <- NULL
   idsDx.sympt.pos <- idsDx.other.pos.true <- NULL
@@ -18,9 +24,11 @@ dx_covid_ship <- function(dat, at) {
 
   idsElig.sympt <- which(active == 1 & dxStatus %in% 0:1 & status == "ic")
   if (allow.rescreen == TRUE) {
-    idsElig.other <- which(active == 1 & dxStatus %in% 0:1 & status %in% c("s", "e", "a", "ip", "r"))
+    idsElig.other <- which(active == 1 & dxStatus %in% 0:1 &
+                             status %in% c("s", "e", "a", "ip", "r"))
   } else {
-    idsElig.other <- which(active == 1 & dxStatus == 0 & status %in% c("s", "e", "a", "ip", "r"))
+    idsElig.other <- which(active == 1 & dxStatus == 0 &
+                             status %in% c("s", "e", "a", "ip", "r"))
   }
 
   nElig.sympt <- length(idsElig.sympt)
@@ -44,7 +52,8 @@ dx_covid_ship <- function(dat, at) {
     nDx.other <- length(idsDx.other)
     if (nDx.other > 0) {
       idsDx.other.neg <- intersect(idsDx.other, which(status == "s"))
-      idsDx.other.pos.all <- intersect(idsDx.other, which(status %in% c("e", "a", "ip", "r")))
+      idsDx.other.pos.all <- intersect(idsDx.other,
+                                       which(status %in% c("e", "a", "ip", "r")))
       vecDx.other.pos <- rbinom(length(idsDx.other.pos.all), 1, pcr.sens)
       idsDx.other.pos.true <- idsDx.other.pos.all[which(vecDx.other.pos == 1)]
       idsDx.other.pos.false <- idsDx.other.pos.all[which(vecDx.other.pos == 0)]
@@ -55,13 +64,15 @@ dx_covid_ship <- function(dat, at) {
   }
 
   ## Replace attr
-  dat$attr$dxStatus <- dxStatus
+  dat <- set_attr(dat, "dxStatus", dxStatus)
 
   ## Summary statistics ##
-  dat$epi$nDx[at] <- length(idsDx.sympt) + length(idsDx.other)
-  dat$epi$nDx.pos[at] <- length(idsDx.sympt.pos) + length(idsDx.other.pos.true)
-  dat$epi$nDx.pos.sympt[at] <- length(idsDx.sympt.pos)
-  dat$epi$nDx.pos.fn[at] <- length(idsDx.sympt.neg) + length(idsDx.other.pos.false)
+  dat <- set_epi(dat, "nDx", at, length(idsDx.sympt) + length(idsDx.other))
+  dat <- set_epi(dat, "nDx.pos", at, length(idsDx.sympt.pos) +
+                   length(idsDx.other.pos.true))
+  dat <- set_epi(dat, "nDx.pos.sympt", at, length(idsDx.sympt.pos))
+  dat <- set_epi(dat, "nDx.pos.fn", at, length(idsDx.sympt.neg) +
+                   length(idsDx.other.pos.false))
 
   return(dat)
 }
