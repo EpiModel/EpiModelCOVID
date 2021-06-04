@@ -108,12 +108,7 @@ test_that("base corporate model parameterization", {
                      arrival.age = 0,
                      mort.rates = mr_vec,
                      mort.dis.mult = 180)
-
-  # Initial conditions
   init <- init.net(e.num = 100)
-
-  # Control settings
-  pkgload::load_all("~/git/EpiModelCOVID")
   control <- control.net(nsteps = 100,
                          nsims = 1,
                          ncores = 1,
@@ -139,7 +134,8 @@ test_that("base corporate model parameterization", {
                                           "prevalence.FUN"),
                          resimulate.networks = TRUE,
                          skip.check = TRUE,
-                         tergmLite = TRUE)
+                         tergmLite = TRUE,
+                         verbose = FALSE)
 
   sim <- netsim(est, param, init, control)
 })

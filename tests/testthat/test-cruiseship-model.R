@@ -168,7 +168,8 @@ test_that("base ship model parameterization", {
                                           "prevalence.FUN"),
                          resimulate.network = TRUE,
                          skip.check = TRUE,
-                         tergmLite = TRUE)
+                         tergmLite = TRUE,
+                         verbose = FALSE)
 
   sim <- netsim(est, param, init, control)
 })
