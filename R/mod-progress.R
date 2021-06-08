@@ -6,32 +6,44 @@ progress_covid <- function(dat, at) {
   ## Attributes
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
-  statusTime <- get_attr(dat, "statusTime")
+  statusTime <- get_attr(dat, "statusTime") # time step of transitions
   clinical <- get_attr(dat, "clinical")
   hospit <- get_attr(dat, "hospit")
   age <- get_attr(dat, "age")
-  vax <- get_attr(dat, "vax")
+  # vax <- get_attr(dat, "vax")
 
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
-  vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
+    # vector of probabilities corresponding to age - asymptomatic disease
+      # decreases over age
+  # vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
   prop.hospit <- get_param(dat, "prop.hospit")
   ea.rate <- get_param(dat, "ea.rate")
   ar.rate <- get_param(dat, "ar.rate")
+  at.rate <- get_param(dat, "at.rate")
   eip.rate <- get_param(dat, "eip.rate")
   ipic.rate <- get_param(dat, "ipic.rate")
   ich.rate <- get_param(dat, "ich.rate")
   icr.rate <- get_param(dat, "icr.rate")
+  icicu.rate <- get_param(dat, "icicu.rate")
+  ict.rate <- get_param(dat, "ict.rate")
   hr.rate <- get_param(dat, "hr.rate")
+  hicu.rate <- get_param(dat, "hicu.rate")
+  icur.rate <- get_param(dat, "icur.rate")
+  
+  # do I need to include rates into the death compartment here?
+  # there is no rate from S -> E compartment? 
+  
 
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
-  num.newInf <- length(ids.newInf)
+  # why is statusTime here allowed to be = to at? 
+  num.newInf <- length(ids.newInf) # counting new infections
   if (num.newInf > 0) {
     age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
-    prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
-                                           vax.rr.clinical
+    # prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
+    #                                        vax.rr.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clinical)
     clinical[ids.newInf] <- vec.new.clinical
