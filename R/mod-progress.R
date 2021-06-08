@@ -33,7 +33,7 @@ progress_covid <- function(dat, at) {
     prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
                                            vax.rr.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
-    vec.new.clinical <- rbinom(num.newInf, 1, prop.clinical)
+    vec.new.clinical <- rbinom(num.newInf, 1, prop.clin.vec)
     clinical[ids.newInf] <- vec.new.clinical
   }
   # if (any(status == "e" & is.na(clinical))) browser()
