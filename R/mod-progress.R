@@ -103,7 +103,7 @@ progress_covid <- function(dat, at) {
     age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
     if (any(is.na(prop.hosp.vec))) stop("error in prop.clin.vec")
-    vec.new.hospit <- rbinom(num.newIc, 1, prop.hospit)
+    vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
     hospit[ids.newIc] <- vec.new.hospit
   }
 
