@@ -1,6 +1,8 @@
 
 # Model Setup -------------------------------------------------------------
 
+library("EpiModelCOVID")
+
 mortality_rate <- c(588.45, 24.8, 11.7, 14.55, 47.85, 88.2, 105.65, 127.2,
                     154.3, 206.5, 309.3, 495.1, 736.85, 1051.15, 1483.45,
                     2294.15, 3642.95, 6139.4, 13938.3)
@@ -138,5 +140,13 @@ test_that("base corporate model parameterization", {
                          verbose = FALSE)
 
   sim <- netsim(est, param, init, control)
+
+  expect_s3_class(sim, "netsim")
+
+  df <- as.data.frame(sim)
+  expect_equal(nrow(df), 100)
+  expect_gt(sum(df$se.flow, na.rm = TRUE), 0)
+  expect_equal(sum(df$v1.num + df$v2.num, na.rm = TRUE), 0)
+
 })
 
