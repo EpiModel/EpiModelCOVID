@@ -301,7 +301,7 @@ infect_covid_corporate <- function(dat, at) {
 
         # Vaccination
         del$vaxSus <- vax[del$sus]
-        del$transProb[del$vaxSus == 1] <- del$transProb[del$vaxSus == 1] *
+        del$transProb[del$vaxSus == 3] <- del$transProb[del$vaxSus == 3] *
                                           vax1.rr.infect
         del$transProb[del$vaxSus == 2] <- del$transProb[del$vaxSus == 2] *
                                           vax2.rr.infect

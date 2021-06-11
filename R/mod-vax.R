@@ -28,8 +28,15 @@ vax_covid <- function(dat, at) {
     }
   }
 
+  #Partial Immunity after first shot
+  idsvaximmunePartial <- which(active == 1 & vax == 1 & at - vax1Time == 14)
+  nvaximmunePartial <- length(idsvaximmunePartial)
+  if (nvaximmunePartial > 0){
+    vax[idsvaximmunePartial] <- 3
+  }
+
   ## Full vax
-  idsvaxFull <- which(active == 1 & vax == 1 & (at - vax1Time >= vax2.interval))
+  idsvaxFull <- which(active == 1 & vax == 3 & (at - vax1Time >= vax2.interval))
   nvaxFull <- length(idsvaxFull)
   if (nvaxFull > 0) {
     vax[idsvaxFull] <- 2
