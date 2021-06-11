@@ -15,23 +15,31 @@ resim_nets_covid_ship <- function(dat, at) {
   # Network Resimulation
   for (i in nets) {
     nwparam <- EpiModel::get_nwparam(dat, network = i)
-    isTERGM <- ifelse(nwparam$coef.diss$duration > 1, TRUE, FALSE)
+    isTERGM <- all(nwparam$coef.diss$duration > 1)
     dat <- tergmLite::updateModelTermInputs(dat, network = i)
     if (isTERGM == TRUE) {
-      dat$el[[i]] <- tergmLite::simulate_network(p = dat$p[[i]],
-                                                 el = dat$el[[i]],
-                                                 coef.form = nwparam$coef.form,
-                                                 coef.diss = nwparam$coef.diss$coef.adj,
-                                                 save.changes = FALSE)
+      rv <- tergmLite::simulate_network(state = dat$p[[i]]$state,
+                                        coef = c(nwparam$coef.form,
+                                                 nwparam$coef.diss$coef.adj),
+                                        control = dat$control$mcmc.control[[i]],
+                                        save.changes = TRUE)
+      dat$el[[i]] <- rv$el
     } else {
-      dat$el[[i]] <- tergmLite::simulate_ergm(p = dat$p[[i]],
-                                              el = dat$el[[i]],
-                                              coef = nwparam$coef.form)
-    }
-  }
+      rv <- tergmLite::simulate_ergm(state = dat$p[[i]]$state,
+                                     coef = nwparam$coef.form,
+                                     control = dat$control$mcmc.control[[i]])
 
-  if (dat$control$save.nwstats == TRUE) {
-    dat <- calc_nwstats_covid(dat, at)
+      dat$el[[i]] <- rv$el
+    }
+
+    if (get_control(dat, "save.nwstats") == TRUE) {
+      nwL <- tergmLite::networkLite(dat$el[[i]], dat$attr)
+      dat$stats$nwstats[[i]] <- rbind(dat$stats$nwstats[[i]],
+                                      summary(dat$control$nwstats.formulas[[i]],
+                                              basis = nwL,
+                                              term.options = dat$control$mcmc.control[[i]]$term.options,
+                                              dynamic = isTERGM))
+    }
   }
 
   return(dat)
@@ -48,23 +56,31 @@ resim_nets_covid_corporate <- function(dat, at) {
   # Network Resimulation
   for (i in 1:length(dat$el)) {
     nwparam <- EpiModel::get_nwparam(dat, network = i)
-    isTERGM <- ifelse(nwparam$coef.diss$duration > 1, TRUE, FALSE)
+    isTERGM <- all(nwparam$coef.diss$duration > 1)
     dat <- tergmLite::updateModelTermInputs(dat, network = i)
     if (isTERGM == TRUE) {
-      dat$el[[i]] <- tergmLite::simulate_network(p = dat$p[[i]],
-                                                 el = dat$el[[i]],
-                                                 coef.form = nwparam$coef.form,
-                                                 coef.diss = nwparam$coef.diss$coef.adj,
-                                                 save.changes = FALSE)
+      rv <- tergmLite::simulate_network(state = dat$p[[i]]$state,
+                                        coef = c(nwparam$coef.form,
+                                                 nwparam$coef.diss$coef.adj),
+                                        control = dat$control$mcmc.control[[i]],
+                                        save.changes = TRUE)
+      dat$el[[i]] <- rv$el
     } else {
-      dat$el[[i]] <- tergmLite::simulate_ergm(p = dat$p[[i]],
-                                              el = dat$el[[i]],
-                                              coef = nwparam$coef.form)
-    }
-  }
+      rv <- tergmLite::simulate_ergm(state = dat$p[[i]]$state,
+                                     coef = nwparam$coef.form,
+                                     control = dat$control$mcmc.control[[i]])
 
-  if (dat$control$save.nwstats == TRUE) {
-    dat <- calc_nwstats_covid(dat, at)
+      dat$el[[i]] <- rv$el
+    }
+
+    if (get_control(dat, "save.nwstats") == TRUE) {
+      nwL <- tergmLite::networkLite(dat$el[[i]], dat$attr)
+      dat$stats$nwstats[[i]] <- rbind(dat$stats$nwstats[[i]],
+                                      summary(dat$control$nwstats.formulas[[i]],
+                                              basis = nwL,
+                                              term.options = dat$control$mcmc.control[[i]]$term.options,
+                                              dynamic = isTERGM))
+    }
   }
 
   return(dat)
@@ -86,23 +102,3 @@ edges_correct_covid <- function(dat, at) {
   return(dat)
 }
 
-
-calc_nwstats_covid <- function(dat, at) {
-
-  for (nw in 1:length(dat$el)) {
-    n <- attr(dat$el[[nw]], "n")
-    edges <- nrow(dat$el[[nw]])
-    meandeg <- round(edges * (2/n), 3)
-    concurrent <- round(mean(get_degree(dat$el[[nw]]) > 1), 3)
-    mat <- matrix(c(edges, meandeg, concurrent), ncol = 3, nrow = 1)
-    if (at == 1) {
-      dat$stats$nwstats[[nw]] <- mat
-      colnames(dat$stats$nwstats[[nw]]) <- c("edges", "mdeg", "conc")
-    }
-    if (at > 1) {
-      dat$stats$nwstats[[nw]] <- rbind(dat$stats$nwstats[[nw]], mat)
-    }
-  }
-
-  return(dat)
-}
