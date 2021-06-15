@@ -6,7 +6,7 @@ progress_covid <- function(dat, at) {
   ## Attributes
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
-  statusTime <- get_attr(dat, "statusTime") # time step of transitions
+  statusTime <- get_attr(dat, "statusTime")
   clinical <- get_attr(dat, "clinical")
   hospit <- get_attr(dat, "hospit")
   age <- get_attr(dat, "age")
@@ -14,32 +14,19 @@ progress_covid <- function(dat, at) {
 
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
-    # vector of probabilities corresponding to age - asymptomatic disease
-      # decreases over age
   vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
   prop.hospit <- get_param(dat, "prop.hospit")
   ea.rate <- get_param(dat, "ea.rate")
   ar.rate <- get_param(dat, "ar.rate")
-  at.rate <- get_param(dat, "at.rate")
   eip.rate <- get_param(dat, "eip.rate")
   ipic.rate <- get_param(dat, "ipic.rate")
   ich.rate <- get_param(dat, "ich.rate")
   icr.rate <- get_param(dat, "icr.rate")
-  icicu.rate <- get_param(dat, "icicu.rate")
-  ict.rate <- get_param(dat, "ict.rate")
   hr.rate <- get_param(dat, "hr.rate")
-  hicu.rate <- get_param(dat, "hicu.rate")
-  icur.rate <- get_param(dat, "icur.rate")
-  
-  # do I need to include rates into the death compartment here?
-  # add to demog script
-
-  
 
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
-  # why is statusTime here allowed to be = to at? 
-  num.newInf <- length(ids.newInf) # counting new infections
+  num.newInf <- length(ids.newInf)
   if (num.newInf > 0) {
     age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
@@ -55,7 +42,6 @@ progress_covid <- function(dat, at) {
   # E to A: latent move to asymptomatic infectious
   num.new.EtoA <- 0
   ids.Es <- which(active == 1 & status == "e" & statusTime < at & clinical == 0)
-  # prevention of immediate transitions across multiple states within single time step
   num.Es <- length(ids.Es)
   if (num.Es > 0) {
     vec.new.A <- which(rbinom(num.Es, 1, ea.rate) == 1)
@@ -63,13 +49,9 @@ progress_covid <- function(dat, at) {
       ids.new.A <- ids.Es[vec.new.A]
       num.new.EtoA <- length(ids.new.A)
       status[ids.new.A] <- "a"
-      statusTime[ids.new.A] <- at # tracks the time step at which transition occurred
+      statusTime[ids.new.A] <- at
     }
   }
-
-  # A to T: asymptomatic infectious move to infected with positive test
-  num.new.AtoT <- 0
-  ids.A 
   
   # A to R: asymptomatic infectious move to recovered
   num.new.AtoR <- 0
@@ -121,7 +103,7 @@ progress_covid <- function(dat, at) {
     age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
     if (any(is.na(prop.hosp.vec))) stop("error in prop.clin.vec")
-    vec.new.hospit <- rbinom(num.newIc, 1, prop.hospit)
+    vec.new.hospit <- rbinom(num.newIc, 1, prop.hospit.vec)
     hospit[ids.newIc] <- vec.new.hospit
   }
 
@@ -199,61 +181,42 @@ progress_covid <- function(dat, at) {
 }
 
 
-progress_covid_contacttrace <- function(dat, at) {
+#' @rdname moduleset-ship
+#' @export
+progress_covid_ship <- function(dat, at) {
   
   ## Attributes
-  active <- get_attr(dat, "active")
-  status <- get_attr(dat, "status")
-  statusTime <- get_attr(dat, "statusTime") # time step of transitions
-  clinical <- get_attr(dat, "clinical")
-  hospit <- get_attr(dat, "hospit")
-  age <- get_attr(dat, "age")
-  vax <- get_attr(dat, "vax")
+  active <- dat$attr$active
+  status <- dat$attr$status
+  statusTime <- dat$attr$statusTime
+  infTime <- dat$attr$infTime
+  clinical <- dat$attr$clinical
+  age <- dat$attr$age
   
   ## Parameters
-  prop.clinical <- get_param(dat, "prop.clinical")
-  # vector of probabilities corresponding to age - asymptomatic disease
-  # decreases over age
-  # vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
-  prop.hospit <- get_param(dat, "prop.hospit")
-  ea.rate <- get_param(dat, "ea.rate")
-  ar.rate <- get_param(dat, "ar.rate")
-  at.rate <- get_param(dat, "at.rate")
-  eip.rate <- get_param(dat, "eip.rate")
-  ipic.rate <- get_param(dat, "ipic.rate")
-  ich.rate <- get_param(dat, "ich.rate")
-  icr.rate <- get_param(dat, "icr.rate")
-  icicu.rate <- get_param(dat, "icicu.rate")
-  ict.rate <- get_param(dat, "ict.rate")
-  hr.rate <- get_param(dat, "hr.rate")
-  hicu.rate <- get_param(dat, "hicu.rate")
-  icur.rate <- get_param(dat, "icur.rate")
-  
-  # do I need to include rates into the death compartment here?
-  # there is no rate from S -> E compartment? 
-  
+  prop.clinical <- dat$param$prop.clinical
+  ea.rate <- dat$param$ea.rate
+  ar.rate <- dat$param$ar.rate
+  eip.rate <- dat$param$eip.rate
+  ipic.rate <- dat$param$ipic.rate
+  icr.rate <- dat$param$icr.rate
   
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
-  # why is statusTime here allowed to be = to at? 
-  num.newInf <- length(ids.newInf) # counting new infections
+  num.newInf <- length(ids.newInf)
   if (num.newInf > 0) {
     age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
-    # prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
-    #                                        vax.rr.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clinical)
-    # how does this know which prop.clinical probability to use in the draw?
     clinical[ids.newInf] <- vec.new.clinical
   }
-  # if (any(status == "e" & is.na(clinical))) browser()
+  if (any(status == "e" & is.na(clinical))) browser()
   
   ## Subclinical Pathway
   # E to A: latent move to asymptomatic infectious
   num.new.EtoA <- 0
   ids.Es <- which(active == 1 & status == "e" & statusTime < at & clinical == 0)
-  # prevention of immediate transitions across multiple states within single time step
   num.Es <- length(ids.Es)
   if (num.Es > 0) {
     vec.new.A <- which(rbinom(num.Es, 1, ea.rate) == 1)
@@ -261,13 +224,9 @@ progress_covid_contacttrace <- function(dat, at) {
       ids.new.A <- ids.Es[vec.new.A]
       num.new.EtoA <- length(ids.new.A)
       status[ids.new.A] <- "a"
-      statusTime[ids.new.A] <- at # tracks the time step at which transition occurred
+      statusTime[ids.new.A] <- at
     }
   }
-  
-  # A to T: asymptomatic infectious move to infected with positive test
-  num.new.AtoT <- 0
-  ids.A 
   
   # A to R: asymptomatic infectious move to recovered
   num.new.AtoR <- 0
@@ -312,6 +271,153 @@ progress_covid_contacttrace <- function(dat, at) {
     }
   }
   
+  # Ic to R: clinical infectious move to recovered (if not mortality first)
+  num.new.IctoR <- 0
+  ids.Ic <- which(active == 1 & status == "ic" & statusTime < at & clinical == 1)
+  num.Ic <- length(ids.Ic)
+  if (num.Ic > 0) {
+    vec.new.R <- which(rbinom(num.Ic, 1, icr.rate) == 1)
+    if (length(vec.new.R) > 0) {
+      ids.new.R <- ids.Ic[vec.new.R]
+      num.new.IctoR <- length(ids.new.R)
+      status[ids.new.R] <- "r"
+      statusTime[ids.new.R] <- at
+    }
+  }
+  
+  ## Save updated status attribute
+  dat$attr$status <- status
+  dat$attr$statusTime <- statusTime
+  dat$attr$clinical <- clinical
+  
+  ## Save summary statistics
+  dat$epi$ea.flow[at] <- num.new.EtoA
+  dat$epi$ar.flow[at] <- num.new.AtoR
+  
+  dat$epi$eip.flow[at] <- num.new.EtoIp
+  dat$epi$ipic.flow[at] <- num.new.IptoIc
+  dat$epi$icr.flow[at] <- num.new.IctoR
+  
+  return(dat)
+}
+
+
+#' @rdname moduleset-common
+#' @export
+progress_covid_contacttrace <- function(dat, at) {
+  
+  ## Attributes
+  active <- get_attr(dat, "active")
+  status <- get_attr(dat, "status")
+  statusTime <- get_attr(dat, "statusTime") # time step of transitions
+  clinical <- get_attr(dat, "clinical")
+  hospit <- get_attr(dat, "hospit")
+  age <- get_attr(dat, "age")
+  vax <- get_attr(dat, "vax")
+  
+  ## Parameters
+  prop.clinical <- get_param(dat, "prop.clinical")
+  # vector of probabilities corresponding to age - asymptomatic disease
+  # decreases over age
+  # vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
+  prop.hospit <- get_param(dat, "prop.hospit")
+  ea.rate <- get_param(dat, "ea.rate")
+  ar.rate <- get_param(dat, "ar.rate")
+  at.rate <- get_param(dat, "at.rate")
+  eip.rate <- get_param(dat, "eip.rate")
+  ipic.rate <- get_param(dat, "ipic.rate")
+  ich.rate <- get_param(dat, "ich.rate")
+  icr.rate <- get_param(dat, "icr.rate")
+  icicu.rate <- get_param(dat, "icicu.rate")
+  ict.rate <- get_param(dat, "ict.rate")
+  hr.rate <- get_param(dat, "hr.rate")
+  hicu.rate <- get_param(dat, "hicu.rate")
+  icur.rate <- get_param(dat, "icur.rate")
+  
+  ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
+  ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
+  # just determining which fork to be taking here, not yet moving forward
+  num.newInf <- length(ids.newInf) # counting new infections
+  if (num.newInf > 0) {
+    age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
+    prop.clin.vec <- prop.clinical[age.group]
+    prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
+                                           vax.rr.clinical
+    if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
+    vec.new.clinical <- rbinom(num.newInf, 1, prop.clinical.vec)
+    clinical[ids.newInf] <- vec.new.clinical
+  }
+  # if (any(status == "e" & is.na(clinical))) browser()
+  
+  ## Subclinical Pathway
+  # E to A: latent move to asymptomatic infectious
+  num.new.EtoA <- 0
+  ids.Es <- which(active == 1 & status == "e" & statusTime < at & clinical == 0)
+  # prevention of immediate transitions across multiple states within single time step
+  num.Es <- length(ids.Es)
+  if (num.Es > 0) {
+    vec.new.A <- which(rbinom(num.Es, 1, ea.rate) == 1)
+    if (length(vec.new.A) > 0) {
+      ids.new.A <- ids.Es[vec.new.A]
+      num.new.EtoA <- length(ids.new.A)
+      status[ids.new.A] <- "a"
+      statusTime[ids.new.A] <- at # tracks the time step at which transition occurred
+    }
+  }
+  
+  # A to T: asymptomatic infectious move to infected with positive test
+  num.new.AtoT <- 0
+  ids.At <- which(active == 1 & status == "a" & 
+                    statusTime < at & clinical == 0 & dxStatus == 2)
+  num.At <- length(ids.At)
+  if (num.At > 0) {
+    vec.new.T <- which(rbinom(num.At, 1, at.rate) == 1)
+    
+  }
+  
+  # A to R: asymptomatic infectious move to recovered
+  num.new.AtoR <- 0
+  ids.Ar <- which(active == 1 & status == "a" & statusTime < at & clinical == 0)
+  num.Ar <- length(ids.Ar)
+  if (num.Ar > 0) {
+    vec.new.R <- which(rbinom(num.Ar, 1, ar.rate) == 1)
+    if (length(vec.new.R) > 0) {
+      ids.new.R <- ids.Ar[vec.new.R]
+      num.new.AtoR <- length(ids.new.R)
+      status[ids.new.R] <- "r"
+      statusTime[ids.new.R] <- at
+    }
+  }
+  
+  ## Clinical Pathway
+  # E to Ip: latent move to preclinical infectious
+  num.new.EtoIp <- 0
+  ids.Ec <- which(active == 1 & status == "e" & statusTime < at & clinical == 1)
+  num.Ec <- length(ids.Ec)
+  if (num.Ec > 0) {
+    vec.new.Ip <- which(rbinom(num.Ec, 1, eip.rate) == 1)
+    if (length(vec.new.Ip) > 0) {
+      ids.new.Ip <- ids.Ec[vec.new.Ip]
+      num.new.EtoIp <- length(ids.new.Ip)
+      status[ids.new.Ip] <- "ip"
+      statusTime[ids.new.Ip] <- at
+    }
+  }
+  
+  # Ip to Ic: preclinical infectious move to clinical infectious
+  num.new.IptoIc <- 0
+  ids.Ip <- which(active == 1 & status == "ip" & statusTime < at & clinical == 1)
+  num.Ip <- length(ids.Ip)
+  if (num.Ip > 0) {
+    vec.new.Ic <- which(rbinom(num.Ip, 1, ipic.rate) == 1)
+    if (length(vec.new.Ic) > 0) {
+      ids.new.Ic <- ids.Ip[vec.new.Ic]
+      num.new.IptoIc <- length(ids.new.Ic)
+      status[ids.new.Ic] <- "ic"
+      statusTime[ids.new.Ic] <- at
+    }
+  }
+  
   ## Determine Hospitalized (Ic to H) or Recovered (Ic to R) pathway
   ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
   num.newIc <- length(ids.newIc)
@@ -319,7 +425,7 @@ progress_covid_contacttrace <- function(dat, at) {
     age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
     if (any(is.na(prop.hosp.vec))) stop("error in prop.clin.vec")
-    vec.new.hospit <- rbinom(num.newIc, 1, prop.hospit)
+    vec.new.hospit <- rbinom(num.newIc, 1, prop.hospit.vec)
     hospit[ids.newIc] <- vec.new.hospit
   }
   
@@ -349,6 +455,17 @@ progress_covid_contacttrace <- function(dat, at) {
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
     }
+  }
+
+  ## Determine ICU (H to ICU) or Recovered (H to R) pathway
+  ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
+  num.newIc <- length(ids.newIc)
+  if (num.newIc > 0) {
+    age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
+    prop.hosp.vec <- prop.hospit[age.group]
+    if (any(is.na(prop.hosp.vec))) stop("error in prop.clin.vec")
+    vec.new.hospit <- rbinom(num.newIc, 1, prop.hospit.vec)
+    hospit[ids.newIc] <- vec.new.hospit
   }
   
   # H to R: hospitalized move to recovered

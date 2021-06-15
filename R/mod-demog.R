@@ -108,6 +108,55 @@ deaths_covid_corporate <- function(dat, at) {
 }
 
 
+#' @rdname moduleset-contacttrace
+#' @export
+deaths_covid_contacttrace <- function(dat, at) {
+  
+  ## Attributes ##
+  active <- get_attr(dat, "active")
+  age <- get_attr(dat, "age")
+  status <- get_attr(dat, "status")
+  
+  ## Parameters ##
+  mort.rates <- get_param(dat, "mort.rates")
+  mort.dis.mult <- get_param(dat, "mort.dis.mult")
+  
+  idsElig <- which(active == 1)
+  nElig <- length(idsElig)
+  nDeaths <- nDeathsH <- 0
+  
+  if (nElig > 0) {
+    
+    whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86)
+    death_rates_of_elig <- mort.rates[whole_ages_of_elig]
+    
+    idsElig.inf <- which(status[idsElig] == "h") # add here other compartments like icu
+    death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] *
+      mort.dis.mult
+    
+    vecDeaths <- which(rbinom(nElig, 1, death_rates_of_elig) == 1)
+    idsDeaths <- idsElig[vecDeaths]
+    nDeaths <- length(idsDeaths)
+    nDeathsH <- length(intersect(idsDeaths, idsElig.inf))
+    
+    if (nDeaths > 0) {
+      dat$attr$active[idsDeaths] <- 0
+      inactive <- which(dat$attr$active == 0)
+      dat$attr <- deleteAttr(dat$attr, inactive)
+      for (i in 1:length(dat$el)) {
+        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
+      }
+    }
+  }
+  
+  ## Summary statistics ##
+  dat <- set_epi(dat, "d.flow", at, nDeaths)
+  dat <- set_epi(dat, "d.h.flow", at, nDeathsH)
+  
+  return(dat)
+}
+
+
 #' @rdname moduleset-ship
 #' @export
 offload_covid_ship <- function(dat, at) {
