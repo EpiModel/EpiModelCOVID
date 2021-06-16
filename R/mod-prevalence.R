@@ -78,7 +78,7 @@ prevalence_covid_corporate <- function(dat, at) {
   dat <- set_epi(dat, "r.num", at, sum(active == 1 & status == "r"))
   dat <- set_epi(dat, "h.num", at, sum(active == 1 & status == "h"))
   dat <- set_epi(dat, "v1.num", at, sum(active == 1 & status == "s" & vax == 1))
-  dat <- set_epi(dat, "v2.num", at, sum(active == 1 & status == "s" & vax == 2))
+  dat <- set_epi(dat, "v2.num", at, sum(active == 1 & status == "s" & vax == 3))
 
   return(dat)
 }
