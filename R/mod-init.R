@@ -184,6 +184,7 @@ init_status_covid_corporate <- function(dat) {
   dxStatus <- rep(0, num)
   vax <- rep(0, num)
   vax1Time <- rep(NA, num)
+  vax2Time <- rep(NA, num)
 
   dat <- set_attr(dat, "statusTime", statusTime)
   dat <- set_attr(dat, "infTime", infTime)
@@ -192,6 +193,7 @@ init_status_covid_corporate <- function(dat) {
   dat <- set_attr(dat, "dxStatus", dxStatus)
   dat <- set_attr(dat, "vax", vax)
   dat <- set_attr(dat, "vax1Time", vax1Time)
+  dat <- set_attr(dat, "vax2Time", vax2Time)
 
   return(dat)
 }
