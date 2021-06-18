@@ -29,7 +29,7 @@ vax_covid <- function(dat, at) {
   }
 
   # Partial Immunity after first shot
-  idsvaximmunePartial <- which(active == 1 & vax == 1 & at - vax1Time == vax1.immune)
+  idsvaximmunePartial <- which(active == 1 & vax == 1 & at - vax1Time >= vax1.immune)
   nvaximmunePartial <- length(idsvaximmunePartial)
   if (nvaximmunePartial > 0){
     vax[idsvaximmunePartial] <- 2
@@ -49,6 +49,7 @@ vax_covid <- function(dat, at) {
   ## Summary statistics ##
   dat <- set_epi(dat, "nVax1", at, nVax)
   dat <- set_epi(dat, "nVax2", at, nvaxFull)
+  dat <- set_epi(dat, "nVaxImmunePart", at, nvaximmunePartial)
 
   return(dat)
 }
