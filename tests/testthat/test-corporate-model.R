@@ -101,10 +101,12 @@ test_that("base corporate model parameterization", {
 
                      vax.start = Inf,
                      vax1.rate = 0.01,
-                     vax2.interval = 21 + 14,
+                     vax2.interval = 21,
                      vax1.rr.infect = 0.75,
                      vax2.rr.infect = 0.25,
                      vax.rr.clinical = 0.05,
+                     vax1.immune = 7,
+                     vax2.immune = 14,
 
                      a.rate = mean(mr_vec),
                      arrival.age = 0,
