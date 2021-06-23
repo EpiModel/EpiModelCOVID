@@ -18,7 +18,8 @@ init_covid_ship <- function(x, param, init, control, s) {
   # Initial network simulations
   dat$nw <- list()
   for (i in 1:length(x)) {
-    dat$nw[[i]] <- simulate(x[[i]]$fit, basis = x[[i]]$fit$newnetwork)
+    dat$nw[[i]] <- simulate(x[[i]]$fit, basis = x[[i]]$fit$newnetwork,
+                            dynamic = FALSE)
   }
   nw <- dat$nw
 
@@ -51,8 +52,20 @@ init_covid_ship <- function(x, param, init, control, s) {
   dat <- prevalence_covid_ship(dat, at = 1)
 
   # Network stats
-  if (dat$control$save.nwstats == TRUE) {
-    dat <- calc_nwstats_covid(dat, at = 1)
+  if (get_control(dat, "save.nwstats") == TRUE) {
+    for (i in 1:length(x)) {
+      nwL <- networkLite(dat$el[[i]], dat$attr)
+      nwstats <- summary(dat$control$nwstats.formulas[[i]],
+                         basis = nwL,
+                         term.options = dat$control$mcmc.control[[i]]$term.options,
+                         dynamic = i < 3)
+
+      dat$stats$nwstats[[i]] <- matrix(nwstats, nrow = 1,
+                                       ncol = length(nwstats),
+                                       dimnames = list(NULL, names(nwstats)))
+
+      dat$stats$nwstats[[i]] <- as.data.frame(dat$stats$nwstats[[i]])
+    }
   }
 
   return(dat)
@@ -120,7 +133,8 @@ init_covid_corporate <- function(x, param, init, control, s) {
   # Initial network simulations
   dat$nw <- list()
   for (i in 1:length(x)) {
-    dat$nw[[i]] <- simulate(x[[i]]$fit, basis = x[[i]]$fit$newnetwork)
+    dat$nw[[i]] <- simulate(x[[i]]$fit, basis = x[[i]]$fit$newnetwork,
+                            dynamic = FALSE)
   }
   nw <- dat$nw
 
@@ -151,8 +165,20 @@ init_covid_corporate <- function(x, param, init, control, s) {
   dat <- prevalence_covid_corporate(dat, at = 1)
 
   # Network stats
-  if (dat$control$save.nwstats == TRUE) {
-    dat <- calc_nwstats_covid(dat, at = 1)
+  if (get_control(dat, "save.nwstats") == TRUE) {
+    for (i in 1:length(x)) {
+      nwL <- networkLite(dat$el[[i]], dat$attr)
+      nwstats <- summary(dat$control$nwstats.formulas[[i]],
+                         basis = nwL,
+                         term.options = dat$control$mcmc.control[[i]]$term.options,
+                         dynamic = i < 3)
+
+      dat$stats$nwstats[[i]] <- matrix(nwstats, nrow = 1,
+                                       ncol = length(nwstats),
+                                       dimnames = list(NULL, names(nwstats)))
+
+      dat$stats$nwstats[[i]] <- as.data.frame(dat$stats$nwstats[[i]])
+    }
   }
 
   return(dat)
