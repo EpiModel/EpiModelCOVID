@@ -30,7 +30,7 @@ progress_covid <- function(dat, at) {
   if (num.newInf > 0) {
     age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
-    prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
+    prop.clin.vec[vax[ids.newInf] == 4] <- prop.clin.vec[vax[ids.newInf] == 4] *
                                            vax.rr.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clin.vec)
@@ -105,20 +105,6 @@ progress_covid <- function(dat, at) {
     if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
     hospit[ids.newIc] <- vec.new.hospit
-  }
-
-  # Ic to H: clinical infectious move to hospitalized
-  num.new.IctoH <- 0
-  ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
-  num.Ich <- length(ids.Ich)
-  if (num.Ich > 0) {
-    vec.new.H <- which(rbinom(num.Ich, 1, ich.rate) == 1)
-    if (length(vec.new.H) > 0) {
-      ids.new.H <- ids.Ich[vec.new.H]
-      num.new.IctoH <- length(ids.new.H)
-      status[ids.new.H] <- "h"
-      statusTime[ids.new.H] <- at
-    }
   }
 
   # Ic to H: clinical infectious move to hospitalized
