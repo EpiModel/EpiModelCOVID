@@ -169,12 +169,6 @@ test_that("base ship model parameterization", {
                          resimulate.network = TRUE,
                          skip.check = TRUE,
                          tergmLite = TRUE,
-                         mcmc.control.ergm.1 = control.simulate.formula(),
-                         mcmc.control.ergm.2 = control.simulate.formula(),
-                         mcmc.control.ergm.3 = control.simulate.formula(),
-                         mcmc.control.ergm.4 = control.simulate.formula(),
-                         mcmc.control.ergm.5 = control.simulate.formula(),
-                         mcmc.control.ergm.6 = control.simulate.formula(),
                          verbose = FALSE)
 
   sim <- netsim(est, param, init, control)

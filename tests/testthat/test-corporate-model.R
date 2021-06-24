@@ -139,12 +139,6 @@ test_that("base corporate model parameterization", {
                          resimulate.network = TRUE,
                          skip.check = TRUE,
                          tergmLite = TRUE,
-                         nwstats.formula.1 = "formation",
-                         nwstats.formula.2 = "formation",
-                         nwstats.formula.3 = "formation",
-                         mcmc.control.tergm.1 = control.simulate.formula.tergm(),
-                         mcmc.control.tergm.2 = control.simulate.formula.tergm(),
-                         mcmc.control.ergm.3 = control.simulate.formula(),
                          verbose = FALSE)
 
   sim <- netsim(est, param, init, control)
