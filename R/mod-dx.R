@@ -100,7 +100,7 @@ dx_covid_contacttrace <- function(dat, at) {
   pcr.sens <- get_param(dat, "pcr.sens")
   
   ## Initialize trackers
-  idsDx.sympt <- idsDx.other <- NULL
+  idsDx.sympt <- idsDx.other <- NULL  
   idsDx.sympt.pos <- idsDx.other.pos.true <- NULL
   idsDx.sympt.neg <- idsDx.other.pos.false <- NULL
   
@@ -118,10 +118,13 @@ dx_covid_contacttrace <- function(dat, at) {
   nElig.sympt <- length(idsElig.sympt)
   if (nElig.sympt > 0) {
     vecDx.sympt <- which(rbinom(nElig.sympt, 1, dx.rate.sympt) == 1)
+    # is this just looking at overall testing rates then, who gets tested and who doesn't?
     idsDx.sympt <- idsElig.sympt[vecDx.sympt]
     nDx.sympt <- length(idsDx.sympt)
     if (nDx.sympt > 0) {
       vecDx.sympt.pos <- rbinom(nDx.sympt, 1, pcr.sens)
+      # it looks like here is where out of those that have been tested, 
+      # determine whose test is a true positive or false negative
       idsDx.sympt.pos <- idsDx.sympt[which(vecDx.sympt.pos == 1)]
       idsDx.sympt.neg <- idsDx.sympt[which(vecDx.sympt.pos == 0)]
       dxStatus[idsDx.sympt.pos] <- 2

@@ -242,10 +242,10 @@ init_covid_contacttrace <- function(x, param, init, control, s) {
   dat <- init_tergmLite(dat)
   
   ## Infection Status and Time Modules
-  dat <- init_status_covid_corporate(dat)
+  dat <- init_status_covid_contacttrace(dat)
   
   ## Get initial prevalence
-  dat <- prevalence_covid_corporate(dat, at = 1)
+  dat <- prevalence_covid_contacttrace(dat, at = 1)
   
   # Network stats
   if (dat$control$save.nwstats == TRUE) {
@@ -276,6 +276,7 @@ init_status_covid_contacttrace <- function(dat) {
   infTime <- rep(NA, num)
   clinical <- rep(NA, num)
   hospit <- rep(NA, num)
+  intensive <- rep(NA, num)
   statusTime <- rep(NA, num)
   statusTime[idsInf] <- 1
   dxStatus <- rep(0, num)
@@ -286,6 +287,7 @@ init_status_covid_contacttrace <- function(dat) {
   dat <- set_attr(dat, "infTime", infTime)
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "hospit", hospit)
+  dat <- set_attr(dat, "intensive", intensive)
   dat <- set_attr(dat, "dxStatus", dxStatus)
   dat <- set_attr(dat, "vax", vax)
   dat <- set_attr(dat, "vax1Time", vax1Time)

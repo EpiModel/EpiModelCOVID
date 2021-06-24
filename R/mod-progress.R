@@ -100,25 +100,11 @@ progress_covid <- function(dat, at) {
   ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
   num.newIc <- length(ids.newIc)
   if (num.newIc > 0) {
-    age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
+    age.group <- pmin((round(age[ids.newIc], -1)/10) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
     if (any(is.na(prop.hosp.vec))) stop("error in prop.clin.vec")
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hospit.vec)
     hospit[ids.newIc] <- vec.new.hospit
-  }
-
-  # Ic to H: clinical infectious move to hospitalized
-  num.new.IctoH <- 0
-  ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
-  num.Ich <- length(ids.Ich)
-  if (num.Ich > 0) {
-    vec.new.H <- which(rbinom(num.Ich, 1, ich.rate) == 1)
-    if (length(vec.new.H) > 0) {
-      ids.new.H <- ids.Ich[vec.new.H]
-      num.new.IctoH <- length(ids.new.H)
-      status[ids.new.H] <- "h"
-      statusTime[ids.new.H] <- at
-    }
   }
 
   # Ic to H: clinical infectious move to hospitalized
@@ -319,17 +305,15 @@ progress_covid_contacttrace <- function(dat, at) {
   prop.clinical <- get_param(dat, "prop.clinical")
   # vector of probabilities corresponding to age - asymptomatic disease
   # decreases over age
-  # vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
+  vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
   prop.hospit <- get_param(dat, "prop.hospit")
   ea.rate <- get_param(dat, "ea.rate")
   ar.rate <- get_param(dat, "ar.rate")
-  at.rate <- get_param(dat, "at.rate")
   eip.rate <- get_param(dat, "eip.rate")
   ipic.rate <- get_param(dat, "ipic.rate")
   ich.rate <- get_param(dat, "ich.rate")
   icr.rate <- get_param(dat, "icr.rate")
   icicu.rate <- get_param(dat, "icicu.rate")
-  ict.rate <- get_param(dat, "ict.rate")
   hr.rate <- get_param(dat, "hr.rate")
   hicu.rate <- get_param(dat, "hicu.rate")
   icur.rate <- get_param(dat, "icur.rate")
@@ -365,24 +349,14 @@ progress_covid_contacttrace <- function(dat, at) {
     }
   }
   
-  # A to T: asymptomatic infectious move to infected with positive test
-  num.new.AtoT <- 0
-  ids.At <- which(active == 1 & status == "a" & 
-                    statusTime < at & clinical == 0 & dxStatus == 2)
-  num.At <- length(ids.At)
-  if (num.At > 0) {
-    vec.new.T <- which(rbinom(num.At, 1, at.rate) == 1)
-    
-  }
-  
   # A to R: asymptomatic infectious move to recovered
   num.new.AtoR <- 0
-  ids.Ar <- which(active == 1 & status == "a" & statusTime < at & clinical == 0)
-  num.Ar <- length(ids.Ar)
-  if (num.Ar > 0) {
-    vec.new.R <- which(rbinom(num.Ar, 1, ar.rate) == 1)
+  ids.A <- which(active == 1 & status == "a" & statusTime < at & clinical == 0)
+  num.A <- length(ids.A)
+  if (num.A > 0) {
+    vec.new.R <- which(rbinom(num.A, 1, ar.rate) == 1)
     if (length(vec.new.R) > 0) {
-      ids.new.R <- ids.Ar[vec.new.R]
+      ids.new.R <- ids.A[vec.new.R]
       num.new.AtoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
@@ -418,20 +392,24 @@ progress_covid_contacttrace <- function(dat, at) {
     }
   }
   
-  ## Determine Hospitalized (Ic to H) or Recovered (Ic to R) pathway
-  ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
-  num.newIc <- length(ids.newIc)
-  if (num.newIc > 0) {
-    age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
-    prop.hosp.vec <- prop.hospit[age.group]
-    if (any(is.na(prop.hosp.vec))) stop("error in prop.clin.vec")
-    vec.new.hospit <- rbinom(num.newIc, 1, prop.hospit.vec)
-    hospit[ids.newIc] <- vec.new.hospit
+  ## Determine Hospitalized (Ic to H), Intensive (Ic to ICU),
+  ## or Recovered (Ic to R) pathway
+  ids.newBranch <- which(active == 1 & status == "ic" & statusTime <= at & is.na(branch))
+  # determining here which branch (out of 3) to take here
+  num.newBranch <- length(ids.newBranch)
+  if (num.newBranch > 0) {
+    age.group <- pmin((round(age[ids.newBranch], -1)/10) + 1, 8)
+    prop.branch.matrix <- prop.branch[age.group,]
+    if (any(is.na(prop.branch.matrix))) stop("error in prop.branch.matrix")
+    vec.new.branch <- sample(c("hospit", "intensive", "recover"), num.newBranch, 
+                                replace = TRUE, prob = prop.branch[age.group,])
+    branch[ids.newBranch] <- vec.new.branch
   }
-  
+
   # Ic to H: clinical infectious move to hospitalized
   num.new.IctoH <- 0
-  ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
+  ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & branch == 'hospit')
+  # is this correct how I defining the conditions?
   num.Ich <- length(ids.Ich)
   if (num.Ich > 0) {
     vec.new.H <- which(rbinom(num.Ich, 1, ich.rate) == 1)
@@ -439,43 +417,59 @@ progress_covid_contacttrace <- function(dat, at) {
       ids.new.H <- ids.Ich[vec.new.H]
       num.new.IctoH <- length(ids.new.H)
       status[ids.new.H] <- "h"
+      # do I need to also assign a hospit == 1 for these individuals as an additional
+      # attribute?
       statusTime[ids.new.H] <- at
     }
   }
   
-  # Ic to H: clinical infectious move to hospitalized
-  num.new.IctoH <- 0
-  ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
-  num.Ich <- length(ids.Ich)
-  if (num.Ich > 0) {
-    vec.new.H <- which(rbinom(num.Ich, 1, ich.rate) == 1)
-    if (length(vec.new.H) > 0) {
-      ids.new.H <- ids.Ich[vec.new.H]
-      num.new.IctoH <- length(ids.new.H)
-      status[ids.new.H] <- "h"
-      statusTime[ids.new.H] <- at
+  # Ic to ICU: clinical infectious move to ICU
+  num.new.IctoICU <- 0
+  ids.IcICU <- which(active == 1 & status == "ic" & statusTime < at & branch == 'intensive')
+  num.IcICU <- length(ids.IcICU)
+  if (num.IcICU > 0) {
+    vec.new.ICU <- which(rbinom(num.IcICU, 1, icicu.rate) == 1)
+    if (length(vec.new.ICU) > 0) {
+      ids.new.ICU <- ids.IcICU[vec.new.ICU]
+      num.new.IctoICU <- length(ids.new.ICU)
+      status[ids.new.ICU] <- "icu"
+      statusTime[ids.new.ICU] <- at
     }
   }
 
   ## Determine ICU (H to ICU) or Recovered (H to R) pathway
-  ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
-  num.newIc <- length(ids.newIc)
-  if (num.newIc > 0) {
-    age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
-    prop.hosp.vec <- prop.hospit[age.group]
-    if (any(is.na(prop.hosp.vec))) stop("error in prop.clin.vec")
-    vec.new.hospit <- rbinom(num.newIc, 1, prop.hospit.vec)
-    hospit[ids.newIc] <- vec.new.hospit
+  ids.newH <- which(active == 1 & status == "h" & statusTime <= at & is.na(intensive))
+  num.newH <- length(ids.newH)
+  if (num.newH > 0) {
+    age.group <- pmin((round(age[ids.newH], -1)/10) + 1, 8)
+    prop.intensive.vec <- prop.intensive[age.group]
+    if (any(is.na(prop.intensive.vec))) stop("error in prop.intensive.vec")
+    vec.new.intensive <- rbinom(num.newH, 1, prop.intensive.vec)
+    intensive[ids.newH] <- vec.new.intensive
+  }
+  
+  # H to ICU: hospitalized move to ICU
+  num.new.HtoICU <- 0
+  ids.Hi <- which(active == 1 & status == "h" & statusTime < at & intensive == 1)
+  num.Hi <- length(ids.Hi)
+  if (num.Hi > 0) {
+    vec.new.ICU <- which(rbinom(num.Hi, 1, hicu.rate) == 1)
+    if (length(vec.new.ICU) > 0) {
+      ids.new.ICU <- ids.Hi[vec.new.ICU]
+      num.new.HtoICU <- length(ids.new.ICU)
+      status[ids.new.ICU] <- "icu"
+      statusTime[ids.new.ICU] <- at
+    }
   }
   
   # H to R: hospitalized move to recovered
   num.new.HtoR <- 0
-  ids.H <- which(active == 1 & status == "h" & statusTime < at & hospit == 1)
-  num.H <- length(ids.H)
-  if (num.H > 0) {
+  ids.Hr <- which(active == 1 & status == "h" & statusTime < at & intensive == 0)
+  num.Hr <- length(ids.Hr)
+  if (num.Hr > 0) {
     vec.new.R <- which(rbinom(num.H, 1, hr.rate) == 1)
     if (length(vec.new.R) > 0) {
-      ids.new.R <- ids.H[vec.new.R]
+      ids.new.R <- ids.Hr[vec.new.R]
       num.new.HtoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
@@ -484,7 +478,7 @@ progress_covid_contacttrace <- function(dat, at) {
   
   # Ic to R: clinical infectious move to recovered
   num.new.IctoR <- 0
-  ids.Icr <- which(active == 1 & status == "ic" & statusTime < at & hospit == 0)
+  ids.Icr <- which(active == 1 & status == "ic" & statusTime < at & branch == 'recover')
   num.Icr <- length(ids.Icr)
   if (num.Icr > 0) {
     vec.new.R <- which(rbinom(num.Icr, 1, icr.rate) == 1)
@@ -496,11 +490,26 @@ progress_covid_contacttrace <- function(dat, at) {
     }
   }
   
+  # ICU to R: ICU move to recovered
+  num.new.ICUtoR <- 0
+  ids.ICUr <- which(active == 1 & status == "icu" & statusTime < at & intensive == 1)
+  num.ICUr <- length(ids.ICUr)
+  if (num.ICUr > 0) {
+    vec.new.R <- which(rbinom(num.ICUr, 1, icur.rate) == 1)
+    if (length(vec.new.R) > 0) {
+      ids.new.R <- ids.ICUr[vec.new.R]
+      num.new.ICUtoR <- length(ids.new.R)
+      status[ids.new.R] <- "r"
+      statusTime[ids.new.R] <- at
+    }
+  }
+  
   ## Save updated attributes
   dat <- set_attr(dat, "status", status)
   dat <- set_attr(dat, "statusTime", statusTime)
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "hospit", hospit)
+  dat <- set_attr(dat, "branch", branch)
   
   ## Save summary statistics
   dat <- set_epi(dat, "ea.flow", at, num.new.EtoA)
