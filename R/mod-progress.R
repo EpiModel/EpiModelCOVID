@@ -297,7 +297,8 @@ progress_covid_contacttrace <- function(dat, at) {
   status <- get_attr(dat, "status")
   statusTime <- get_attr(dat, "statusTime") # time step of transitions
   clinical <- get_attr(dat, "clinical")
-  hospit <- get_attr(dat, "hospit")
+  intensive <- get_attr(dat, "intensive")
+  branch <- get_attr(dat, "branch")
   age <- get_attr(dat, "age")
   vax <- get_attr(dat, "vax")
   
@@ -307,6 +308,8 @@ progress_covid_contacttrace <- function(dat, at) {
   # decreases over age
   vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
   prop.hospit <- get_param(dat, "prop.hospit")
+  prop.branch <- get_param(dat, "prop.branch")
+  prop.intensive <- get_param(dat, "prop.intensive")
   ea.rate <- get_param(dat, "ea.rate")
   ar.rate <- get_param(dat, "ar.rate")
   eip.rate <- get_param(dat, "eip.rate")
@@ -409,7 +412,6 @@ progress_covid_contacttrace <- function(dat, at) {
   # Ic to H: clinical infectious move to hospitalized
   num.new.IctoH <- 0
   ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & branch == 'hospit')
-  # is this correct how I defining the conditions?
   num.Ich <- length(ids.Ich)
   if (num.Ich > 0) {
     vec.new.H <- which(rbinom(num.Ich, 1, ich.rate) == 1)
@@ -417,8 +419,6 @@ progress_covid_contacttrace <- function(dat, at) {
       ids.new.H <- ids.Ich[vec.new.H]
       num.new.IctoH <- length(ids.new.H)
       status[ids.new.H] <- "h"
-      # do I need to also assign a hospit == 1 for these individuals as an additional
-      # attribute?
       statusTime[ids.new.H] <- at
     }
   }
@@ -508,7 +508,7 @@ progress_covid_contacttrace <- function(dat, at) {
   dat <- set_attr(dat, "status", status)
   dat <- set_attr(dat, "statusTime", statusTime)
   dat <- set_attr(dat, "clinical", clinical)
-  dat <- set_attr(dat, "hospit", hospit)
+  dat <- set_attr(dat, "intensive", intensive)
   dat <- set_attr(dat, "branch", branch)
   
   ## Save summary statistics
@@ -516,8 +516,12 @@ progress_covid_contacttrace <- function(dat, at) {
   dat <- set_epi(dat, "ar.flow", at, num.new.AtoR)
   dat <- set_epi(dat, "eip.flow", at, num.new.EtoIp)
   dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
+  dat <- set_epi(dat, "ich.flow", at, num.new.IctoH)
+  dat <- set_epi(dat, "icicu.flow", at, num.new.IctoICU)
   dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
+  dat <- set_epi(dat, "hicu.flow", at, num.new.HtoICU)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
+  dat <- set_epi(dat, "icur.flow", at, num.new.ICUtoR)
   
   return(dat)
 }
