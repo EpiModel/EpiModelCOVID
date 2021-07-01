@@ -4,6 +4,7 @@
 vax_covid <- function(dat, at) {
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
+  age <- get_attr(dat, "age")
   vax <- get_attr(dat, "vax")
   vax1Time <- get_attr(dat, "vax1Time")
   vax2Time <- get_attr(dat, "vax2Time")
@@ -20,7 +21,9 @@ vax_covid <- function(dat, at) {
     idsElig.vax1 <- which(active == 1 & status == "s" & vax == 0)
     nElig.vax1 <- length(idsElig.vax1)
     if (nElig.vax1 > 0) {
-      vecVax <- which(rbinom(nElig.vax1, 1, vax1.rate) == 1)
+      age.group <- pmin((round(age[idsElig.vax1], -1)/10) + 1, 8)
+      vax1.rate.vec <- vax1.rate[age.group]
+      vecVax <- which(rbinom(nElig.vax1, 1, vax1.rate.vec) == 1)
       idsVax <- idsElig.vax1[vecVax]
       nVax <- length(idsVax)
       if (nVax > 0) {
