@@ -33,6 +33,16 @@ vax_covid <- function(dat, at) {
     }
   }
 
+  idsVax1.gt65 <- which(active == 1 & vax == 1 & vax1Time == at & age >= 65)
+  nidsVax1.gt65 <- length(idsVax1.gt65)
+
+  idsVax1.15to65 <- which(active == 1 & vax == 1 & vax1Time == at & age < 65 &
+                        age >= 15)
+  nidsVax1.15to65 <- length(idsVax1.15to65)
+
+  idsVax1.lt15 <- which(active == 1 & vax == 1 & vax1Time == at & age < 15)
+  nidsVax1.lt15 <- length(idsVax1.lt15)
+
   # Partial Immunity after first shot
   idsvaximmunePartial <- which(active == 1 & vax == 1 & at - vax1Time >= vax1.immune)
   nvaximmunePartial <- length(idsvaximmunePartial)
@@ -64,6 +74,9 @@ vax_covid <- function(dat, at) {
   dat <- set_epi(dat, "nVax1", at, nVax)
   dat <- set_epi(dat, "nVax2", at, nvaxFull)
   dat <- set_epi(dat, "nVaxImmunePart", at, nvaximmunePartial)
+  dat <- set_epi(dat, "nVax1gt65", at, nidsVax1.gt65)
+  dat <- set_epi(dat, "nVax115to65", at, nidsVax1.15to65)
+  dat <- set_epi(dat, "nVax1lt15", at, nidsVax1.lt15)
 
   return(dat)
 }
