@@ -402,10 +402,11 @@ progress_covid_contacttrace <- function(dat, at) {
   num.newBranch <- length(ids.newBranch)
   if (num.newBranch > 0) {
     age.group <- pmin((round(age[ids.newBranch], -1)/10) + 1, 8)
-    prop.branch.matrix <- prop.branch[age.group,]
-    if (any(is.na(prop.branch.matrix))) stop("error in prop.branch.matrix")
-    vec.new.branch <- sample(c("hospit", "intensive", "recover"), num.newBranch, 
-                                replace = TRUE, prob = prop.branch[age.group,])
+    # prop.branch.matrix <- prop.branch[age.group, , drop = FALSE]
+    vec.new.branch <- sapply(age.group, function(x) {
+      sample(c("hospit", "intensive", "recover"), 1, TRUE, prop.branch[x, ])
+    }
+    )
     branch[ids.newBranch] <- vec.new.branch
   }
 
