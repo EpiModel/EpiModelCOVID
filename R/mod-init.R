@@ -277,6 +277,7 @@ init_status_covid_contacttrace <- function(dat) {
   clinical <- rep(NA, num)
   hospit <- rep(NA, num)
   intensive <- rep(NA, num)
+  branch <- rep(NA, num)
   statusTime <- rep(NA, num)
   statusTime[idsInf] <- 1
   dxStatus <- rep(0, num)
@@ -288,6 +289,7 @@ init_status_covid_contacttrace <- function(dat) {
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "hospit", hospit)
   dat <- set_attr(dat, "intensive", intensive)
+  dat <- set_attr(dat, "branch", branch)
   dat <- set_attr(dat, "dxStatus", dxStatus)
   dat <- set_attr(dat, "vax", vax)
   dat <- set_attr(dat, "vax1Time", vax1Time)

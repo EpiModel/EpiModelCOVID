@@ -288,7 +288,7 @@ progress_covid_ship <- function(dat, at) {
 }
 
 
-#' @rdname moduleset-common
+#' @rdname moduleset-contacttrace
 #' @export
 progress_covid_contacttrace <- function(dat, at) {
   
@@ -306,8 +306,8 @@ progress_covid_contacttrace <- function(dat, at) {
   prop.clinical <- get_param(dat, "prop.clinical")
   # vector of probabilities corresponding to age - asymptomatic disease
   # decreases over age
-  vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
-  prop.hospit <- get_param(dat, "prop.hospit")
+  # vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
+  # prop.hospit <- get_param(dat, "prop.hospit")
   prop.branch <- get_param(dat, "prop.branch")
   prop.intensive <- get_param(dat, "prop.intensive")
   ea.rate <- get_param(dat, "ea.rate")
