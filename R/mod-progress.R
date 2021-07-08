@@ -28,7 +28,7 @@ progress_covid <- function(dat, at) {
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
   num.newInf <- length(ids.newInf)
   if (num.newInf > 0) {
-    age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
+    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
     prop.clin.vec[vax[ids.newInf] == 4] <- prop.clin.vec[vax[ids.newInf] == 4] *
                                            vax.rr.clinical
@@ -100,7 +100,7 @@ progress_covid <- function(dat, at) {
   ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
   num.newIc <- length(ids.newIc)
   if (num.newIc > 0) {
-    age.group <- pmin((round(age[ids.newIc], -1)/10) + 1, 8)
+    age.group <- pmin((floor(age[ids.newIc] / 10)) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
     if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
@@ -191,7 +191,7 @@ progress_covid_ship <- function(dat, at) {
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
   num.newInf <- length(ids.newInf)
   if (num.newInf > 0) {
-    age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
+    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clinical)
