@@ -300,7 +300,7 @@ progress_covid_contacttrace <- function(dat, at) {
   intensive <- get_attr(dat, "intensive")
   branch <- get_attr(dat, "branch")
   age <- get_attr(dat, "age")
-  vax <- get_attr(dat, "vax")
+  # vax <- get_attr(dat, "vax")
   
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
@@ -328,8 +328,8 @@ progress_covid_contacttrace <- function(dat, at) {
   if (num.newInf > 0) {
     age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
-    prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
-                                           vax.rr.clinical
+    # prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
+    #                                        vax.rr.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clinical.vec)
     clinical[ids.newInf] <- vec.new.clinical

@@ -368,7 +368,7 @@ infect_covid_contacttrace <- function(dat, at) {
   status <- get_attr(dat, "status")
   infTime <- get_attr(dat, "infTime")
   statusTime <- get_attr(dat, "statusTime")
-  vax <- get_attr(dat, "vax")
+  # vax <- get_attr(dat, "vax")
   
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
@@ -381,8 +381,8 @@ infect_covid_contacttrace <- function(dat, at) {
   act.rate.dx.inter.time <- get_param(dat, "act.rate.dx.inter.time")
   act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr")
   act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
-  vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
-  vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
+  # vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
+  # vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
   
   nLayers <- length(dat$el)
   nInf <- rep(0, nLayers)
@@ -408,11 +408,11 @@ infect_covid_contacttrace <- function(dat, at) {
         del$transProb <- inf.prob
         
         # Vaccination
-        del$vaxSus <- vax[del$sus]
-        del$transProb[del$vaxSus == 1] <- del$transProb[del$vaxSus == 1] *
-          vax1.rr.infect
-        del$transProb[del$vaxSus == 2] <- del$transProb[del$vaxSus == 2] *
-          vax2.rr.infect
+        # del$vaxSus <- vax[del$sus]
+        # del$transProb[del$vaxSus == 1] <- del$transProb[del$vaxSus == 1] *
+        #   vax1.rr.infect
+        # del$transProb[del$vaxSus == 2] <- del$transProb[del$vaxSus == 2] *
+        #   vax2.rr.infect
         
         # Asymptomatic infection
         del$stat <- status[del$inf]

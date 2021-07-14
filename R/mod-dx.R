@@ -78,7 +78,7 @@ dx_covid <- function(dat, at) {
 }
 
 
-#' @rdname moduleset-common
+#' @rdname moduleset-contacttrace
 #' @export
 dx_covid_contacttrace <- function(dat, at) {
   

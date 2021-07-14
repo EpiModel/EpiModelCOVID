@@ -254,12 +254,70 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
 
   dat <- append_attr(dat, "statusTime", 0, nNew)
   dat <- append_attr(dat, "clinical", NA, nNew)
-  # dat <- append_attr(dat, "hospit", NA, nNew)
-  dat <- append_attr(dat, "branch", NA, nNew)
-  dat <- append_attr(dat, "intensive", NA, nNew)
+  dat <- append_attr(dat, "hospit", NA, nNew)
   dat <- append_attr(dat, "dxStatus", NA, nNew)
   dat <- append_attr(dat, "vax", 0, nNew)
   dat <- append_attr(dat, "vax1Time", NA, nNew)
 
+  return(dat)
+}
+
+
+#' @rdname moduleset-contacttrace
+#' @export
+arrival_covid_contacttrace <- function(dat, at) {
+  
+  # Parameters
+  a.rate   <- get_param(dat, "a.rate")
+  
+  ## Process
+  num <- dat$epi$num[1]
+  nNew <- rpois(1, a.rate * num)
+  
+  ## Update Attr
+  if (nNew > 0) {
+    dat <- setNewAttr_covid_contacttrace(dat, at, nNew)
+  }
+  
+  # Update Networks
+  if (nNew > 0) {
+    for (i in 1:length(dat$el)) {
+      dat$el[[i]] <- tergmLite::add_vertices(dat$el[[i]], nNew)
+    }
+  }
+  
+  ## Output
+  dat <- set_epi(dat, "nNew", at, nNew)
+  
+  return(dat)
+}
+
+
+setNewAttr_covid_contacttrace <- function(dat, at, nNew) {
+  
+  dat <- append_core_attr(dat, at, nNew)
+  
+  newIds <- which(dat$attr$entrTime == at)
+  
+  arrival.age <- get_param(dat, "arrival.age")
+  newAges <- rep(arrival.age, nNew)
+  dat <- append_attr(dat, "age", newAges, nNew)
+  
+  age.breaks <- seq(0, 200, 10)
+  attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
+  dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
+  
+  # Disease status and related
+  dat <- append_attr(dat, "status", "s", nNew)
+  dat <- append_attr(dat, "infTime", NA, nNew)
+  dat <- append_attr(dat, "statusTime", 0, nNew)
+  dat <- append_attr(dat, "clinical", NA, nNew)
+  # dat <- append_attr(dat, "hospit", NA, nNew)
+  dat <- append_attr(dat, "branch", NA, nNew)
+  dat <- append_attr(dat, "intensive", NA, nNew)
+  dat <- append_attr(dat, "dxStatus", NA, nNew)
+  # dat <- append_attr(dat, "vax", 0, nNew)
+  # dat <- append_attr(dat, "vax1Time", NA, nNew)
+  
   return(dat)
 }
