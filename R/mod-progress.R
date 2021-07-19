@@ -28,7 +28,7 @@ progress_covid <- function(dat, at) {
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
   num.newInf <- length(ids.newInf)
   if (num.newInf > 0) {
-    age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
+    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
     prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
                                             vax.rr.clinical
@@ -100,7 +100,7 @@ progress_covid <- function(dat, at) {
   ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
   num.newIc <- length(ids.newIc)
   if (num.newIc > 0) {
-    age.group <- pmin((round(age[ids.newIc], -1)/10) + 1, 8)
+    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
     if (any(is.na(prop.hosp.vec))) stop("error in prop.clin.vec")
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hospit.vec)
@@ -191,7 +191,7 @@ progress_covid_ship <- function(dat, at) {
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
   num.newInf <- length(ids.newInf)
   if (num.newInf > 0) {
-    age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
+    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clinical)
@@ -326,7 +326,7 @@ progress_covid_contacttrace <- function(dat, at) {
   # just determining which fork to be taking here, not yet moving forward
   num.newInf <- length(ids.newInf) # counting new infections
   if (num.newInf > 0) {
-    age.group <- pmin((round(age[ids.newInf], -1)/10) + 1, 8)
+    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
     # prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
     #                                        vax.rr.clinical
@@ -401,7 +401,7 @@ progress_covid_contacttrace <- function(dat, at) {
   # determining here which branch (out of 3) to take here
   num.newBranch <- length(ids.newBranch)
   if (num.newBranch > 0) {
-    age.group <- pmin((round(age[ids.newBranch], -1)/10) + 1, 8)
+    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     # prop.branch.matrix <- prop.branch[age.group, , drop = FALSE]
     vec.new.branch <- sapply(age.group, function(x) {
       sample(c("hospit", "intensive", "recover"), 1, TRUE, prop.branch[x, ])
@@ -442,7 +442,7 @@ progress_covid_contacttrace <- function(dat, at) {
   ids.newH <- which(active == 1 & status == "h" & statusTime <= at & is.na(intensive))
   num.newH <- length(ids.newH)
   if (num.newH > 0) {
-    age.group <- pmin((round(age[ids.newH], -1)/10) + 1, 8)
+    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     prop.intensive.vec <- prop.intensive[age.group]
     if (any(is.na(prop.intensive.vec))) stop("error in prop.intensive.vec")
     vec.new.intensive <- rbinom(num.newH, 1, prop.intensive.vec)
