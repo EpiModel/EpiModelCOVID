@@ -1,6 +1,6 @@
 Package: EpiModelCOVID
 Version: 1.1.1
-Date: 2021-06-04
+Date: 2021-07-20
 Title: Model Extensions to EpiModel for the Network-Based Modeling of COVID-19
 Authors@R: c(person("Samuel M.", "Jenness",
                     role = c("aut", "cre"),
@@ -17,7 +17,6 @@ Imports:
     tergmLite (>= 2.5.0)
 Suggests: 
     testthat (>= 3.0.0)
-LazyData: true
 RoxygenNote: 7.1.1
 Encoding: UTF-8
 Config/testthat/edition: 3
