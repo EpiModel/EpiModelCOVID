@@ -331,7 +331,7 @@ progress_covid_contacttrace <- function(dat, at) {
     # prop.clin.vec[vax[ids.newInf] == 2] <- prop.clin.vec[vax[ids.newInf] == 2] *
     #                                        vax.rr.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
-    vec.new.clinical <- rbinom(num.newInf, 1, prop.clinical.vec)
+    vec.new.clinical <- rbinom(num.newInf, 1, prop.clin.vec)
     clinical[ids.newInf] <- vec.new.clinical
   }
   # if (any(status == "e" & is.na(clinical))) browser()
@@ -468,7 +468,7 @@ progress_covid_contacttrace <- function(dat, at) {
   ids.Hr <- which(active == 1 & status == "h" & statusTime < at & intensive == 0)
   num.Hr <- length(ids.Hr)
   if (num.Hr > 0) {
-    vec.new.R <- which(rbinom(num.H, 1, hr.rate) == 1)
+    vec.new.R <- which(rbinom(num.Hr, 1, hr.rate) == 1)
     if (length(vec.new.R) > 0) {
       ids.new.R <- ids.Hr[vec.new.R]
       num.new.HtoR <- length(ids.new.R)

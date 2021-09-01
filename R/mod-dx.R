@@ -118,7 +118,6 @@ dx_covid_contacttrace <- function(dat, at) {
   nElig.sympt <- length(idsElig.sympt)
   if (nElig.sympt > 0) {
     vecDx.sympt <- which(rbinom(nElig.sympt, 1, dx.rate.sympt) == 1)
-    # is this just looking at overall testing rates then, who gets tested and who doesn't?
     idsDx.sympt <- idsElig.sympt[vecDx.sympt]
     nDx.sympt <- length(idsDx.sympt)
     if (nDx.sympt > 0) {

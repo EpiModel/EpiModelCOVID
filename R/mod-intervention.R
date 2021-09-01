@@ -97,3 +97,5 @@ intervention_covid_contacttrace <- function(dat, at) {
       }
     }
   }
+  
+}
