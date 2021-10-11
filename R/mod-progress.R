@@ -401,7 +401,7 @@ progress_covid_contacttrace <- function(dat, at) {
   # determining here which branch (out of 3) to take here
   num.newBranch <- length(ids.newBranch)
   if (num.newBranch > 0) {
-    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
+    age.group <- pmin((floor(age[ids.newBranch] / 10)) + 1, 8)
     # prop.branch.matrix <- prop.branch[age.group, , drop = FALSE]
     vec.new.branch <- sapply(age.group, function(x) {
       sample(c("hospit", "intensive", "recover"), 1, TRUE, prop.branch[x, ])

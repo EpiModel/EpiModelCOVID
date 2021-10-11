@@ -4,7 +4,7 @@
 infect_covid_ship <- function(dat, at) {
 
   ## Attributes ##
-  active <- dat$attr$active
+  active <- dat$attr$active 
   status <- dat$attr$status
   infTime <- dat$attr$infTime
   statusTime <- dat$attr$statusTime
