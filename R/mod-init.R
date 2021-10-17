@@ -252,6 +252,10 @@ init_covid_contacttrace <- function(x, param, init, control, s) {
     dat <- calc_nwstats_covid(dat, at = 1)
   }
   
+  for (n_network in seq_len(3)) {
+    dat <- update_cumulative_edgelist(dat, at, n_network, truncate.el.cuml)
+  }
+  
   return(dat)
 }
 
