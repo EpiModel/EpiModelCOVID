@@ -253,7 +253,7 @@ init_covid_contacttrace <- function(x, param, init, control, s) {
   }
   
   for (n_network in seq_len(3)) {
-    dat <- update_cumulative_edgelist(dat, network)
+    dat <- update_cumulative_edgelist(dat, n_network)
   }
   
   return(dat)
