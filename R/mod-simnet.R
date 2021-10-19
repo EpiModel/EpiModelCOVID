@@ -139,7 +139,7 @@ resim_nets_covid_contacttrace <- function(dat, at) {
   }
   
   for (n_network in seq_len(3)) {
-    dat <- update_cumulative_edgelist(dat, at, n_network, truncate.el.cuml)
+    dat <- update_cumulative_edgelist(dat, network)
   }
   
   return(dat)
