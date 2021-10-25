@@ -132,14 +132,14 @@ resim_nets_covid_contacttrace <- function(dat, at) {
 
     if (isTERGM == TRUE) {
       dat[["nw"]][[1]] <- simulate(
-        nwL ~ Form(nwparam[["formation"]]) + 
+        nwL ~ Form(nwparam[["formation"]]) +
               Persist(nwparam[["coef.diss"]][["dissolution"]]),
         coef = c(nwparam[["coef.form"]], nwparam[["coef.diss"]][["coef.adj"]]),
         constraints = nwparam[["constraints"]],
         time.start = at - 1, # should be the time stamp on the nwL if we are tracking duration
         time.slices = 1,
         time.offset = 1, # default value
-        control = dat[["control"]][["mcmc.control"]][[i]],
+        # control = dat[["control"]][["set.control.stergm"]],
         output = "final",
         dynamic = TRUE
       )
@@ -149,7 +149,7 @@ resim_nets_covid_contacttrace <- function(dat, at) {
         basis = nwL,
         coef = nwparam[["coef.form"]],
         constraints = nwparam[["constraints"]],
-        control = dat[["control"]][["mcmc.control"]][[i]],
+        # control = dat[["control"]][["set.control.ergm"]],
         dynamic = FALSE,
         nsim = 1,
         output = "network"
