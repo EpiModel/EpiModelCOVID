@@ -12,9 +12,8 @@ Depends:
     R (>= 4.0.0),
     EpiModel (>= 2.0.4)
 Imports:
-    ergm (>= 3.9.4),
-    network (>= 1.16.0),
-    tergmLite 
+    ergm (>= 3.9.4), 
+    network (>= 1.16.0)
 Suggests: 
     testthat
 LazyData: true

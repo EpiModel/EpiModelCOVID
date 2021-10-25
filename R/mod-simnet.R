@@ -123,46 +123,40 @@ resim_nets_covid_contacttrace <- function(dat, at) {
     nwparam <- EpiModel::get_nwparam(dat, network = i)
     isTERGM <- ifelse(nwparam$coef.diss$duration > 1, TRUE, FALSE)
 
-    dat <- tergmLite::updateModelTermInputs(dat)
+    nwL <- networkLite(dat[["el"]][[i]], dat[["attr"]])
 
-    if (isTERGM == TRUE) {
-      rv <- tergmLite::simulate_network(
-        state = dat$p[[i]]$state,
-        coef = c(nwparam$coef.form,
-          nwparam$coef.diss$coef.adj),
-        control = dat$control$mcmc.control[[i]],
-        save.changes = TRUE
-      )
-      dat$el[[i]] <- rv$el
-
-      if (tergmLite.track.duration == TRUE) {
-        dat$p[[i]]$state$nw0 %n% "time" <- rv$state$nw0 %n% "time"
-        dat$p[[i]]$state$nw0 %n% "lasttoggle" <- rv$state$nw0 %n% "lasttoggle"
-      }
-    } else {
-      rv <- tergmLite::simulate_ergm(
-        state = dat$p[[i]]$state,
-        coef = nwparam$coef.form,
-        control = dat$control$mcmc.control[[i]]
-      )
-
-      dat$el[[i]] <- rv$el
+    if (tergmLite.track.duration == TRUE) {
+      nwL %n% "time" <- dat[["nw"]][[i]] %n% "time"
+      nwL %n% "lasttoggle" <- dat[["nw"]][[i]] %n% "lasttoggle"
     }
 
-# OLD EpiModel syntax
-#     dat <- tergmLite::updateModelTermInputs(dat, network = i)
-#     if (isTERGM == TRUE) {
-#       dat$el[[i]] <- tergmLite::simulate_network(p = dat$p[[i]],
-#                                                  el = dat$el[[i]],
-#                                                  coef.form = nwparam$coef.form,
-#                                                  coef.diss = nwparam$coef.diss$coef.adj,
-#                                                  save.changes = FALSE)
-#     } else {
-#       dat$el[[i]] <- tergmLite::simulate_ergm(p = dat$p[[i]],
-#                                               el = dat$el[[i]],
-#                                               coef = nwparam$coef.form)
-#     }
+    if (isTERGM == TRUE) {
+      dat[["nw"]][[1]] <- simulate(
+        nwL ~ Form(nwparam[["formation"]]) + 
+              Persist(nwparam[["coef.diss"]][["dissolution"]]),
+        coef = c(nwparam[["coef.form"]], nwparam[["coef.diss"]][["coef.adj"]]),
+        constraints = nwparam[["constraints"]],
+        time.start = at - 1, # should be the time stamp on the nwL if we are tracking duration
+        time.slices = 1,
+        time.offset = 1, # default value
+        control = dat[["control"]][["mcmc.control"]][[i]],
+        output = "final",
+        dynamic = TRUE
+      )
+    } else {
+      dat[["nw"]][[i]] <- simulate(
+        object = nwparam[["formation"]],
+        basis = nwL,
+        coef = nwparam[["coef.form"]],
+        constraints = nwparam[["constraints"]],
+        control = dat[["control"]][["mcmc.control"]][[i]],
+        dynamic = FALSE,
+        nsim = 1,
+        output = "network"
+      )
+    }
 
+    dat[["el"]][[i]] <- as.edgelist(dat[["nw"]][[i]])
   }
 
   if (dat$control$save.nwstats == TRUE) {

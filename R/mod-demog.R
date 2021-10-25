@@ -223,7 +223,7 @@ arrival_covid_corporate <- function(dat, at) {
   # Update Networks
   if (nNew > 0) {
     for (i in 1:length(dat$el)) {
-      dat$el[[i]] <- tergmLite::add_vertices(dat$el[[i]], nNew)
+      dat$el[[i]] <- add_vertices(dat$el[[i]], nNew)
     }
   }
 
@@ -282,7 +282,7 @@ arrival_covid_contacttrace <- function(dat, at) {
   # Update Networks
   if (nNew > 0) {
     for (i in 1:length(dat$el)) {
-      dat$el[[i]] <- tergmLite::add_vertices(dat$el[[i]], nNew)
+      dat$el[[i]] <- add_vertices(dat$el[[i]], nNew)
     }
   }
   
