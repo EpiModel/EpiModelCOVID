@@ -285,7 +285,7 @@ init_status_covid_contacttrace <- function(dat) {
   # vax1Time <- rep(NA, num)
 
   dat <- set_attr(dat, "statusTime", statusTime)
-  dat <- set_attr(dat, "statusTime.Ic". statusTime.Ic)
+  dat <- set_attr(dat, "statusTime.Ic", statusTime.Ic)
   dat <- set_attr(dat, "infTime", infTime)
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "eligible.case", eligible.case)
