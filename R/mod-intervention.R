@@ -7,12 +7,16 @@ intervention_covid_contacttrace <- function(dat, at) {
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   infTime <- get_attr(dat, "infTime")
+  statusTime.Ic <- get_attr(dat, "statusTime.Ic")
   statusTime <- get_attr(dat, "statusTime")
+  dxTime <- get_attr(dat, "dxTime")
+  dxStatus <- get_attr(dat, "dxStatus")
+  eligible.case <- get_attr(dat, "eligible.case")
   
-  ## Find infected nodes ##
-  idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
-  nActive <- sum(active == 1)
-  nElig <- length(idsInf)
+  ## Identify pool of eligible cases ##
+  idsEligCI <- which(active == 1 & status %in% c("a", "ic", "ip") & 
+                       dxStatus == 2 & is.na(eligible.case))
+  nEligCI <- length(idsEligCI)
   
   ## Common Parameters ##
   inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr")
@@ -21,11 +25,7 @@ intervention_covid_contacttrace <- function(dat, at) {
   act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr")
   act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
   
-  nLayers <- length(dat$el)
-  nInf <- rep(0, nLayers)
-  
-  if (length(idsInf) > 0) {
-    for (layer in seq_len(nLayers)) {
+  if (length(idsEligCI) > 0) {
       
       ## Look up discordant edgelist ##
       del <- discord_edgelist(dat, at, network = layer,
@@ -95,7 +95,6 @@ intervention_covid_contacttrace <- function(dat, at) {
           dat <- set_attr(dat, "statusTime", at, idsNewInf)
         }
       }
-    }
   }
   
 }

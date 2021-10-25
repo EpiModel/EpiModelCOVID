@@ -296,6 +296,7 @@ progress_covid_contacttrace <- function(dat, at) {
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   statusTime <- get_attr(dat, "statusTime") # time step of transitions
+  statusTime.Ic <- get_attr(dat, "statusTime.Ic")
   clinical <- get_attr(dat, "clinical")
   intensive <- get_attr(dat, "intensive")
   branch <- get_attr(dat, "branch")
@@ -392,6 +393,7 @@ progress_covid_contacttrace <- function(dat, at) {
       num.new.IptoIc <- length(ids.new.Ic)
       status[ids.new.Ic] <- "ic"
       statusTime[ids.new.Ic] <- at
+      statusTime.Ic[ids.new.Ic] <- at
     }
   }
   
@@ -508,6 +510,7 @@ progress_covid_contacttrace <- function(dat, at) {
   ## Save updated attributes
   dat <- set_attr(dat, "status", status)
   dat <- set_attr(dat, "statusTime", statusTime)
+  dat <- set_attr(dat, "statusTime.Ic", statusTime.Ic)
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "intensive", intensive)
   dat <- set_attr(dat, "branch", branch)
