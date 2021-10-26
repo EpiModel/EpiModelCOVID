@@ -27,12 +27,21 @@ intervention_covid_contacttrace <- function(dat, at) {
   
   if (length(idsEligCI) > 0) {
       
+      ## Assign eligible case attribute for tracking later on ##
+      eligible.case[idsEligCI] <- 1
+    
       ## Look up discordant edgelist ##
-      del <- discord_edgelist(dat, at, network = layer,
-                              infstat = c("a", "ic", "ip"))
+      del_ct <- get_partners(dat, idsEligCI, max.age = 2,
+                             only.active = TRUE)
       
       ## If any discordant pairs, proceed ##
-      if (!(is.null(del))) {
+      if (!(is.null(del_ct))) {
+        
+        
+        
+        
+        
+        
         
         ## Parameters ##
         inf.prob <- get_param(dat, "inf.prob")[layer]
@@ -44,13 +53,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         
         # Set parameters on discordant edgelist data frame
         del$transProb <- inf.prob
-        
-        # Vaccination
-        # del$vaxSus <- vax[del$sus]
-        # del$transProb[del$vaxSus == 1] <- del$transProb[del$vaxSus == 1] *
-        #   vax1.rr.infect
-        # del$transProb[del$vaxSus == 2] <- del$transProb[del$vaxSus == 2] *
-        #   vax2.rr.infect
+      
         
         # Asymptomatic infection
         del$stat <- status[del$inf]
@@ -88,7 +91,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         idsNewInf <- unique(del$sus)
         nInf[layer] <- length(idsNewInf)
         
-        # Set new attributes for those newly infected
+        # Set new attributes 
         if (nInf[layer] > 0) {
           dat <- set_attr(dat, "status", "e", idsNewInf)
           dat <- set_attr(dat, "infTime", at, idsNewInf)
