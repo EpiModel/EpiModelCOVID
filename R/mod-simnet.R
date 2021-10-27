@@ -114,6 +114,8 @@ calc_nwstats_covid <- function(dat, at) {
 resim_nets_covid_contacttrace <- function(dat, at) {
   # Control
   tergmLite.track.duration <- get_control(dat, "tergmLite.track.duration")
+  set.control.stergm <- get_control(dat, "set.control.stergm")
+  set.control.ergm <- get_control(dat, "set.control.ergm")
 
   ## Edges correction
   dat <- edges_correct_covid(dat, at)
@@ -131,25 +133,26 @@ resim_nets_covid_contacttrace <- function(dat, at) {
     }
 
     if (isTERGM == TRUE) {
-      dat[["nw"]][[1]] <- simulate(
-        nwL ~ Form(nwparam[["formation"]]) +
-              Persist(nwparam[["coef.diss"]][["dissolution"]]),
-        coef = c(nwparam[["coef.form"]], nwparam[["coef.diss"]][["coef.adj"]]),
+      dat[["nw"]][[i]] <- simulate(
+        nwL,
+        formation = nwparam[["formation"]],
+        dissolution = nwparam[["coef.diss"]][["dissolution"]],
+        coef.form = nwparam[["coef.form"]],
+        coef.diss = nwparam[["coef.diss"]][["coef.adj"]],
         constraints = nwparam[["constraints"]],
         time.start = at - 1, # should be the time stamp on the nwL if we are tracking duration
         time.slices = 1,
         time.offset = 1, # default value
-        # control = dat[["control"]][["set.control.stergm"]],
-        output = "final",
-        dynamic = TRUE
+        control = set.control.stergm,
+        output = "final"
       )
     } else {
       dat[["nw"]][[i]] <- simulate(
-        object = nwparam[["formation"]],
         basis = nwL,
+        object = nwparam[["formation"]],
         coef = nwparam[["coef.form"]],
         constraints = nwparam[["constraints"]],
-        # control = dat[["control"]][["set.control.ergm"]],
+        control = set.control.ergm,
         dynamic = FALSE,
         nsim = 1,
         output = "network"
