@@ -5,7 +5,7 @@
 #'    Package: \tab EpiModelCOVID\cr
 #'    Type: \tab Package\cr
 #'    Version: \tab 1.1.1\cr
-#'    Date: \tab 2021-06-04\cr
+#'    Date: \tab 2021-10-28\cr
 #'    License: \tab GPL-3\cr
 #'    LazyLoad: \tab yes\cr
 #' }
