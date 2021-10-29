@@ -142,7 +142,7 @@ deaths_covid_contacttrace <- function(dat, at) {
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
-      dat$attr <- deleteAttr(dat$attr, inactive)
+      # dat$attr <- deleteAttr(dat$attr, inactive)
       for (i in 1:length(dat$el)) {
         dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
       }
@@ -318,6 +318,7 @@ setNewAttr_covid_contacttrace <- function(dat, at, nNew) {
   dat <- append_attr(dat, "intensive", NA, nNew)
   dat <- append_attr(dat, "dxStatus", NA, nNew)
   dat <- append_attr(dat, "dxTime", NA, nNew)
+  dat <- append_attr(dat, "symendTime", NA, nNew)
   # dat <- append_attr(dat, "vax", 0, nNew)
   # dat <- append_attr(dat, "vax1Time", NA, nNew)
 

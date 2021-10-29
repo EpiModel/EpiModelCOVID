@@ -12,6 +12,8 @@ intervention_covid_contacttrace <- function(dat, at) {
   dxTime <- get_attr(dat, "dxTime")
   dxStatus <- get_attr(dat, "dxStatus")
   eligible.case <- get_attr(dat, "eligible.case")
+  iso.end <- get_attr(dat, "iso.end")
+  eligible.cc <- get_attr(dat, "eligible.cc")
   
   ## Identify pool of eligible cases ##
   idsEligCI <- which(active == 1 & status %in% c("a", "ic", "ip") & 
@@ -31,12 +33,12 @@ intervention_covid_contacttrace <- function(dat, at) {
       eligible.case[idsEligCI] <- 1
     
       ## Look up discordant edgelist ##
-      del_ct <- get_partners(dat, idsEligCI, max.age = 2,
-                             only.active = TRUE)
+      del_ct <- get_partners(dat, idsEligCI)
       
       ## If any discordant pairs, proceed ##
       if (!(is.null(del_ct))) {
         
+        del_ct$
         
         
         
@@ -91,12 +93,11 @@ intervention_covid_contacttrace <- function(dat, at) {
         idsNewInf <- unique(del$sus)
         nInf[layer] <- length(idsNewInf)
         
-        # Set new attributes 
-        if (nInf[layer] > 0) {
-          dat <- set_attr(dat, "status", "e", idsNewInf)
-          dat <- set_attr(dat, "infTime", at, idsNewInf)
-          dat <- set_attr(dat, "statusTime", at, idsNewInf)
-        }
+        # Save updated attributes 
+          dat <- set_attr(dat, "eligible.case", eligible.case )
+          dat <- set_attr(dat, "iso.end", iso.end)
+          dat <- set_attr(dat, "eligible.cc", eligible.cc)
+
       }
   }
   
