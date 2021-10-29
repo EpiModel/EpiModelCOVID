@@ -297,6 +297,7 @@ progress_covid_contacttrace <- function(dat, at) {
   status <- get_attr(dat, "status")
   statusTime <- get_attr(dat, "statusTime") # time step of transitions
   statusTime.Ic <- get_attr(dat, "statusTime.Ic")
+  symendTime <- get_attr(dat, "symendTime")
   clinical <- get_attr(dat, "clinical")
   intensive <- get_attr(dat, "intensive")
   branch <- get_attr(dat, "branch")
@@ -423,6 +424,7 @@ progress_covid_contacttrace <- function(dat, at) {
       num.new.IctoH <- length(ids.new.H)
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
+      symendTime[ids.new.H] <- at
     }
   }
   
@@ -444,7 +446,7 @@ progress_covid_contacttrace <- function(dat, at) {
   ids.newH <- which(active == 1 & status == "h" & statusTime <= at & is.na(intensive))
   num.newH <- length(ids.newH)
   if (num.newH > 0) {
-    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
+    age.group <- pmin((floor(age[ids.newH] / 10)) + 1, 8)
     prop.intensive.vec <- prop.intensive[age.group]
     if (any(is.na(prop.intensive.vec))) stop("error in prop.intensive.vec")
     vec.new.intensive <- rbinom(num.newH, 1, prop.intensive.vec)
@@ -476,6 +478,7 @@ progress_covid_contacttrace <- function(dat, at) {
       num.new.HtoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      symendTime[ids.new.R] <- at
     }
   }
   
@@ -490,6 +493,7 @@ progress_covid_contacttrace <- function(dat, at) {
       num.new.IctoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      #symendTime[ids.new.R] <- at
     }
   }
   
@@ -504,6 +508,7 @@ progress_covid_contacttrace <- function(dat, at) {
       num.new.ICUtoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      symendTime[ids.new.R] <- at
     }
   }
   
@@ -511,6 +516,7 @@ progress_covid_contacttrace <- function(dat, at) {
   dat <- set_attr(dat, "status", status)
   dat <- set_attr(dat, "statusTime", statusTime)
   dat <- set_attr(dat, "statusTime.Ic", statusTime.Ic)
+  dat <- set_attr(dat, "symendTime", symendTime)
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "intensive", intensive)
   dat <- set_attr(dat, "branch", branch)
