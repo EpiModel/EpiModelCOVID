@@ -25,6 +25,8 @@ prevalence_covid_ship(dat, at)
 
 progress_covid_ship(dat, at)
 
+progress_covid_ship(dat, at)
+
 resim_nets_covid_ship(dat, at)
 }
 \arguments{
