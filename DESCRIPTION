@@ -10,7 +10,8 @@ Description: Provides extension functionality for the EpiModel package to simula
 License: GPL-3
 Depends:
     R (>= 4.0.0),
-    EpiModel (>= 2.2.0)
+    EpiModel (>= 2.2.0),
+    network
 Imports:
     ergm (>= 4.0),
     network (>= 1.17.0)
