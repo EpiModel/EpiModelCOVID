@@ -13,8 +13,7 @@
 #' @name EpiModelCOVID-package
 #' @aliases EpiModelCOVID
 #'
-#' @import EpiModel ergm
-#' @importFrom network network.size get.vertex.attribute
+#' @import EpiModel ergm network
 #' @importFrom stats rbinom simulate rpois
 #'
 #' @docType package
