@@ -142,7 +142,7 @@ deaths_covid_contacttrace <- function(dat, at) {
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
-      # dat$attr <- deleteAttr(dat$attr, inactive)
+      dat$attr <- deleteAttr(dat$attr, inactive)
       for (i in 1:length(dat$el)) {
         dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
       }

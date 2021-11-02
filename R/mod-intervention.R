@@ -38,24 +38,29 @@ intervention_covid_contacttrace <- function(dat, at) {
       ## If any discordant pairs, proceed ##
       if (!(is.null(del_ct))) {
         
-        del_ct$
-        
-        
-        
-        
-        
-        
-        ## Parameters ##
-        inf.prob <- get_param(dat, "inf.prob")[layer]
-        act.rate <- get_param(dat, "act.rate")[layer]
-        inf.prob.inter.rr <- get_param(dat, "inf.prob.inter.rr")[layer]
-        inf.prob.inter.time <- get_param(dat, "inf.prob.inter.time")[layer]
-        act.rate.inter.rr <- get_param(dat, "act.rate.inter.rr")[layer]
-        act.rate.inter.time <- get_param(dat, "act.rate.inter.time")[layer]
+        dxTime <- get_param(dat, "dxTime")[idsEligCI]
+        statusTime.Ic <- get_param(dat, "statusTime.Ic")[idsEligCI]
+        symendTime <- get_param(dat, "symendTime")[idsEligCI]
         
         # Set parameters on discordant edgelist data frame
-        del$transProb <- inf.prob
+        del_ct$dxTime <- dxTime ## do I need to do a left_join here in case some 
+                                ## of the index cases aren't in the discordant edgelist bc no partners?
+        del_ct$statusTime.Ic <- statusTime.Ic
+        del_ct$symendTime <- symendTime
+        del_ct$status <- status[del_ct$index]
+        
+        # Assign new parameters to discordant edgelist data frame
+        del_ct$iso.end <- del_ct$dxTime + 10
+        
+        # Filter discordant edgelist for eligible contacts
+        
+        
+        
+        
+        
+        
       
+
         
         # Asymptomatic infection
         del$stat <- status[del$inf]
