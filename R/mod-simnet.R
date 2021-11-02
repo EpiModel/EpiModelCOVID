@@ -3,6 +3,10 @@
 #' @export
 resim_nets_covid_ship <- function(dat, at) {
 
+  # controls
+  set.control.stergm <- get_control(dat, "set.control.stergm")
+  set.control.ergm <- get_control(dat, "set.control.ergm")
+
   ## Edges correction
   dat <- edges_correct_covid(dat, at)
 
@@ -16,22 +20,42 @@ resim_nets_covid_ship <- function(dat, at) {
   for (i in nets) {
     nwparam <- EpiModel::get_nwparam(dat, network = i)
     isTERGM <- ifelse(nwparam$coef.diss$duration > 1, TRUE, FALSE)
-    dat <- tergmLite::updateModelTermInputs(dat, network = i)
-    if (isTERGM == TRUE) {
-      dat$el[[i]] <- tergmLite::simulate_network(p = dat$p[[i]],
-                                                 el = dat$el[[i]],
-                                                 coef.form = nwparam$coef.form,
-                                                 coef.diss = nwparam$coef.diss$coef.adj,
-                                                 save.changes = FALSE)
-    } else {
-      dat$el[[i]] <- tergmLite::simulate_ergm(p = dat$p[[i]],
-                                              el = dat$el[[i]],
-                                              coef = nwparam$coef.form)
-    }
-  }
 
-  if (dat$control$save.nwstats == TRUE) {
-    dat <- calc_nwstats_covid(dat, at)
+    nwL <- networkLite(dat[["el"]][[i]], dat[["attr"]])
+
+    if (get_control(dat, "tergmLite.track.duration") == TRUE) {
+      nwL %n% "time" <- dat[["nw"]][[i]] %n% "time"
+      nwL %n% "lasttoggle" <- dat[["nw"]][[i]] %n% "lasttoggle"
+    }
+
+    if (isTERGM == TRUE) {
+      dat[["nw"]][[i]] <- simulate(
+        nwL,
+        formation = nwparam[["formation"]],
+        dissolution = nwparam[["coef.diss"]][["dissolution"]],
+        coef.form = nwparam[["coef.form"]],
+        coef.diss = nwparam[["coef.diss"]][["coef.adj"]],
+        constraints = nwparam[["constraints"]],
+        time.start = at - 1,
+        time.slices = 1,
+        time.offset = 1,
+        control = set.control.stergm,
+        output = "final"
+      )
+    } else {
+      dat[["nw"]][[i]] <- simulate(
+        basis = nwL,
+        object = nwparam[["formation"]],
+        coef = nwparam[["coef.form"]],
+        constraints = nwparam[["constraints"]],
+        control = set.control.ergm,
+        dynamic = FALSE,
+        nsim = 1,
+        output = "network"
+      )
+    }
+
+    dat[["el"]][[i]] <- as.edgelist(dat[["nw"]][[i]])
   }
 
   return(dat)
@@ -42,6 +66,10 @@ resim_nets_covid_ship <- function(dat, at) {
 #' @export
 resim_nets_covid_corporate <- function(dat, at) {
 
+  # controls
+  set.control.stergm <- get_control(dat, "set.control.stergm")
+  set.control.ergm <- get_control(dat, "set.control.ergm")
+
   ## Edges correction
   dat <- edges_correct_covid(dat, at)
 
@@ -49,22 +77,56 @@ resim_nets_covid_corporate <- function(dat, at) {
   for (i in 1:length(dat$el)) {
     nwparam <- EpiModel::get_nwparam(dat, network = i)
     isTERGM <- ifelse(nwparam$coef.diss$duration > 1, TRUE, FALSE)
-    dat <- tergmLite::updateModelTermInputs(dat, network = i)
-    if (isTERGM == TRUE) {
-      dat$el[[i]] <- tergmLite::simulate_network(p = dat$p[[i]],
-                                                 el = dat$el[[i]],
-                                                 coef.form = nwparam$coef.form,
-                                                 coef.diss = nwparam$coef.diss$coef.adj,
-                                                 save.changes = FALSE)
-    } else {
-      dat$el[[i]] <- tergmLite::simulate_ergm(p = dat$p[[i]],
-                                              el = dat$el[[i]],
-                                              coef = nwparam$coef.form)
-    }
-  }
 
-  if (dat$control$save.nwstats == TRUE) {
-    dat <- calc_nwstats_covid(dat, at)
+    nwL <- networkLite(dat[["el"]][[i]], dat[["attr"]])
+
+    if (get_control(dat, "tergmLite.track.duration") == TRUE) {
+      nwL %n% "time" <- dat[["nw"]][[i]] %n% "time"
+      nwL %n% "lasttoggle" <- dat[["nw"]][[i]] %n% "lasttoggle"
+    }
+
+    if (isTERGM == TRUE) {
+      dat[["nw"]][[i]] <- simulate(
+        nwL,
+        formation = nwparam[["formation"]],
+        dissolution = nwparam[["coef.diss"]][["dissolution"]],
+        coef.form = nwparam[["coef.form"]],
+        coef.diss = nwparam[["coef.diss"]][["coef.adj"]],
+        constraints = nwparam[["constraints"]],
+        time.start = at - 1,
+        time.slices = 1,
+        time.offset = 1,
+        control = set.control.stergm,
+        output = "final"
+      )
+    } else {
+      dat[["nw"]][[i]] <- simulate(
+        basis = nwL,
+        object = nwparam[["formation"]],
+        coef = nwparam[["coef.form"]],
+        constraints = nwparam[["constraints"]],
+        control = set.control.ergm,
+        dynamic = FALSE,
+        nsim = 1,
+        output = "network"
+      )
+    }
+
+    dat[["el"]][[i]] <- as.edgelist(dat[["nw"]][[i]])
+
+    if (get_control(dat, "save.nwstats") == TRUE) {
+      term.options <- if (isTERGM == TRUE) {
+        set.control.stergm$term.options
+      } else {
+        set.control.ergm$term.options
+      }
+      dat$stats$nwstats[[i]] <- rbind(dat$stats$nwstats[[i]],
+                                      summary(dat$control$nwstats.formulas[[i]],
+                                              basis = nwL,
+                                              term.options = term.options,
+                                              dynamic = isTERGM))
+    }
+
   }
 
   return(dat)
@@ -85,7 +147,6 @@ edges_correct_covid <- function(dat, at) {
 
   return(dat)
 }
-
 
 calc_nwstats_covid <- function(dat, at) {
 
@@ -140,9 +201,9 @@ resim_nets_covid_contacttrace <- function(dat, at) {
         coef.form = nwparam[["coef.form"]],
         coef.diss = nwparam[["coef.diss"]][["coef.adj"]],
         constraints = nwparam[["constraints"]],
-        time.start = at - 1, # should be the time stamp on the nwL if we are tracking duration
+        time.start = at - 1,
         time.slices = 1,
-        time.offset = 1, # default value
+        time.offset = 1,
         control = set.control.stergm,
         output = "final"
       )
@@ -168,43 +229,6 @@ resim_nets_covid_contacttrace <- function(dat, at) {
 
   for (n_network in seq_along(dat[["nw"]])) {
     dat <- update_cumulative_edgelist(dat, n_network)
-  }
-
-  return(dat)
-}
-
-
-edges_correct_covid <- function(dat, at) {
-
-  old.num <- dat$epi$num[at - 1]
-  new.num <- sum(dat$attr$active == 1, na.rm = TRUE)
-  adjust <- log(old.num) - log(new.num)
-
-  for (i in 1:length(dat$nwparam)) {
-    coef.form1 <- get_nwparam(dat, network = i)$coef.form
-    coef.form1[1] <- coef.form1[1] + adjust
-    dat$nwparam[[i]]$coef.form <- coef.form1
-  }
-
-  return(dat)
-}
-
-
-calc_nwstats_covid <- function(dat, at) {
-
-  for (nw in 1:length(dat$el)) {
-    n <- attr(dat$el[[nw]], "n")
-    edges <- nrow(dat$el[[nw]])
-    meandeg <- round(edges * (2/n), 3)
-    concurrent <- round(mean(get_degree(dat$el[[nw]]) > 1), 3)
-    mat <- matrix(c(edges, meandeg, concurrent), ncol = 3, nrow = 1)
-    if (at == 1) {
-      dat$stats$nwstats[[nw]] <- mat
-      colnames(dat$stats$nwstats[[nw]]) <- c("edges", "mdeg", "conc")
-    }
-    if (at > 1) {
-      dat$stats$nwstats[[nw]] <- rbind(dat$stats$nwstats[[nw]], mat)
-    }
   }
 
   return(dat)

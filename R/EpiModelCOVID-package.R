@@ -4,8 +4,8 @@
 #' \tabular{ll}{
 #'    Package: \tab EpiModelCOVID\cr
 #'    Type: \tab Package\cr
-#'    Version: \tab 1.0.0\cr
-#'    Date: \tab 2020-05-17\cr
+#'    Version: \tab 1.1.1\cr
+#'    Date: \tab 2021-10-28\cr
 #'    License: \tab GPL-3\cr
 #'    LazyLoad: \tab yes\cr
 #' }
@@ -13,8 +13,7 @@
 #' @name EpiModelCOVID-package
 #' @aliases EpiModelCOVID
 #'
-#' @import EpiModel ergm
-#' @importFrom network network.size get.vertex.attribute
+#' @import EpiModel ergm network
 #' @importFrom stats rbinom simulate rpois
 #'
 #' @docType package
