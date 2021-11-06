@@ -438,6 +438,12 @@ infect_covid_contacttrace <- function(dat, at) {
             act.rate.sympt.inter.rr
         }
         
+        # Contact quarantine with tracing
+        if (at >= act.rate.quar.inter.time) {
+          del$actRate[del$quar == 1] <- del$actRate[del$quar == 1] *
+            act.rate.quar.inter.rr
+        }
+        
         del$finalProb <- 1 - (1 - del$transProb)^del$actRate
         
         # Stochastic transmission process
