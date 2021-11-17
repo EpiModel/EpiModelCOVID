@@ -14,6 +14,9 @@ intervention_covid_contacttrace <- function(dat, at) {
   eligible.case <- get_attr(dat, "eligible.case")
   traced.cc <- get_attr(dat, "traced.cc")
   quar <- get_attr(dat, "quar")
+  tracedTime <- get_attr(dat, "tracedTime")
+  quarEnd <- get_attr(dat, "quarEnd")
+  
   
   ## Identify pool of eligible cases ##
   idsEligCI <- which(active == 1 & status %in% c("a", "ic", "ip") & 
@@ -21,11 +24,8 @@ intervention_covid_contacttrace <- function(dat, at) {
   nEligCI <- length(idsEligCI)
   
   ## Common Parameters ##
-  inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr")
-  act.rate.dx.inter.rr <- get_param(dat, "act.rate.dx.inter.rr")
-  act.rate.dx.inter.time <- get_param(dat, "act.rate.dx.inter.time")
-  act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr")
-  act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
+  prop.traced <- get_param(dat, "prop.traced")
+  time.lag <- get_param(dat, "time.lag")
   
   if (nEligCI > 0) {
       
@@ -38,36 +38,35 @@ intervention_covid_contacttrace <- function(dat, at) {
       ## If any discordant pairs, proceed ##
       if (!(is.null(del_ct))) {
         
-        dxTime <- get_param(dat, "dxTime")[idsEligCI]
-        statusTime.Ic <- get_param(dat, "statusTime.Ic")[idsEligCI]
-        symendTime <- get_param(dat, "symendTime")[idsEligCI]
+        dxTime <- get_param(dat, "dxTime")
+        statusTime.Ic <- get_param(dat, "statusTime.Ic")
+        symendTime <- get_param(dat, "symendTime")
         
         # Set parameters on discordant edgelist data frame
-        del_ct$dxTime <- dxTime ## do I need to do a left_join here in case some 
-                                ## of the index cases aren't in the discordant edgelist bc no partners?
-                                ## same question for next 2 parameters
-        del_ct$statusTime.Ic <- statusTime.Ic
-        del_ct$symendTime <- symendTime
+        del_ct$dxTime <- dxTime[del_ct$index]
+        del_ct$statusTime.Ic <- statusTime.Ic[del_ct$index]
+        del_ct$symendTime <- symendTime[del_ct$index]
         del_ct$status <- status[del_ct$index]
         
-        # Assign new isolattion end attribute to discordant edgelist data frame
-        del_ct$iso.end[del_ct$status == 'a'] <- del_ct$dxTime[del_ct$status == 'a'] + 10
-        
-        del_ct$iso.end[del_ct$status == 'ip'] <- del_ct$dxTime[del_ct$status == 'ip'] + 10 
+        # Assign new isolation end attribute to discordant edgelist data frame
+        del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
         
         del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
                                                      del_ct$symendTime)
         # comparing 10 days after symptom onset to symptom resolution to find max
         
         # Filter discordant edgelist for eligible contacts, assign new attribute for eligibility
-        del_ct$eligible.cc[del_ct$status == 'a'] <- ifelse(
-          start <= iso.end | stop >= (dxTime - 2), 1, 0
-        )
+        del_ct$eligible.cc <- 0
         
-        del_ct$eligible.cc[del_ct$status == 'ic'] <- ifelse(
-          start <= iso.end | stop >= (dxTime - 2), 1, 0
-        )
+        del_ct$eligible.cc[del_ct$status %in% c("a", "ip") & 
+                             (del_ct$start <= del_ct$iso.end | 
+                                del_ct$stop >= (del_ct$dxTime - 2))] = 1
         
+        del_ct$eligible.cc[del_ct$status == "ip" & 
+                             (del_ct$start <= del_ct$iso.end | 
+                                del_ct$stop >= (del_ct$dxTime - 2))] = 1
+      
+
         del_ct$eligible.cc[del_ct$status == 'ip'] <- ifelse(
           start <= iso.end | stop >= (statusTime.Ic - 2), 1, 0
         )
@@ -78,104 +77,94 @@ intervention_covid_contacttrace <- function(dat, at) {
         
         ## Intervention 1: Varying fraction of traced contacts
         # Sample pool of eligible close contacts
+        
         if (nEligCT > 0) {
+          # Only sample group that has not already been traced
+          ids.not.traced <- which(traced.cc != 1)
+          num.not.traced <- length(ids.not.traced)
+          if (num.not.traced > 0) {
+            vec.traced.status <- rbinom(nrow(del_ct), 1, prop.traced)
+            traced.cc[ids.not.traced] <- vec.traced.status
+          }
           
-        
-        
-        
-        
+          # Apply contact tracing attributes to close contacts
+          ids.missing.quar <- which(is.na(quar))
+          num.missing.quar <- length(ids.missing.quar)
+          if (num.missing.quar > 0) {
+            tracedTime[ids.missing.quar] <- at
+            quarEnd[ids.missing.quar] <- tracedTime + 14
+            
+            # Selecting sample of individuals to actually complete quarantine
+            vec.quar.status <- rbinom(num.missing.quar, 1, 0.8)
+            quar[ids.missing.quar] <- vec.quar.status
+          }
+          
+          # Check quarantine windows for those with quarantine attributes
+          ids.with.quar <- which(!is.na(quar))
+          num.with.quar <- length(ids.with.quar)
+          if (num.with.quar > 0) {
+            # for those still quarantining (quar = 1 or 0) keep current attributes
+            ids.quar.cont <- which(quarEnd => at)
+            num.quar.cont <- length(ids.quar.cont)
+            if (num.quar.cont > 0) {
+              quar[ids.quar.cont] <- quar[ids.quar.cont]
+            }
+            
+            # for those finished with quarantine, transition back to missing quar
+            ids.quar.discont <- which(quarEnd < at)
+            num.quar.discont <- length(ids.quar.discont)
+            if (num.quar.discont > 0) {
+              quar[ids.quar.discont] <- NA
+            }
+          }
         }
         
-        
+
+## to operationalize - will comment out one or other intervention and run?
+
         ## Intervention 2: Varying time to index case/close contact interview
         # Sample pool of eligible close contacts
         if (nEligCT > 0) {
-          
-          
-          
-          
-          
-          
-          # Stochastic transmission process
-          transmit <- rbinom(nrow(del), 1, del$finalProb)
-          
-          # Keep rows where transmission occurred
-          del <- del[which(transmit == 1), , drop = FALSE]
-          
-          
-          if (num.Ich > 0) {
-            vec.new.H <- which(rbinom(num.Ich, 1, ich.rate) == 1)
-            if (length(vec.new.H) > 0) {
-              ids.new.H <- ids.Ich[vec.new.H]
-              num.new.IctoH <- length(ids.new.H)
-              status[ids.new.H] <- "h"
-              statusTime[ids.new.H] <- at
-              symendTime[ids.new.H] <- at
-          
-          
-          # Case isolation with diagnosed or symptomatic infection
-          if (at >= act.rate.dx.inter.time) {
-            del$actRate[del$dx == 2] <- del$actRate[del$dx == 2] *
-              act.rate.dx.inter.rr
-          }
-          if (at >= act.rate.sympt.inter.time) {
-            del$actRate[del$stat == "ic"] <- del$actRate[del$stat == "ic"] *
-              act.rate.sympt.inter.rr
+          # Only sample group that has not already been traced
+          ids.not.traced <- which(traced.cc != 1)
+          num.not.traced <- length(ids.not.traced)
+          if (num.not.traced > 0) {
+            vec.traced.status <- rbinom(nrow(del_ct), 1, 0.6)
+            traced.cc[ids.not.traced] <- vec.traced.status
           }
           
-          del$finalProb <- 1 - (1 - del$transProb)^del$actRate
-          
-          # Stochastic transmission process
-          transmit <- rbinom(nrow(del), 1, del$finalProb)
-          
-          # Keep rows where transmission occurred
-          del <- del[which(transmit == 1), , drop = FALSE]
-          
-          # Look up new ids if any transmissions occurred
-          idsNewInf <- unique(del$sus)
-          nInf[layer] <- length(idsNewInf)
-          
-          # Set new attributes for those newly infected
-          if (nInf[layer] > 0) {
-            dat <- set_attr(dat, "status", "e", idsNewInf)
-            dat <- set_attr(dat, "infTime", at, idsNewInf)
-            dat <- set_attr(dat, "statusTime", at, idsNewInf)
+          # Apply contact tracing attributes to close contacts
+          ids.missing.quar <- which(is.na(quar))
+          num.missing.quar <- length(ids.missing.quar)
+          if (num.missing.quar > 0) {
+            tracedTime[ids.missing.quar] <- at + time.lag
+            quarEnd[ids.missing.quar] <- tracedTime + 14
+            
+            # Selecting sample of individuals to actually complete quarantine
+            vec.quar.status <- rbinom(num.missing.quar, 1, 0.8)
+            quar[ids.missing.quar] <- vec.quar.status
           }
           
-          
-          
+          # Check quarantine windows for those with quarantine attributes
+          ids.with.quar <- which(!is.na(quar))
+          num.with.quar <- length(ids.with.quar)
+          if (num.with.quar > 0) {
+            # for all those still quarantining (quar = 1 or 0) keep current attributes
+            ids.quar.cont <- which(quarEnd => at & tracedTime <= at)
+            num.quar.cont <- length(ids.quar.cont)
+            if (num.quar.cont > 0) {
+              quar[ids.quar.cont] <- quar[ids.quar.cont]
+            }
+            
+            # for those not started or already finished with quarantine, transition to missing quar
+            ids.quar.discont <- which(at < tracedTime | quarEnd < at)
+            num.quar.discont <- length(ids.quar.discont)
+            if (num.quar.discont > 0) {
+              quar[ids.quar.discont] <- NA
+            }
+          }
         }
-        
-        
-        
-        
-        
-      
 
-        
-
-        # Case isolation with diagnosed or symptomatic infection
-        if (at >= act.rate.dx.inter.time) {
-          del$actRate[del$dx == 2] <- del$actRate[del$dx == 2] *
-            act.rate.dx.inter.rr
-        }
-        if (at >= act.rate.sympt.inter.time) {
-          del$actRate[del$stat == "ic"] <- del$actRate[del$stat == "ic"] *
-            act.rate.sympt.inter.rr
-        }
-        
-        del$finalProb <- 1 - (1 - del$transProb)^del$actRate
-        
-        # Stochastic transmission process
-        transmit <- rbinom(nrow(del), 1, del$finalProb)
-        
-        # Keep rows where transmission occurred
-        del <- del[which(transmit == 1), , drop = FALSE]
-        
-        # Look up new ids if any transmissions occurred
-        idsNewInf <- unique(del$sus)
-        nInf[layer] <- length(idsNewInf)
-        
         # Save updated attributes 
           dat <- set_attr(dat, "eligible.case", eligible.case)
           dat <- set_attr(dat, "traced.cc", traced.cc)
@@ -199,5 +188,4 @@ intervention_covid_contacttrace <- function(dat, at) {
           
       }
   }
-  
 }
