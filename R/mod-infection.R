@@ -368,6 +368,7 @@ infect_covid_contacttrace <- function(dat, at) {
   status <- get_attr(dat, "status")
   infTime <- get_attr(dat, "infTime")
   statusTime <- get_attr(dat, "statusTime")
+  quar <- get_attr(dat, "quar")
   # vax <- get_attr(dat, "vax")
   
   ## Find infected nodes ##
@@ -381,6 +382,8 @@ infect_covid_contacttrace <- function(dat, at) {
   act.rate.dx.inter.time <- get_param(dat, "act.rate.dx.inter.time")
   act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr")
   act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
+  act.rate.quar.inter.rr <- get_param(dat, "act.rate.quar.inter.rr")
+  act.rate.quar.inter.time <- get_param(dat, "act.rate.quar.inter.time")
   # vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   # vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
   
@@ -403,6 +406,9 @@ infect_covid_contacttrace <- function(dat, at) {
         inf.prob.inter.time <- get_param(dat, "inf.prob.inter.time")[layer]
         act.rate.inter.rr <- get_param(dat, "act.rate.inter.rr")[layer]
         act.rate.inter.time <- get_param(dat, "act.rate.inter.time")[layer]
+        # should I be adding these here?
+        # act.rate.quar.inter.rr <- get_param(dat, "act.rate.quar.inter.rr")[layer]
+        # act.rate.quar.inter.time <- get_param(dat, "act.rate.quar.inter.time")[layer]
            
         # Set parameters on discordant edgelist data frame
         del$transProb <- inf.prob
@@ -439,6 +445,8 @@ infect_covid_contacttrace <- function(dat, at) {
         }
         
         # Contact quarantine with tracing
+        del$quar <- quar[del$sus]
+        
         if (at >= act.rate.quar.inter.time) {
           del$actRate[del$quar == 1] <- del$actRate[del$quar == 1] *
             act.rate.quar.inter.rr

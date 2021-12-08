@@ -303,15 +303,19 @@ init_status_covid_contacttrace <- function(dat) {
   traced.cc <- rep(NA, num)
   quar <- rep(NA, num)
   clinical <- rep(NA, num)
+  eligible.cc <- rep(NA, num)
   # hospit <- rep(NA, num)
   intensive <- rep(NA, num)
   branch <- rep(NA, num)
   symendTime <- rep(NA, num)
-  statusTime.Ic <- rep(NA, num)
+  statusTime.Ic <- rep(NA, num) # do I need to do the same indexing as statusTime below?
   statusTime <- rep(NA, num)
   statusTime[idsInf] <- 1
   dxStatus <- rep(0, num)
   dxTime <- rep(NA, num)
+  iso.end <- rep(NA, num)
+  tracedTime <- rep(NA, num)
+  quarEnd <- rep(NA, num)
   # vax <- rep(0, num)
   # vax1Time <- rep(NA, num)
 
@@ -330,6 +334,8 @@ init_status_covid_contacttrace <- function(dat) {
   dat <- set_attr(dat, "dxStatus", dxStatus)
   dat <- set_attr(dat, "dxTime", dxTime)
   dat <- set_attr(dat, "iso.end", iso.end)
+  dat <- set_attr(dat, "tracedTime", tracedTime)
+  dat <- set_attr(dat, "quarEnd", quarEnd)
   # dat <- set_attr(dat, "vax", vax)
   # dat <- set_attr(dat, "vax1Time", vax1Time)
 

@@ -24,8 +24,10 @@ intervention_covid_contacttrace <- function(dat, at) {
   nEligCI <- length(idsEligCI)
   
   ## Common Parameters ##
-  prop.traced <- get_param(dat, "prop.traced")
+  prop.traced.1 <- get_param(dat, "prop.traced.1")
+  prop.traced.2 <- get_param(dat, "prop.traced.2")
   time.lag <- get_param(dat, "time.lag")
+  intervention <- get_param(dat, "intervention")
   
   if (nEligCI > 0) {
       
@@ -78,21 +80,23 @@ intervention_covid_contacttrace <- function(dat, at) {
         ## Intervention 1: Varying fraction of traced contacts
         # Sample pool of eligible close contacts
         
-        if (nEligCT > 0) {
+        if (nEligCT > 0 & intervention == 1) {
           # Only sample group that has not already been traced
           ids.not.traced <- which(traced.cc != 1)
           num.not.traced <- length(ids.not.traced)
           if (num.not.traced > 0) {
-            vec.traced.status <- rbinom(nrow(del_ct), 1, prop.traced)
+            vec.traced.status <- rbinom(num.not.traced, 1, prop.traced.1)
             traced.cc[ids.not.traced] <- vec.traced.status
           }
+          
+          ids.traced <- which(traced.cc == 1)
           
           # Apply contact tracing attributes to close contacts
           ids.missing.quar <- which(is.na(quar))
           num.missing.quar <- length(ids.missing.quar)
           if (num.missing.quar > 0) {
             tracedTime[ids.missing.quar] <- at
-            quarEnd[ids.missing.quar] <- tracedTime + 14
+            quarEnd[ids.missing.quar] <- tracedTime[ids.missing.quar] + 14
             
             # Selecting sample of individuals to actually complete quarantine
             vec.quar.status <- rbinom(num.missing.quar, 1, 0.8)
@@ -104,11 +108,7 @@ intervention_covid_contacttrace <- function(dat, at) {
           num.with.quar <- length(ids.with.quar)
           if (num.with.quar > 0) {
             # for those still quarantining (quar = 1 or 0) keep current attributes
-            ids.quar.cont <- which(quarEnd => at)
-            num.quar.cont <- length(ids.quar.cont)
-            if (num.quar.cont > 0) {
-              quar[ids.quar.cont] <- quar[ids.quar.cont]
-            }
+            ids.quar.cont <- which(quarEnd >= at)
             
             # for those finished with quarantine, transition back to missing quar
             ids.quar.discont <- which(quarEnd < at)
@@ -119,17 +119,14 @@ intervention_covid_contacttrace <- function(dat, at) {
           }
         }
         
-
-## to operationalize - will comment out one or other intervention and run?
-
         ## Intervention 2: Varying time to index case/close contact interview
         # Sample pool of eligible close contacts
-        if (nEligCT > 0) {
+        if (nEligCT > 0 & intervention == 2) {
           # Only sample group that has not already been traced
           ids.not.traced <- which(traced.cc != 1)
           num.not.traced <- length(ids.not.traced)
           if (num.not.traced > 0) {
-            vec.traced.status <- rbinom(nrow(del_ct), 1, 0.6)
+            vec.traced.status <- rbinom(nrow(del_ct), 1, prop.traced.2)
             traced.cc[ids.not.traced] <- vec.traced.status
           }
           
@@ -138,7 +135,7 @@ intervention_covid_contacttrace <- function(dat, at) {
           num.missing.quar <- length(ids.missing.quar)
           if (num.missing.quar > 0) {
             tracedTime[ids.missing.quar] <- at + time.lag
-            quarEnd[ids.missing.quar] <- tracedTime + 14
+            quarEnd[ids.missing.quar] <- tracedTime[ids.missing.quar] + 14
             
             # Selecting sample of individuals to actually complete quarantine
             vec.quar.status <- rbinom(num.missing.quar, 1, 0.8)
@@ -150,11 +147,7 @@ intervention_covid_contacttrace <- function(dat, at) {
           num.with.quar <- length(ids.with.quar)
           if (num.with.quar > 0) {
             # for all those still quarantining (quar = 1 or 0) keep current attributes
-            ids.quar.cont <- which(quarEnd => at & tracedTime <= at)
-            num.quar.cont <- length(ids.quar.cont)
-            if (num.quar.cont > 0) {
-              quar[ids.quar.cont] <- quar[ids.quar.cont]
-            }
+            ids.quar.cont <- which(quarEnd >= at & tracedTime <= at)
             
             # for those not started or already finished with quarantine, transition to missing quar
             ids.quar.discont <- which(at < tracedTime | quarEnd < at)
@@ -169,23 +162,15 @@ intervention_covid_contacttrace <- function(dat, at) {
           dat <- set_attr(dat, "eligible.case", eligible.case)
           dat <- set_attr(dat, "traced.cc", traced.cc)
           dat <- set_attr(dat, "quar", quar)
+          dat <- set_attr(dat, "iso.end", iso.end)
+          dat <- set_attr(dat, "tracedTime", tracedTime)
+          dat <- set_attr(dat, "quarEnd", quarEnd)
 
-        # Set new attributes for those newly traced
-          if (nInf[layer] > 0) {
-            dat <- set_attr(dat, "traced.cc", 1, idsNewInf)
-            dat <- set_attr(dat, "infTime", at, idsNewInf)
-            dat <- set_attr(dat, "statusTime", at, idsNewInf)
-          }
-          
-          
         ## Summary statistics
-          dat <- set_epi(dat, "nDx", at, length(idsDx.sympt) + length(idsDx.other))
-          dat <- set_epi(dat, "nDx.pos", at, length(idsDx.sympt.pos) +
-                           length(idsDx.other.pos.true))
-          dat <- set_epi(dat, "nDx.pos.sympt", at, length(idsDx.sympt.pos))
-          dat <- set_epi(dat, "nDx.pos.fn", at, length(idsDx.sympt.neg) +
-                           length(idsDx.other.pos.false))
-          
-      }
+          dat <- set_epi(dat, "nQuar", at, length(ids.with.quar)) # number theoretically quarantining
+          dat <- set_epi(dat, "nTraced", at, length(ids.traced)) # number of contacts traced
+          dat <- set_epi(dat, "nElig.CC", at, nEligCT) # number of contacts eligible for tracing
+
+    }
   }
 }
