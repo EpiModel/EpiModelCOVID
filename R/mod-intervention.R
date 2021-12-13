@@ -102,20 +102,6 @@ intervention_covid_contacttrace <- function(dat, at) {
             quar[ids.missing.quar] <- vec.quar.status
           }
           
-          # Check quarantine windows for those with quarantine attributes
-          ids.with.quar <- which(!is.na(quar))
-          num.with.quar <- length(ids.with.quar)
-          if (num.with.quar > 0) {
-            # for those still quarantining (quar = 1 or 0) keep current attributes
-            ids.quar.cont <- which(quarEnd >= at)
-            
-            # for those finished with quarantine, transition back to missing quar
-            ids.quar.discont <- which(quarEnd < at)
-            num.quar.discont <- length(ids.quar.discont)
-            if (num.quar.discont > 0) {
-              quar[ids.quar.discont] <- NA
-            }
-          }
         }
         
         ## Intervention 2: Varying time to index case/close contact interview
@@ -140,28 +126,27 @@ intervention_covid_contacttrace <- function(dat, at) {
             vec.quar.status <- rbinom(num.missing.quar, 1, 0.8)
             quar[ids.missing.quar] <- vec.quar.status
           }
-          
-          # Check quarantine windows for those with quarantine attributes
-          ids.with.quar <- which(!is.na(quar))
-          num.with.quar <- length(ids.with.quar)
-          if (num.with.quar > 0) {
-            # for all those still quarantining (quar = 1 or 0) keep current attributes
-            ids.quar.cont <- which(quarEnd >= at & tracedTime <= at)
-            
-            # for those not started or already finished with quarantine, transition to missing quar
-            ids.quar.discont <- which(at < tracedTime | quarEnd < at)
-            num.quar.discont <- length(ids.quar.discont)
-            if (num.quar.discont > 0) {
-              quar[ids.quar.discont] <- NA
-            }
-          }
         }
 
+        # Check quarantine windows for those with quarantine attributes
+        ids.with.quar <- which(!is.na(quar))
+        num.with.quar <- length(ids.with.quar)
+        if (num.with.quar > 0) {
+          # for those still quarantining (quar = 1 or 0) keep current attributes
+          ids.quar.cont <- which(quarEnd >= at & tracedTime <= at)
+          
+          # for those finished with quarantine, transition back to missing quar
+          ids.quar.discont <- which(at < tracedTime | quarEnd < at)
+          num.quar.discont <- length(ids.quar.discont)
+          if (num.quar.discont > 0) {
+            quar[ids.quar.discont] <- NA
+          }
+        }
+        
         # Save updated attributes 
           dat <- set_attr(dat, "eligible.case", eligible.case)
           dat <- set_attr(dat, "traced.cc", traced.cc)
           dat <- set_attr(dat, "quar", quar)
-          dat <- set_attr(dat, "iso.end", iso.end)
           dat <- set_attr(dat, "tracedTime", tracedTime)
           dat <- set_attr(dat, "quarEnd", quarEnd)
 
