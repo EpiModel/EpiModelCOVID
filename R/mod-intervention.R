@@ -54,6 +54,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         # Assign new isolation end attribute to discordant edgelist data frame
         ## initialize iso.end column
         del_ct$iso.end <- 0
+        del_ct$symendTime <- 0
         
         del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
         del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
