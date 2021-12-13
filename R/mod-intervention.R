@@ -9,6 +9,7 @@ intervention_covid_contacttrace <- function(dat, at) {
   infTime <- get_attr(dat, "infTime")
   statusTime.Ic <- get_attr(dat, "statusTime.Ic")
   statusTime <- get_attr(dat, "statusTime")
+  symendTime <- get_attr(dat, "symendTime")
   dxTime <- get_attr(dat, "dxTime")
   dxStatus <- get_attr(dat, "dxStatus")
   eligible.case <- get_attr(dat, "eligible.case")
@@ -40,9 +41,9 @@ intervention_covid_contacttrace <- function(dat, at) {
       ## If any discordant pairs, proceed ##
       if (!(is.null(del_ct))) {
         
-        dxTime <- get_param(dat, "dxTime")
-        statusTime.Ic <- get_param(dat, "statusTime.Ic")
-        symendTime <- get_param(dat, "symendTime")
+        # dxTime <- get_param(dat, "dxTime")
+        # statusTime.Ic <- get_param(dat, "statusTime.Ic")
+        # symendTime <- get_param(dat, "symendTime")
         
         # Set parameters on discordant edgelist data frame
         del_ct$dxTime <- dxTime[del_ct$index]
@@ -51,6 +52,9 @@ intervention_covid_contacttrace <- function(dat, at) {
         del_ct$status <- status[del_ct$index]
         
         # Assign new isolation end attribute to discordant edgelist data frame
+        ## initialize iso.end column
+        del_ct$iso.end <- NA
+        
         del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
         
         del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
