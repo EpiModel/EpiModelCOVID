@@ -88,8 +88,6 @@ intervention_covid_contacttrace <- function(dat, at) {
             traced.cc[ids.not.traced] <- vec.traced.status
           }
           
-          ids.traced <- which(traced.cc == 1)
-          
           # Apply contact tracing attributes to close contacts
           ids.missing.quar <- which(is.na(quar))
           num.missing.quar <- length(ids.missing.quar)
@@ -128,6 +126,8 @@ intervention_covid_contacttrace <- function(dat, at) {
           }
         }
 
+        ids.traced <- which(traced.cc == 1)
+        
         # Check quarantine windows for those with quarantine attributes
         ids.with.quar <- which(!is.na(quar))
         num.with.quar <- length(ids.with.quar)
