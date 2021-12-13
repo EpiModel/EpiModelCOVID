@@ -53,7 +53,8 @@ intervention_covid_contacttrace <- function(dat, at) {
         
         # Assign new isolation end attribute to discordant edgelist data frame
         ## initialize iso.end column
-        del_ct$iso.end <- NA
+        del_ct$iso.end <- 0
+        
         del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
         del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
                                                      del_ct$symendTime[del_ct$status == 'ic'])
@@ -66,14 +67,9 @@ intervention_covid_contacttrace <- function(dat, at) {
                              (del_ct$start <= del_ct$iso.end | 
                                 del_ct$stop >= (del_ct$dxTime - 2))] = 1
         
-        del_ct$eligible.cc[del_ct$status == "ip" & 
+        del_ct$eligible.cc[del_ct$status == "ic" & 
                              (del_ct$start <= del_ct$iso.end | 
-                                del_ct$stop >= (del_ct$dxTime - 2))] = 1
-      
-
-        del_ct$eligible.cc[del_ct$status == 'ip'] <- ifelse(
-          start <= iso.end | stop >= (statusTime.Ic - 2), 1, 0
-        )
+                                del_ct$stop >= (del_ct$statusTime.Ic - 2))] = 1
         
         # Keep only eligible close contacts
         del_ct <- del_ct[which(eligible.cc == 1), , drop = FALSE]
