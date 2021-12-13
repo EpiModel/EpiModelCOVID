@@ -72,7 +72,7 @@ intervention_covid_contacttrace <- function(dat, at) {
                                 del_ct$stop >= (del_ct$statusTime.Ic - 2))] = 1
         
         # Keep only eligible close contacts
-        del_ct <- del_ct[which(eligible.cc == 1), , drop = FALSE]
+        del_ct <- del_ct[which(del_ct$eligible.cc == 1), , drop = FALSE]
         nEligCT <- nrow(del_ct)
         
         ## Intervention 1: Varying fraction of traced contacts
