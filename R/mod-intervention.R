@@ -46,15 +46,19 @@ intervention_covid_contacttrace <- function(dat, at) {
         # symendTime <- get_param(dat, "symendTime")
         
         # Set parameters on discordant edgelist data frame
+        # initialize columns to add from dat
+        del_ct$dxTime <- 0
+        del_ct$statusTime.Ic <- 0
+        del_ct$symendTime <- 0
+        
         del_ct$dxTime <- dxTime[del_ct$index]
         del_ct$statusTime.Ic <- statusTime.Ic[del_ct$index]
         del_ct$symendTime <- symendTime[del_ct$index]
         del_ct$status <- status[del_ct$index]
         
         # Assign new isolation end attribute to discordant edgelist data frame
-        ## initialize iso.end column
+        # initialize iso.end column
         del_ct$iso.end <- 0
-        del_ct$symendTime <- 0
         
         del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
         del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
