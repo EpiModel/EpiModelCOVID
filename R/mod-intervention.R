@@ -20,6 +20,12 @@ intervention_covid_contacttrace <- function(dat, at) {
   
   
   ## Identify pool of eligible cases ##
+  if (length(active) != length(status) & length(active) != length(dxStatus) & 
+      length(active)!= length(eligible.case)) browser()
+  
+  
+  if (at == 15) browser()
+  
   idsEligCI <- which(active == 1 & status %in% c("a", "ic", "ip") & 
                        dxStatus == 2 & is.na(eligible.case))
   nEligCI <- length(idsEligCI)
@@ -50,6 +56,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         del_ct$dxTime <- 0
         del_ct$statusTime.Ic <- 0
         del_ct$symendTime <- 0
+        # consider putting in initialization for status column as 's'
         
         del_ct$dxTime <- dxTime[del_ct$index]
         del_ct$statusTime.Ic <- statusTime.Ic[del_ct$index]
@@ -59,8 +66,10 @@ intervention_covid_contacttrace <- function(dat, at) {
         # Assign new isolation end attribute to discordant edgelist data frame
         # initialize iso.end column
         del_ct$iso.end <- 0
-        
+      
         del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
+        
+        # put an if any status == 'ic' here to filter first
         del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
                                                      del_ct$symendTime[del_ct$status == 'ic'])
         # comparing 10 days after symptom onset to symptom resolution to find max
@@ -70,11 +79,11 @@ intervention_covid_contacttrace <- function(dat, at) {
         
         del_ct$eligible.cc[del_ct$status %in% c("a", "ip") & 
                              (del_ct$start <= del_ct$iso.end | 
-                                del_ct$stop >= (del_ct$dxTime - 2))] = 1
+                                del_ct$stop >= (del_ct$dxTime - 2))] <- 1
         
         del_ct$eligible.cc[del_ct$status == "ic" & 
                              (del_ct$start <= del_ct$iso.end | 
-                                del_ct$stop >= (del_ct$statusTime.Ic - 2))] = 1
+                                del_ct$stop >= (del_ct$statusTime.Ic - 2))] <- 1
         
         # Keep only eligible close contacts
         del_ct <- del_ct[which(del_ct$eligible.cc == 1), , drop = FALSE]

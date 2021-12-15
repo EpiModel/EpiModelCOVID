@@ -319,6 +319,7 @@ setNewAttr_covid_contacttrace <- function(dat, at, nNew) {
   dat <- append_attr(dat, "intensive", NA, nNew)
   dat <- append_attr(dat, "dxStatus", NA, nNew)
   dat <- append_attr(dat, "dxTime", NA, nNew)
+  dat <- append_attr(dat, "eligible.case", NA, nNew)
   dat <- append_attr(dat, "symendTime", NA, nNew)
   dat <- append_attr(dat, "traced.cc", NA, nNew)
   dat <- append_attr(dat, "quar", NA, nNew)
