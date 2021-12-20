@@ -139,6 +139,9 @@ deaths_covid_contacttrace <- function(dat, at) {
     nDeaths <- length(idsDeaths)
     nDeathsH <- length(intersect(idsDeaths, idsElig.inf))
 
+    
+    #if (nDeaths > 0) browser()
+    
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)

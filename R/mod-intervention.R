@@ -24,8 +24,6 @@ intervention_covid_contacttrace <- function(dat, at) {
       length(active)!= length(eligible.case)) browser()
   
   
-  if (at == 15) browser()
-  
   idsEligCI <- which(active == 1 & status %in% c("a", "ic", "ip") & 
                        dxStatus == 2 & is.na(eligible.case))
   nEligCI <- length(idsEligCI)
@@ -69,9 +67,10 @@ intervention_covid_contacttrace <- function(dat, at) {
       
         del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
         
-        # put an if any status == 'ic' here to filter first
-        del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
-                                                     del_ct$symendTime[del_ct$status == 'ic'])
+        if (any(del_ct$status == 'ic')) {
+          del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
+                                                       del_ct$symendTime[del_ct$status == 'ic'])
+        }
         # comparing 10 days after symptom onset to symptom resolution to find max
         
         # Filter discordant edgelist for eligible contacts, assign new attribute for eligibility
