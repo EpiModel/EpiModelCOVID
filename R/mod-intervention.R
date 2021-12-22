@@ -111,7 +111,6 @@ intervention_covid_contacttrace <- function(dat, at) {
             vec.quar.status <- rbinom(num.missing.quar, 1, 0.8)
             quar[ids.missing.quar] <- vec.quar.status
           }
-          
         }
         
         ## Intervention 2: Varying time to index case/close contact interview
