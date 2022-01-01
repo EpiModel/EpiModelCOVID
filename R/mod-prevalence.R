@@ -130,12 +130,13 @@ prevalence_covid_boost <- function(dat, at) {
   status <- get_attr(dat, "status")
   dxStatus <- get_attr(dat, "dxStatus")
   vax <- get_attr(dat, "vax")
+  strain <- get_attr(dat, "strain")
 
   nsteps <- get_control(dat, "nsteps")
 
   # Initialize Outputs
   var.names <- c("num", "s.num", "e.num", "a.num", "ip.num", "ic.num", "r.num",
-                 "h.num", "v1.num", "v2.num", "v3.num")
+                 "h.num", "v1.num", "v2.num", "v3.num", "strain1", "strain2")
   if (at == 1) {
     for (i in seq_along(var.names)) {
       dat <- add_epi(dat, var.names[i])
@@ -155,6 +156,8 @@ prevalence_covid_boost <- function(dat, at) {
   dat <- set_epi(dat, "v1.num", at, sum(active == 1 & status == "s" & vax == 1))
   dat <- set_epi(dat, "v2.num", at, sum(active == 1 & status == "s" & vax == 3))
   dat <- set_epi(dat, "v3.num", at, sum(active == 1 & status == "s" & vax == 5))
+  dat <- set_epi(dat, "strain1", at, sum(active == 1 & status != "s" & strain == 1))
+  dat <- set_epi(dat, "strain2", at, sum(active == 1 & status != "s" & strain == 2))
 
 
   return(dat)

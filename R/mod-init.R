@@ -429,6 +429,10 @@ init_status_covid_boost <- function(dat) {
   sinceVax1 <- rep(NA, num)
   sinceVax2 <- rep(NA, num)
   sinceVax3 <- rep(NA, num)
+  strain <- rep(NA, num)
+
+  pct.st2 <- get_param(dat, "pct.st2")
+  strain[idsInf] <- rbinom(length(idsInf), 1, pct.st2) + 1
 
   dat <- set_attr(dat, "statusTime", statusTime)
   dat <- set_attr(dat, "infTime", infTime)
@@ -442,7 +446,9 @@ init_status_covid_boost <- function(dat) {
   dat <- set_attr(dat, "sinceVax1", sinceVax1)
   dat <- set_attr(dat, "sinceVax2", sinceVax2)
   dat <- set_attr(dat, "sinceVax3", sinceVax3)
+  dat <- set_attr(dat, "strain", strain)
 
   return(dat)
+
 }
 

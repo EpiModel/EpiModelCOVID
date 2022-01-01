@@ -476,6 +476,7 @@ infect_covid_boost <- function(dat, at) {
   infTime <- get_attr(dat, "infTime")
   statusTime <- get_attr(dat, "statusTime")
   vax <- get_attr(dat, "vax")
+  strain <- get_attr(dat, "strain")
 
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
@@ -516,8 +517,6 @@ infect_covid_boost <- function(dat, at) {
         del$transProb <- inf.prob
 
         # Vaccination
-
-
         del$vaxSus <- vax[del$sus]
         del$transProb[del$vaxSus %in% 2:3] <- del$transProb[del$vaxSus %in% 2:3] *
           vax1.rr.infect
@@ -530,6 +529,9 @@ infect_covid_boost <- function(dat, at) {
         del$stat <- status[del$inf]
         del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *
           inf.prob.a.rr
+
+        # Strain
+        del$strain <- strain[del$inf]
 
         # Generic inf.prob and act.rate interventions
         if (at >= inf.prob.inter.time) {
@@ -562,11 +564,31 @@ infect_covid_boost <- function(dat, at) {
         idsNewInf <- unique(del$sus)
         nInf[layer] <- length(idsNewInf)
 
+        # Determine which pairs actually involved infection
+
+        infpairs <- sapply(idsNewInf, function(x) min(which(del$sus == x)))
+
+        if(length(infpairs) > 0) {
+
+          infectors <- del$inf[infpairs]
+          strain <- get_attr(dat, "strain")
+          infectors_strain <- strain[infectors]
+
+          nInf1 <- sum(infectors_strain == 1)
+          nInf2 <- sum(infectors_strain == 2)
+          totInf <- nInf1 + nInf2
+
+          strain[idsNewInf] <- strain[infectors]
+        } else {
+          nInf1 <- nInf2 <- totInf <- 0
+        }
+
         # Set new attributes for those newly infected
         if (nInf[layer] > 0) {
           dat <- set_attr(dat, "status", "e", idsNewInf)
           dat <- set_attr(dat, "infTime", at, idsNewInf)
           dat <- set_attr(dat, "statusTime", at, idsNewInf)
+          dat <- set_attr(dat, "strain", strain)
         }
       }
     }
