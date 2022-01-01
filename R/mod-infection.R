@@ -539,14 +539,14 @@ infect_covid_boost <- function(dat, at) {
         del$transProb[del$strain == 2] <- del$transProb[del$strain == 2] *
           st2.infect
 
-        # # Generic inf.prob and act.rate interventions
-        # if (at >= inf.prob.inter.time) {
-        #   del$transProb <- del$transProb * inf.prob.inter.rr
-        # }
-        # del$actRate <- act.rate
-        # if (at >= act.rate.inter.time) {
-        #   del$actRate <- del$actRate * act.rate.inter.rr
-        # }
+        # Generic inf.prob and act.rate interventions
+        if (at >= inf.prob.inter.time) {
+          del$transProb <- del$transProb * inf.prob.inter.rr
+        }
+        del$actRate <- act.rate
+        if (at >= act.rate.inter.time) {
+          del$actRate <- del$actRate * act.rate.inter.rr
+        }
 
         # Case isolation with diagnosed or symptomatic infection
         if (at >= act.rate.dx.inter.time) {
