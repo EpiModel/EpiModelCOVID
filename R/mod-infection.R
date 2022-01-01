@@ -492,6 +492,8 @@ infect_covid_boost <- function(dat, at) {
   vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
   vax3.rr.infect <- get_param(dat, "vax3.rr.infect")
+  st1.infect <- get_param(dat, "st1.infect")
+  st2.infect <- get_param(dat, "st2.infect")
 
   nLayers <- length(dat$el)
   nInf <- rep(0, nLayers)
@@ -532,15 +534,19 @@ infect_covid_boost <- function(dat, at) {
 
         # Strain
         del$strain <- strain[del$inf]
+        del$transProb[del$strain == 1] <- del$transProb[del$strain == 1] *
+          st1.infect
+        del$transProb[del$strain == 2] <- del$transProb[del$strain == 2] *
+          st2.infect
 
-        # Generic inf.prob and act.rate interventions
-        if (at >= inf.prob.inter.time) {
-          del$transProb <- del$transProb * inf.prob.inter.rr
-        }
-        del$actRate <- act.rate
-        if (at >= act.rate.inter.time) {
-          del$actRate <- del$actRate * act.rate.inter.rr
-        }
+        # # Generic inf.prob and act.rate interventions
+        # if (at >= inf.prob.inter.time) {
+        #   del$transProb <- del$transProb * inf.prob.inter.rr
+        # }
+        # del$actRate <- act.rate
+        # if (at >= act.rate.inter.time) {
+        #   del$actRate <- del$actRate * act.rate.inter.rr
+        # }
 
         # Case isolation with diagnosed or symptomatic infection
         if (at >= act.rate.dx.inter.time) {
