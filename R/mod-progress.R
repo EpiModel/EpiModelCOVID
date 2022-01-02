@@ -663,10 +663,13 @@ progress_covid_boost <- function(dat, at) {
   hospit <- get_attr(dat, "hospit")
   age <- get_attr(dat, "age")
   vax <- get_attr(dat, "vax")
+  strain <- get_attr(dat, "strain")
 
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
-  vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
+  vax1.rr.clinical <- get_param(dat, "vax1.rr.clinical")
+  vax2.rr.clinical <- get_param(dat, "vax2.rr.clinical")
+  vax3.rr.clinical <- get_param(dat, "vax3.rr.clinical")
   prop.hospit <- get_param(dat, "prop.hospit")
   ea.rate <- get_param(dat, "ea.rate")
   ar.rate <- get_param(dat, "ar.rate")
@@ -675,6 +678,11 @@ progress_covid_boost <- function(dat, at) {
   ich.rate <- get_param(dat, "ich.rate")
   icr.rate <- get_param(dat, "icr.rate")
   hr.rate <- get_param(dat, "hr.rate")
+  strain.clinical <- get_param(dat, "strain.clinical")
+  vax1.rr.hosp <- get_param(dat, "vax1.rr.hosp")
+  vax2.rr.hosp <- get_param(dat, "vax2.rr.hosp")
+  vax3.rr.hosp <- get_param(dat, "vax3.rr.hosp")
+  strain.hosp <- get_param(dat, "strain.hosp")
 
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
@@ -682,8 +690,14 @@ progress_covid_boost <- function(dat, at) {
   if (num.newInf > 0) {
     age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
-    prop.clin.vec[vax[ids.newInf] == 4] <- prop.clin.vec[vax[ids.newInf] == 4] *
-      vax.rr.clinical
+    prop.clin.vec[vax[ids.newInf] %in% 2:3] <- prop.clin.vec[vax[ids.newInf] %in% 2:3] *
+      vax1.rr.clinical
+    prop.clin.vec[vax[ids.newInf] %in% 4:5] <- prop.clin.vec[vax[ids.newInf] %in% 4:5] *
+      vax2.rr.clinical
+    prop.clin.vec[vax[ids.newInf] == 6] <- prop.clin.vec[vax[ids.newInf] == 6] *
+      vax3.rr.clinical
+    prop.clin.vec[strain[ids.newInf] == 2] <-
+      prop.clin.vec[strain[ids.newInf] == 2] * strain.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clin.vec)
     clinical[ids.newInf] <- vec.new.clinical
@@ -754,6 +768,14 @@ progress_covid_boost <- function(dat, at) {
   if (num.newIc > 0) {
     age.group <- pmin((floor(age[ids.newIc] / 10)) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
+    prop.hosp.vec[vax[ids.newIc] %in% 2:3] <- prop.hosp.vec[vax[ids.newIc] %in% 2:3] *
+      vax1.rr.hosp
+    prop.hosp.vec[vax[ids.newIc] %in% 4:5] <- prop.hosp.vec[vax[ids.newIc] %in% 4:5] *
+      vax1.rr.hosp
+    prop.hosp.vec[vax[ids.newIc] == 6] <- prop.hosp.vec[vax[ids.newIc] == 6] *
+      vax3.rr.hosp
+    prop.hosp.vec[strain[ids.newIc] == 2] <-
+      prop.hosp.vec[strain[ids.newIc] == 2] * strain.hosp
     if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
     hospit[ids.newIc] <- vec.new.hospit
