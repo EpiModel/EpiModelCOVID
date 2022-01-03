@@ -534,6 +534,11 @@ infect_covid_boost <- function(dat, at) {
         del$transProb[del$vaxSus == 6] <- del$transProb[del$vaxSus == 6] *
           vax3.rr.infect
 
+        # Waning Vaccine Immunity
+        del$latest.vax <- latest.vax[del$sus]
+        del$transProb <- del$transProb *
+          (0.5 ^ (del$latest.vax / half.life))
+
         # Asymptomatic infection
         del$stat <- status[del$inf]
         del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *

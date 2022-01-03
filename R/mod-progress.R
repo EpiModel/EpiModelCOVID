@@ -664,6 +664,10 @@ progress_covid_boost <- function(dat, at) {
   age <- get_attr(dat, "age")
   vax <- get_attr(dat, "vax")
   strain <- get_attr(dat, "strain")
+  sinceVax1 <- get_attr(dat, "sinceVax1")
+  sinceVax2 <- get_attr(dat, "sinceVax2")
+  sinceVax3 <- get_attr(dat, "sinceVax3")
+  latest.vax <- get_attr(dat, "latest.vax")
 
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
@@ -683,6 +687,7 @@ progress_covid_boost <- function(dat, at) {
   vax2.rr.hosp <- get_param(dat, "vax2.rr.hosp")
   vax3.rr.hosp <- get_param(dat, "vax3.rr.hosp")
   strain.hosp <- get_param(dat, "strain.hosp")
+  half.life <- get_param(dat, "half.life")
 
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
@@ -690,12 +695,22 @@ progress_covid_boost <- function(dat, at) {
   if (num.newInf > 0) {
     age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
+
+    # Vaccination reducing risk of developing clinical disease
     prop.clin.vec[vax[ids.newInf] %in% 2:3] <- prop.clin.vec[vax[ids.newInf] %in% 2:3] *
       vax1.rr.clinical
     prop.clin.vec[vax[ids.newInf] %in% 4:5] <- prop.clin.vec[vax[ids.newInf] %in% 4:5] *
       vax2.rr.clinical
     prop.clin.vec[vax[ids.newInf] == 6] <- prop.clin.vec[vax[ids.newInf] == 6] *
       vax3.rr.clinical
+
+    # Wanning vaccine provided protection
+    latest.vax.newInf <- latest.vax[ids.newInf] %>%
+      na.omit()
+    prop.clin.vec[vax[ids.newInf] %in% 2:6] <- prop.clin.vec[vax[ids.newInf] %in% 2:6] *
+      (0.5 ^ (latest.vax.newInf / half.life))
+
+    # Strain dependent clinical progression probabilities
     prop.clin.vec[strain[ids.newInf] == 2] <-
       prop.clin.vec[strain[ids.newInf] == 2] * strain.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
@@ -768,14 +783,27 @@ progress_covid_boost <- function(dat, at) {
   if (num.newIc > 0) {
     age.group <- pmin((floor(age[ids.newIc] / 10)) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
+
+    # Vaccination reducing risk of hospitalization
     prop.hosp.vec[vax[ids.newIc] %in% 2:3] <- prop.hosp.vec[vax[ids.newIc] %in% 2:3] *
       vax1.rr.hosp
     prop.hosp.vec[vax[ids.newIc] %in% 4:5] <- prop.hosp.vec[vax[ids.newIc] %in% 4:5] *
       vax1.rr.hosp
     prop.hosp.vec[vax[ids.newIc] == 6] <- prop.hosp.vec[vax[ids.newIc] == 6] *
       vax3.rr.hosp
+
+    # Waning vaccine provided protection
+    latest.vax.newIc <- latest.vax[ids.newIc] %>%
+      na.omit()
+    prop.hosp.vec[vax[ids.newIc] %in% 2:6] <- prop.hosp.vec[vax[ids.newIc] %in% 2:6] *
+      (0.5 ^ (latest.vax.newIc / half.life))
+
+
+
+    # Strain dependent hospitalization probabilities
     prop.hosp.vec[strain[ids.newIc] == 2] <-
       prop.hosp.vec[strain[ids.newIc] == 2] * strain.hosp
+
     if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
     hospit[ids.newIc] <- vec.new.hospit
