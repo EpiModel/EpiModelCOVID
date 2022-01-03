@@ -104,7 +104,7 @@ intervention_covid_contacttrace <- function(dat, at) {
           ids.missing.quar <- which(is.na(quar))
           num.missing.quar <- length(ids.missing.quar)
           if (num.missing.quar > 0) {
-            tracedTime[ids.missing.quar] <- at
+            tracedTime[ids.missing.quar] <- at + 2
             quarEnd[ids.missing.quar] <- tracedTime[ids.missing.quar] + 14
             
             # Selecting sample of individuals to actually complete quarantine
