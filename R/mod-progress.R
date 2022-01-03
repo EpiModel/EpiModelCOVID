@@ -668,6 +668,7 @@ progress_covid_boost <- function(dat, at) {
   sinceVax2 <- get_attr(dat, "sinceVax2")
   sinceVax3 <- get_attr(dat, "sinceVax3")
   latest.vax <- get_attr(dat, "latest.vax")
+  dxStatus <- get_attr(dat, "dxStatus")
 
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
@@ -682,6 +683,7 @@ progress_covid_boost <- function(dat, at) {
   ich.rate <- get_param(dat, "ich.rate")
   icr.rate <- get_param(dat, "icr.rate")
   hr.rate <- get_param(dat, "hr.rate")
+  rs.rate <- get_param(dat, "rs.rate")
   strain.clinical <- get_param(dat, "strain.clinical")
   vax1.rr.hosp <- get_param(dat, "vax1.rr.hosp")
   vax2.rr.hosp <- get_param(dat, "vax2.rr.hosp")
@@ -798,8 +800,6 @@ progress_covid_boost <- function(dat, at) {
     prop.hosp.vec[vax[ids.newIc] %in% 2:6] <- prop.hosp.vec[vax[ids.newIc] %in% 2:6] *
       (0.5 ^ (latest.vax.newIc / half.life))
 
-
-
     # Strain dependent hospitalization probabilities
     prop.hosp.vec[strain[ids.newIc] == 2] <-
       prop.hosp.vec[strain[ids.newIc] == 2] * strain.hosp
@@ -851,6 +851,21 @@ progress_covid_boost <- function(dat, at) {
     }
   }
 
+  #R to S: become susceptible again after infection
+  num.new.RtoS <- 0
+  ids.RS <- which(active == 1 & status == "r" & statusTime < at)
+  num.RS <- length(ids.RS)
+  if (num.RS > 0) {
+    vec.new.RS <- which(rbinom(num.RS, 1, rs.rate) == 1)
+    if (length(vec.new.RS) > 0) {
+      ids.new.RS <- ids.RS[vec.new.RS]
+      num.new.RtoS <- length(ids.new.RS)
+      status[ids.new.RS] <- "s"
+      statusTime[ids.new.RS] <- at
+      dxStatus[ids.new.RS] <- NA
+    }
+  }
+
   ## Save updated attributes
   dat <- set_attr(dat, "status", status)
   dat <- set_attr(dat, "statusTime", statusTime)
@@ -864,6 +879,7 @@ progress_covid_boost <- function(dat, at) {
   dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
   dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
+  dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
 
   return(dat)
 }
