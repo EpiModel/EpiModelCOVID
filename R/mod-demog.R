@@ -130,7 +130,7 @@ deaths_covid_contacttrace <- function(dat, at) {
     whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86)
     death_rates_of_elig <- mort.rates[whole_ages_of_elig]
 
-    idsElig.inf <- which(status[idsElig] == "h") # add here other compartments like icu
+    idsElig.inf <- which(status[idsElig] %in% c("h", "icu"))
     death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] *
       mort.dis.mult
 
