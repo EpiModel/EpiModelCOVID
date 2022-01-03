@@ -475,7 +475,13 @@ infect_covid_boost <- function(dat, at) {
   status <- get_attr(dat, "status")
   infTime <- get_attr(dat, "infTime")
   statusTime <- get_attr(dat, "statusTime")
+
   vax <- get_attr(dat, "vax")
+  sinceVax1 <- get_attr(dat, "sinceVax1")
+  sinceVax2 <- get_attr(dat, "sinceVax2")
+  sinceVax3 <- get_attr(dat, "sinceVax3")
+  latest.vax <- get_attr(dat, "latest.vax")
+
   strain <- get_attr(dat, "strain")
 
   ## Find infected nodes ##
@@ -494,6 +500,7 @@ infect_covid_boost <- function(dat, at) {
   vax3.rr.infect <- get_param(dat, "vax3.rr.infect")
   st1.infect <- get_param(dat, "st1.infect")
   st2.infect <- get_param(dat, "st2.infect")
+  half.life <- get_param(dat, "half.life")
 
   nLayers <- length(dat$el)
   nInf <- rep(0, nLayers)

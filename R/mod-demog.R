@@ -426,6 +426,7 @@ setNewAttr_covid_boost <- function(dat, at, nNew) {
   dat <- append_attr(dat, "vax1Time", NA, nNew)
   dat <- append_attr(dat, "vax2Time", NA, nNew)
   dat <- append_attr(dat, "vax3Time", NA, nNew)
+  dat <- append_attr(dat, "latest.vax", NA, nNew)
   dat <- append_attr(dat, "sinceVax1", NA, nNew)
   dat <- append_attr(dat, "sinceVax2", NA, nNew)
   dat <- append_attr(dat, "sinceVax3", NA, nNew)
