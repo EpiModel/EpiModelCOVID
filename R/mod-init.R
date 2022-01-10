@@ -426,10 +426,6 @@ init_status_covid_boost <- function(dat) {
   vax1Time <- rep(NA, num)
   vax2Time <- rep(NA, num)
   vax3Time <- rep(NA, num)
-  latest.vax <- rep(NA, num)
-  sinceVax1 <- rep(NA, num)
-  sinceVax2 <- rep(NA, num)
-  sinceVax3 <- rep(NA, num)
   strain <- rep(NA, num)
 
   pct.st2 <- get_param(dat, "pct.st2")
@@ -444,10 +440,6 @@ init_status_covid_boost <- function(dat) {
   dat <- set_attr(dat, "vax1Time", vax1Time)
   dat <- set_attr(dat, "vax2Time", vax2Time)
   dat <- set_attr(dat, "vax3Time", vax3Time)
-  dat <- set_attr(dat, "sinceVax1", sinceVax1)
-  dat <- set_attr(dat, "sinceVax2", sinceVax2)
-  dat <- set_attr(dat, "sinceVax3", sinceVax3)
-  dat <- set_attr(dat, "latest.vax", latest.vax)
   dat <- set_attr(dat, "strain", strain)
 
 

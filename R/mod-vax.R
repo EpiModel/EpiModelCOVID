@@ -92,7 +92,6 @@ vax_covid_boost <- function(dat, at) {
   vax1Time <- get_attr(dat, "vax1Time")
   vax2Time <- get_attr(dat, "vax2Time")
   vax3Time <- get_attr(dat, "vax3Time")
-  latest.vax <- get_attr(dat, "latest.vax")
 
   vax.start <- get_param(dat, "vax.start")
   vax1.rate <- get_param(dat, "vax1.rate")
@@ -157,24 +156,11 @@ vax_covid_boost <- function(dat, at) {
     vax[idsvaximmuneBoost] <- 6
   }
 
-  # Record time since vax
-  sinceVax1 <- ifelse((at - vax1Time - vax1.immune) >= 0,
-                      at - vax1Time - vax1.immune, 0)
-  sinceVax2 <- ifelse((at - vax2Time - vax2.immune) >= 0,
-                      at - vax2Time - vax2.immune, 0)
-  sinceVax3 <- ifelse((at - vax3Time - vax3.immune) >= 0,
-                      at - vax3Time - vax3.immune, 0)
-  latest.vax <- pmax(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
-
   ## Replace attr
   dat <- set_attr(dat, "vax", vax)
   dat <- set_attr(dat, "vax1Time", vax1Time)
   dat <- set_attr(dat, "vax2Time", vax2Time)
   dat <- set_attr(dat, "vax3Time", vax3Time)
-  dat <- set_attr(dat, "sinceVax1", sinceVax1)
-  dat <- set_attr(dat, "sinceVax2", sinceVax2)
-  dat <- set_attr(dat, "sinceVax3", sinceVax3)
-  dat <- set_attr(dat, "latest.vax", latest.vax)
 
   ## Summary statistics ##
   dat <- set_epi(dat, "nVax1", at, nVax)

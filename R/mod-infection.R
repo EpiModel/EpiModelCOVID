@@ -477,10 +477,9 @@ infect_covid_boost <- function(dat, at) {
   statusTime <- get_attr(dat, "statusTime")
 
   vax <- get_attr(dat, "vax")
-  sinceVax1 <- get_attr(dat, "sinceVax1")
-  sinceVax2 <- get_attr(dat, "sinceVax2")
-  sinceVax3 <- get_attr(dat, "sinceVax3")
-  latest.vax <- get_attr(dat, "latest.vax")
+  vax1Time <- get_attr(dat, "vax1Time")
+  vax2Time <- get_attr(dat, "vax2Time")
+  vax3Time <- get_attr(dat, "vax3Time")
 
   strain <- get_attr(dat, "strain")
 
@@ -498,6 +497,9 @@ infect_covid_boost <- function(dat, at) {
   vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
   vax3.rr.infect <- get_param(dat, "vax3.rr.infect")
+  vax1.immune <- get_param(dat, "vax1.immune")
+  vax2.immune <- get_param(dat, "vax2.immune")
+  vax3.immune <- get_param(dat, "vax3.immune")
   st1.infect <- get_param(dat, "st1.infect")
   st2.infect <- get_param(dat, "st2.infect")
   half.life <- get_param(dat, "half.life")
@@ -535,9 +537,19 @@ infect_covid_boost <- function(dat, at) {
           vax3.rr.infect
 
         # Waning Vaccine Immunity
+
+        # Record time since vax
+        sinceVax1 <- ifelse((at - vax1Time - vax1.immune) >= 0,
+                            at - vax1Time - vax1.immune, 0)
+        sinceVax2 <- ifelse((at - vax2Time - vax2.immune) >= 0,
+                            at - vax2Time - vax2.immune, 0)
+        sinceVax3 <- ifelse((at - vax3Time - vax3.immune) >= 0,
+                            at - vax3Time - vax3.immune, 0)
+        latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
+        latest.vax[is.na(latest.vax)] <- 0
+
         del$latest.vax <- latest.vax[del$sus]
         del$transProb <- del$transProb *
-          (0.5 ^ (del$latest.vax / half.life))
 
         # Asymptomatic infection
         del$stat <- status[del$inf]

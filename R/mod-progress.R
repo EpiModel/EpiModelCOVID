@@ -664,10 +664,9 @@ progress_covid_boost <- function(dat, at) {
   age <- get_attr(dat, "age")
   vax <- get_attr(dat, "vax")
   strain <- get_attr(dat, "strain")
-  sinceVax1 <- get_attr(dat, "sinceVax1")
-  sinceVax2 <- get_attr(dat, "sinceVax2")
-  sinceVax3 <- get_attr(dat, "sinceVax3")
-  latest.vax <- get_attr(dat, "latest.vax")
+  vax1Time <- get_attr(dat, "vax1Time")
+  vax2Time <- get_attr(dat, "vax2Time")
+  vax3Time <- get_attr(dat, "vax3Time")
   dxStatus <- get_attr(dat, "dxStatus")
 
   ## Parameters
@@ -675,6 +674,9 @@ progress_covid_boost <- function(dat, at) {
   vax1.rr.clinical <- get_param(dat, "vax1.rr.clinical")
   vax2.rr.clinical <- get_param(dat, "vax2.rr.clinical")
   vax3.rr.clinical <- get_param(dat, "vax3.rr.clinical")
+  vax1.immune <- get_param(dat, "vax1.immune")
+  vax2.immune <- get_param(dat, "vax2.immune")
+  vax3.immune <- get_param(dat, "vax3.immune")
   prop.hospit <- get_param(dat, "prop.hospit")
   ea.rate <- get_param(dat, "ea.rate")
   ar.rate <- get_param(dat, "ar.rate")
@@ -707,10 +709,18 @@ progress_covid_boost <- function(dat, at) {
       vax3.rr.clinical
 
     # Wanning vaccine provided protection
+    sinceVax1 <- ifelse((at - vax1Time - vax1.immune) >= 0,
+                        at - vax1Time - vax1.immune, 0)
+    sinceVax2 <- ifelse((at - vax2Time - vax2.immune) >= 0,
+                        at - vax2Time - vax2.immune, 0)
+    sinceVax3 <- ifelse((at - vax3Time - vax3.immune) >= 0,
+                        at - vax3Time - vax3.immune, 0)
+    latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
+    latest.vax[is.na(latest.vax)] <- 0
+
     latest.vax.newInf <- latest.vax[ids.newInf] %>%
       na.omit()
     prop.clin.vec[vax[ids.newInf] %in% 2:6] <- prop.clin.vec[vax[ids.newInf] %in% 2:6] *
-      (0.5 ^ (latest.vax.newInf / half.life))
 
     # Strain dependent clinical progression probabilities
     prop.clin.vec[strain[ids.newInf] == 2] <-
@@ -795,10 +805,18 @@ progress_covid_boost <- function(dat, at) {
       vax3.rr.hosp
 
     # Waning vaccine provided protection
+    sinceVax1 <- ifelse((at - vax1Time - vax1.immune) >= 0,
+                        at - vax1Time - vax1.immune, 0)
+    sinceVax2 <- ifelse((at - vax2Time - vax2.immune) >= 0,
+                        at - vax2Time - vax2.immune, 0)
+    sinceVax3 <- ifelse((at - vax3Time - vax3.immune) >= 0,
+                        at - vax3Time - vax3.immune, 0)
+    latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
+    latest.vax[is.na(latest.vax)] <- 0
+
     latest.vax.newIc <- latest.vax[ids.newIc] %>%
       na.omit()
     prop.hosp.vec[vax[ids.newIc] %in% 2:6] <- prop.hosp.vec[vax[ids.newIc] %in% 2:6] *
-      (0.5 ^ (latest.vax.newIc / half.life))
 
     # Strain dependent hospitalization probabilities
     prop.hosp.vec[strain[ids.newIc] == 2] <-
