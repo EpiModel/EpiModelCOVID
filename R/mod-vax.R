@@ -95,6 +95,8 @@ vax_covid_boost <- function(dat, at) {
 
   vax.start <- get_param(dat, "vax.start")
   vax1.rate <- get_param(dat, "vax1.rate")
+  vax2.rate <- get_param(dat, "vax2.rate")
+  vax3.rate <- get_param(dat, "vax3.rate")
   vax2.interval <- get_param(dat, "vax2.interval")
   vax3.interval <- get_param(dat, "vax3.interval")
   vax1.immune <- get_param(dat, "vax1.immune")
@@ -120,40 +122,53 @@ vax_covid_boost <- function(dat, at) {
   }
 
   # Partial Immunity after Vax1
-  idsvaximmunePartial <- which(active == 1 & vax == 1 & at - vax1Time >= vax1.immune)
-  nvaximmunePartial <- length(idsvaximmunePartial)
-  if (nvaximmunePartial > 0){
-    vax[idsvaximmunePartial] <- 2
+  idsimmune.vax1 <- which(active == 1 & vax == 1 & at - vax1Time >= vax1.immune)
+  nimmune.vax1 <- length(idsimmune.vax1)
+  if (nimmune.vax1 > 0){
+    vax[idsimmune.vax1] <- 2
   }
 
   ## Vax2
-  idsvaxFull <- which(active == 1 & vax == 2 & (at - vax1Time >= vax2.interval))
-  nvaxFull <- length(idsvaxFull)
-  if (nvaxFull > 0) {
-    vax[idsvaxFull] <- 3
-    vax2Time[idsvaxFull] <- at
+  nVax2 <- 0
+  idsElig.vax2 <- which(active == 1 & vax == 2 & (at - vax1Time >= vax2.interval))
+  nElig.vax2 <- length(idsElig.vax2)
+  if (nElig.vax2 > 0){
+    vecVax2 <- which(rbinom(nElig.vax2, 1, vax2.rate) == 1)
+    idsVax2 <- idsElig.vax2[vecVax2]
+    nVax2 <- length(idsVax2)
+    if (nVax2 > 0){
+      vax[idsVax2] <- 3
+      vax2Time[idsVax2] <- at
+    }
   }
 
   # Immunity after Vax2
-  idsvaximmuneFull <- which(active == 1 & vax == 3 & at - vax2Time >= vax2.immune)
-  nvaximmuneFull <- length(idsvaximmuneFull)
-  if (nvaximmuneFull > 0){
-    vax[idsvaximmuneFull] <- 4
+  idsimmune.vax2 <- which(active == 1 & vax == 3 & at - vax2Time >= vax2.immune)
+  nimmune.vax2 <- length(idsimmune.vax2)
+  if (nimmune.vax2 > 0){
+    vax[idsimmune.vax2] <- 4
   }
 
   ## Vax3 - Boost
-  idsvaxBoost <- which(active == 1 & vax == 4 & (at - vax2Time >= vax3.interval))
-  nvaxBoost <- length(idsvaxBoost)
-  if (nvaxBoost > 0) {
-    vax[idsvaxBoost] <- 5
-    vax3Time[idsvaxBoost] <- at
+  nVax3 <- 0
+  idsElig.vax3 <- which(active == 1 & vax == 4 & (at - vax2Time >= vax3.interval))
+  nElig.vax3 <- length(idsElig.vax3)
+  if (nElig.vax3 > 0){
+    vecVax3 <- which(rbinom(nElig.vax3, 1, vax3.rate) == 1)
+    idsVax3 <- idsElig.vax3[vecVax3]
+    nVax3 <- length(idsVax3)
+    if (nVax3 > 0){
+      vax[idsVax3] <- 5
+      vax3Time[idsVax3] <- at
+    }
   }
 
+
   # Immunity after Vax3
-  idsvaximmuneBoost <- which(active == 1 & vax == 5 & at - vax3Time >= vax3.immune)
-  nvaximmuneBoost <- length(idsvaximmuneBoost)
-  if (nvaximmuneBoost > 0){
-    vax[idsvaximmuneBoost] <- 6
+  idsimmune.vax3 <- which(active == 1 & vax == 5 & at - vax3Time >= vax3.immune)
+  nimmune.vax3 <- length(idsimmune.vax3)
+  if (nimmune.vax3 > 0){
+    vax[idsimmune.vax3] <- 6
   }
 
   ## Replace attr
@@ -164,9 +179,9 @@ vax_covid_boost <- function(dat, at) {
 
   ## Summary statistics ##
   dat <- set_epi(dat, "nVax1", at, nVax)
-  dat <- set_epi(dat, "nVax2", at, nvaxFull)
-  dat <- set_epi(dat, "nVax3", at, nvaxBoost)
-  dat <- set_epi(dat, "nVaxImmunePart", at, nvaximmunePartial)
+  dat <- set_epi(dat, "nVax2", at, nVax2)
+  dat <- set_epi(dat, "nVax3", at, nVax3)
+  dat <- set_epi(dat, "nVaxImmunePart", at, nimmune.vax2)
 
   return(dat)
 }
