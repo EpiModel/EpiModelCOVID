@@ -507,6 +507,8 @@ infect_covid_boost <- function(dat, at) {
   nLayers <- length(dat$el)
   nInf <- rep(0, nLayers)
 
+  #if(at == 40)browser()
+
   if (length(idsInf) > 0) {
     for (layer in seq_len(nLayers)) {
       ## Look up discordant edgelist ##
@@ -549,7 +551,12 @@ infect_covid_boost <- function(dat, at) {
         latest.vax[is.na(latest.vax)] <- 0
 
         del$latest.vax <- latest.vax[del$sus]
+        #del$vax.mult <- (2 ^ (del$latest.vax / half.life))
+
+        #if(at == 50)browser()
+
         del$transProb <- del$transProb *
+          (2 ^ (del$latest.vax / half.life))
 
         # Asymptomatic infection
         del$stat <- status[del$inf]

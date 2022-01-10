@@ -721,6 +721,7 @@ progress_covid_boost <- function(dat, at) {
     latest.vax.newInf <- latest.vax[ids.newInf] %>%
       na.omit()
     prop.clin.vec[vax[ids.newInf] %in% 2:6] <- prop.clin.vec[vax[ids.newInf] %in% 2:6] *
+      (2 ^ (latest.vax.newInf / half.life))
 
     # Strain dependent clinical progression probabilities
     prop.clin.vec[strain[ids.newInf] == 2] <-
@@ -817,6 +818,7 @@ progress_covid_boost <- function(dat, at) {
     latest.vax.newIc <- latest.vax[ids.newIc] %>%
       na.omit()
     prop.hosp.vec[vax[ids.newIc] %in% 2:6] <- prop.hosp.vec[vax[ids.newIc] %in% 2:6] *
+      (2 ^ (latest.vax.newIc / half.life))
 
     # Strain dependent hospitalization probabilities
     prop.hosp.vec[strain[ids.newIc] == 2] <-
