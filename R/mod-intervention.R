@@ -39,6 +39,8 @@ intervention_covid_contacttrace <- function(dat, at) {
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
     
+      if (at > 20) browser()
+      
       ## Look up discordant edgelist ##
       del_ct <- get_partners(dat, idsEligCI)
       
