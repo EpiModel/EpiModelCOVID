@@ -39,7 +39,7 @@ intervention_covid_contacttrace <- function(dat, at) {
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
     
-      if (at > 50) browser()
+      if (at > 50) browser() 
       
       ## Look up discordant edgelist ##
       del_ct <- get_partners(dat, get_posit_ids(dat, idsEligCI))
@@ -71,7 +71,8 @@ intervention_covid_contacttrace <- function(dat, at) {
         
         if (any(del_ct$status == 'ic')) {
           del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
-                                                       del_ct$symendTime[del_ct$status == 'ic'])
+                                                       del_ct$symendTime[del_ct$status == 'ic'],
+                                                       na.rm = TRUE)
         }
         # comparing 10 days after symptom onset to symptom resolution to find max
         
