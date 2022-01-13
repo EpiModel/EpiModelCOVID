@@ -39,7 +39,7 @@ intervention_covid_contacttrace <- function(dat, at) {
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
     
-      if (at > 50) browser() 
+      if (at > 50) browser()
       
       ## Look up discordant edgelist ##
       del_ct <- get_partners(dat, get_posit_ids(dat, idsEligCI))
@@ -94,7 +94,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         ## Intervention 1: Varying fraction of traced contacts
         # Sample pool of eligible close contacts
         
-        if (nEligCT > 0 & intervention == 1) {
+        if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
           # Only sample group that has not already been traced
           ids.not.traced <- which(traced.cc != 1)
           num.not.traced <- length(ids.not.traced)
@@ -118,7 +118,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         
         ## Intervention 2: Varying time to index case/close contact interview
         # Sample pool of eligible close contacts
-        if (nEligCT > 0 & intervention == 2) {
+        if (nEligCT > 0 & intervention == 2 & at >= inter.start.time) {
           # Only sample group that has not already been traced
           ids.not.traced <- which(traced.cc != 1)
           num.not.traced <- length(ids.not.traced)
