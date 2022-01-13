@@ -37,11 +37,11 @@ intervention_covid_contacttrace <- function(dat, at) {
   
   if (nEligCI > 0) {
       
+      if (at > 50) browser()
+    
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
     
-      if (at > 50) browser()
-      
       ## Look up discordant edgelist ##
       del_ct <- get_partners(dat, get_posit_ids(dat, idsEligCI))
       
@@ -81,10 +81,12 @@ intervention_covid_contacttrace <- function(dat, at) {
         del_ct$eligible.cc <- 0
         
         del_ct$eligible.cc[del_ct$status %in% c("a", "ip") & 
+                             del_ct$stop >= (del_ct$dxTime - 2) &
                              (del_ct$start <= del_ct$iso.end | 
                                 del_ct$stop >= (del_ct$dxTime - 2))] <- 1
         
         del_ct$eligible.cc[del_ct$status == "ic" & 
+                             del_ct$stop >= (del_ct$statusTime.Ic - 2) &
                              (del_ct$start <= del_ct$iso.end | 
                                 del_ct$stop >= (del_ct$statusTime.Ic - 2))] <- 1
         
