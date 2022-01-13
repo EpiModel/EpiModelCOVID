@@ -81,12 +81,12 @@ intervention_covid_contacttrace <- function(dat, at) {
         del_ct$eligible.cc <- 0
         
         del_ct$eligible.cc[del_ct$status %in% c("a", "ip") & 
-                             del_ct$stop >= (del_ct$dxTime - 2) &
+                             (del_ct$stop >= (del_ct$dxTime - 2) | is.na(del_ct$stop)) &
                              (del_ct$start <= del_ct$iso.end | 
                                 del_ct$stop >= (del_ct$dxTime - 2))] <- 1
         
         del_ct$eligible.cc[del_ct$status == "ic" & 
-                             del_ct$stop >= (del_ct$statusTime.Ic - 2) &
+                             (del_ct$stop >= (del_ct$statusTime.Ic - 2) | is.na(del_ct$stop)) &
                              (del_ct$start <= del_ct$iso.end | 
                                 del_ct$stop >= (del_ct$statusTime.Ic - 2))] <- 1
         
