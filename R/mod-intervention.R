@@ -33,6 +33,7 @@ intervention_covid_contacttrace <- function(dat, at) {
   prop.traced.2 <- get_param(dat, "prop.traced.2")
   time.lag <- get_param(dat, "time.lag")
   intervention <- get_param(dat, "intervention")
+  inter.start.time <- get_param(dat, "inter.start.time")
   
   if (nEligCI > 0) {
       
