@@ -99,7 +99,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         
         if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
           # Only sample group that has not already been traced
-          ids.not.traced <- which(traced.cc != 1)
+          ids.not.traced <- which(traced.cc != 1 | is.na(traced.cc))
           num.not.traced <- length(ids.not.traced)
           if (num.not.traced > 0) {
             vec.traced.status <- rbinom(num.not.traced, 1, prop.traced.1)
@@ -123,7 +123,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         # Sample pool of eligible close contacts
         if (nEligCT > 0 & intervention == 2 & at >= inter.start.time) {
           # Only sample group that has not already been traced
-          ids.not.traced <- which(traced.cc != 1)
+          ids.not.traced <- which(traced.cc != 1 | is.na(traced.cc))
           num.not.traced <- length(ids.not.traced)
           if (num.not.traced > 0) {
             vec.traced.status <- rbinom(nrow(del_ct), 1, prop.traced.2)
