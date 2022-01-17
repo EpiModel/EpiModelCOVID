@@ -37,7 +37,7 @@ intervention_covid_contacttrace <- function(dat, at) {
   
   if (nEligCI > 0) {
       
-      if (at > 50) browser()
+      if (nEligCI > 0) browser()
     
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
@@ -98,6 +98,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         # Sample pool of eligible close contacts
         
         if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
+          
           # Only sample group that has not already been traced
           ids.not.traced <- which(traced.cc != 1 | is.na(traced.cc))
           num.not.traced <- length(ids.not.traced)
