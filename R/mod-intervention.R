@@ -57,6 +57,10 @@ intervention_covid_contacttrace <- function(dat, at) {
         del_ct$dxTime <- 0
         del_ct$statusTime.Ic <- 0
         del_ct$symendTime <- 0
+        del_ct$traced.cc <- 0
+        del_ct$tracedTime <- 0
+        del_ct$quar <- 0
+        del_ct$quar_end <- 0
         # consider putting in initialization for status column as 's'
         
         del_ct$dxTime <- dxTime[del_ct$index]
@@ -64,17 +68,22 @@ intervention_covid_contacttrace <- function(dat, at) {
         del_ct$symendTime <- symendTime[del_ct$index]
         del_ct$status <- status[del_ct$index]
         
+        del_ct$traced.cc <- traced.cc[del_ct$partner]
+        del_ct$tracedTime <- tracedTime[del_ct$partner]
+        del_ct$quar <- quar[del_ct$partner]
+        del_ct$quar_end <- quar_end[del_ct$partner]
+        
         # Assign new isolation end attribute to discordant edgelist data frame
         # initialize iso.end column
         del_ct$iso.end <- 0
-      
+       
         del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
         
         if (any(del_ct$status == 'ic')) {
           del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
                                                        del_ct$symendTime[del_ct$status == 'ic'],
                                                        na.rm = TRUE)
-        }
+        } ## this is not working for ic individuals 
         # comparing 10 days after symptom onset to symptom resolution to find max
         
         # Filter discordant edgelist for eligible contacts, assign new attribute for eligibility
@@ -100,7 +109,8 @@ intervention_covid_contacttrace <- function(dat, at) {
         if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
           
           # Only sample group that has not already been traced
-          ids.not.traced <- which(traced.cc != 1 | is.na(traced.cc))
+          ids.not.traced <- which(del_ct$traced.cc == 0)
+          # ids.not.traced <- which(traced.cc != 1 | is.na(traced.cc))
           num.not.traced <- length(ids.not.traced)
           if (num.not.traced > 0) {
             vec.traced.status <- rbinom(num.not.traced, 1, prop.traced.1)
