@@ -32,12 +32,13 @@ intervention_covid_contacttrace <- function(dat, at) {
   prop.traced.1 <- get_param(dat, "prop.traced.1")
   prop.traced.2 <- get_param(dat, "prop.traced.2")
   time.lag <- get_param(dat, "time.lag")
+  baseline.lag <- get_param(dat, "baseline.lag")
   intervention <- get_param(dat, "intervention")
   inter.start.time <- get_param(dat, "inter.start.time")
   
   if (nEligCI > 0) {
       
-      if (nEligCI > 0) browser()
+      #if (nEligCI > 0) browser()
     
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
@@ -60,7 +61,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         del_ct$traced.cc <- 0
         del_ct$tracedTime <- 0
         del_ct$quar <- 0
-        del_ct$quar_end <- 0
+        del_ct$quarEnd <- 0
         # consider putting in initialization for status column as 's'
         
         del_ct$dxTime <- dxTime[del_ct$index]
@@ -71,7 +72,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         del_ct$traced.cc <- traced.cc[del_ct$partner]
         del_ct$tracedTime <- tracedTime[del_ct$partner]
         del_ct$quar <- quar[del_ct$partner]
-        del_ct$quar_end <- quar_end[del_ct$partner]
+        del_ct$quarEnd <- quarEnd[del_ct$partner]
         
         # Assign new isolation end attribute to discordant edgelist data frame
         # initialize iso.end column
@@ -101,7 +102,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         
         # Keep only eligible close contacts
         del_ct <- del_ct[which(del_ct$eligible.cc == 1), , drop = FALSE]
-        nEligCT <- nrow(del_ct)
+        nEligCT <- length(unique(del_ct$partner))
         
         ## Intervention 1: Varying fraction of traced contacts
         # Sample pool of eligible close contacts
@@ -109,24 +110,23 @@ intervention_covid_contacttrace <- function(dat, at) {
         if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
           
           # Only sample group that has not already been traced
-          ids.not.traced <- which(del_ct$traced.cc == 0)
-          # ids.not.traced <- which(traced.cc != 1 | is.na(traced.cc))
+          ids.not.traced <- which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
           num.not.traced <- length(ids.not.traced)
           if (num.not.traced > 0) {
             vec.traced.status <- rbinom(num.not.traced, 1, prop.traced.1)
-            traced.cc[ids.not.traced] <- vec.traced.status
+            del_ct$traced.cc[ids.not.traced] <- vec.traced.status
           }
           
           # Apply contact tracing attributes to close contacts
-          ids.missing.quar <- which(is.na(quar))
+          ids.missing.quar <- which(is.na(del_ct$quar))
           num.missing.quar <- length(ids.missing.quar)
           if (num.missing.quar > 0) {
-            tracedTime[ids.missing.quar] <- at + 2
-            quarEnd[ids.missing.quar] <- tracedTime[ids.missing.quar] + 14
+            del_ct$tracedTime[ids.missing.quar] <- at + baseline.lag
+            del_ct$quarEnd[ids.missing.quar] <- del_ct$tracedTime[ids.missing.quar] + 14
             
             # Selecting sample of individuals to actually complete quarantine
             vec.quar.status <- rbinom(num.missing.quar, 1, 0.8)
-            quar[ids.missing.quar] <- vec.quar.status
+            del_ct$quar[ids.missing.quar] <- vec.quar.status
           }
         }
         
@@ -134,53 +134,68 @@ intervention_covid_contacttrace <- function(dat, at) {
         # Sample pool of eligible close contacts
         if (nEligCT > 0 & intervention == 2 & at >= inter.start.time) {
           # Only sample group that has not already been traced
-          ids.not.traced <- which(traced.cc != 1 | is.na(traced.cc))
+          ids.not.traced <- which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
           num.not.traced <- length(ids.not.traced)
           if (num.not.traced > 0) {
-            vec.traced.status <- rbinom(nrow(del_ct), 1, prop.traced.2)
-            traced.cc[ids.not.traced] <- vec.traced.status
+            vec.traced.status <- rbinom(num.not.traced, 1, prop.traced.2)
+            del_ct$traced.cc[ids.not.traced] <- vec.traced.status
           }
           
           # Apply contact tracing attributes to close contacts
-          ids.missing.quar <- which(is.na(quar))
+          ids.missing.quar <- which(is.na(del_ct$quar))
+          cc.missing.quar <- del_ct$partner[is.na(del_ct$quar)]
           num.missing.quar <- length(ids.missing.quar)
           if (num.missing.quar > 0) {
-            tracedTime[ids.missing.quar] <- at + time.lag
-            quarEnd[ids.missing.quar] <- tracedTime[ids.missing.quar] + 14
+            del_ct$tracedTime[ids.missing.quar] <- at + time.lag
+            del_ct$quarEnd[ids.missing.quar] <- del_ct$tracedTime[ids.missing.quar] + 14
             
             # Selecting sample of individuals to actually complete quarantine
             vec.quar.status <- rbinom(num.missing.quar, 1, 0.8)
-            quar[ids.missing.quar] <- vec.quar.status
+            del_ct$quar[ids.missing.quar] <- vec.quar.status
           }
         }
 
-        ids.traced <- which(traced.cc == 1)
+        ids.traced <- del_ct$partner[del_ct$traced.cc == 1 & !is.na(del_ct$traced.cc)]
+        cc.not.traced <- del_ct$partner[del_ct$traced.cc == 0 & !is.na(del_ct$traced.cc)]
+        
+        nTraced <- length(which(!is.na(del_ct$partner[del_ct$traced.cc == 1])))
+        nNotTraced <- length(which(!is.na(del_ct$partner[del_ct$traced.cc == 0])))
         
         # Check quarantine windows for those with quarantine attributes
-        ids.with.quar <- which(!is.na(quar))
+        ids.with.quar <- which(!is.na(del_ct$quar))
         num.with.quar <- length(ids.with.quar)
         if (num.with.quar > 0) {
           # for those still quarantining (quar = 1 or 0) keep current attributes
-          ids.quar.cont <- which(quarEnd >= at & tracedTime <= at)
+          ids.quar.current <- which(at <= quarEnd & at >= tracedTime)
+
+          # for those who haven't started quarantining yet, keep quarantine status
+          ids.quar.future <- which(at < del_ct$tracedTime)
+          num.quar.future <- length(ids.quar.future)
           
           # for those finished with quarantine, transition back to missing quar
-          ids.quar.discont <- which(at < tracedTime | quarEnd < at)
+          ids.quar.discont <- which(del_ct$quarEnd < at)
           num.quar.discont <- length(ids.quar.discont)
           if (num.quar.discont > 0) {
-            quar[ids.quar.discont] <- NA
+            del_ct$quar[ids.quar.discont] <- NA
           }
         }
         
+        ids.quar <- del_ct$partner[del_ct$quar == 1 & !is.na(del_ct$quar)]
+        ids.not.quar <- del_ct$partner[del_ct$quar == 0 & !is.na(del_ct$quar)]
+        
+        
         # Save updated attributes 
           dat <- set_attr(dat, "eligible.case", eligible.case)
-          dat <- set_attr(dat, "traced.cc", traced.cc)
-          dat <- set_attr(dat, "quar", quar)
-          dat <- set_attr(dat, "tracedTime", tracedTime)
-          dat <- set_attr(dat, "quarEnd", quarEnd)
+          dat <- set_attr(dat, "traced.cc", 0, get_posit_ids(dat, cc.not.traced))
+          dat <- set_attr(dat, "traced.cc", 1, get_posit_ids(dat, ids.traced))
+          dat <- set_attr(dat, "quar", 0, get_posit_ids(dat, ids.not.quar))
+          dat <- set_attr(dat, "quar", 1, get_posit_ids(dat, ids.quar))
+          dat <- set_attr(dat, "tracedTime", at + time.lag, get_posit_ids(dat, cc.missing.quar))
+          dat <- set_attr(dat, "quarEnd", tracedTime + 14, get_posit_ids(dat, cc.missing.quar))
 
         ## Summary statistics
           dat <- set_epi(dat, "nQuar", at, length(ids.with.quar)) # number theoretically quarantining
-          dat <- set_epi(dat, "nTraced", at, length(ids.traced)) # number of contacts traced
+          dat <- set_epi(dat, "nTraced", at, nTraced) # number of contacts traced
           dat <- set_epi(dat, "nElig.CC", at, nEligCT) # number of contacts eligible for tracing
 
     }
