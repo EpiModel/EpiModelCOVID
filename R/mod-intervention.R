@@ -38,7 +38,7 @@ intervention_covid_contacttrace <- function(dat, at) {
   
   if (nEligCI > 0) {
       
-      #if (nEligCI > 0) browser()
+     #if (nEligCI > 0 & at >= 25) browser()
     
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
@@ -118,7 +118,8 @@ intervention_covid_contacttrace <- function(dat, at) {
           }
           
           # Apply contact tracing attributes to close contacts
-          ids.missing.quar <- which(is.na(del_ct$quar))
+          ids.missing.quar <- which(del_ct$traced.cc == 1 & is.na(del_ct$quar))
+          cc.missing.quar <- del_ct$partner[ids.missing.quar]
           num.missing.quar <- length(ids.missing.quar)
           if (num.missing.quar > 0) {
             del_ct$tracedTime[ids.missing.quar] <- at + baseline.lag
@@ -142,8 +143,8 @@ intervention_covid_contacttrace <- function(dat, at) {
           }
           
           # Apply contact tracing attributes to close contacts
-          ids.missing.quar <- which(is.na(del_ct$quar))
-          cc.missing.quar <- del_ct$partner[is.na(del_ct$quar)]
+          ids.missing.quar <- which(del_ct$traced.cc == 1 & is.na(del_ct$quar))
+          cc.missing.quar <- del_ct$partner[ids.missing.quar]
           num.missing.quar <- length(ids.missing.quar)
           if (num.missing.quar > 0) {
             del_ct$tracedTime[ids.missing.quar] <- at + time.lag
@@ -154,7 +155,12 @@ intervention_covid_contacttrace <- function(dat, at) {
             del_ct$quar[ids.missing.quar] <- vec.quar.status
           }
         }
-
+        
+        # Supplying empty set of contacts before interventions begin
+        if (at < inter.start.time) {
+          cc.missing.quar <- del_ct$partner[!is.na(del_ct$traced.cc) & is.na(del_ct$quar)]
+        }
+        
         ids.traced <- del_ct$partner[del_ct$traced.cc == 1 & !is.na(del_ct$traced.cc)]
         cc.not.traced <- del_ct$partner[del_ct$traced.cc == 0 & !is.na(del_ct$traced.cc)]
         
@@ -191,10 +197,10 @@ intervention_covid_contacttrace <- function(dat, at) {
           dat <- set_attr(dat, "quar", 0, get_posit_ids(dat, ids.not.quar))
           dat <- set_attr(dat, "quar", 1, get_posit_ids(dat, ids.quar))
           dat <- set_attr(dat, "tracedTime", at + time.lag, get_posit_ids(dat, cc.missing.quar))
-          dat <- set_attr(dat, "quarEnd", tracedTime + 14, get_posit_ids(dat, cc.missing.quar))
+          dat <- set_attr(dat, "quarEnd", at + time.lag + 14, get_posit_ids(dat, cc.missing.quar))
 
         ## Summary statistics
-          dat <- set_epi(dat, "nQuar", at, length(ids.with.quar)) # number theoretically quarantining
+          dat <- set_epi(dat, "nQuar", at, length(ids.quar)) # number actually quarantining
           dat <- set_epi(dat, "nTraced", at, nTraced) # number of contacts traced
           dat <- set_epi(dat, "nElig.CC", at, nEligCT) # number of contacts eligible for tracing
 

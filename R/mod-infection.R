@@ -369,6 +369,8 @@ infect_covid_contacttrace <- function(dat, at) {
   infTime <- get_attr(dat, "infTime")
   statusTime <- get_attr(dat, "statusTime")
   quar <- get_attr(dat, "quar")
+  tracedTime <- get_attr(dat, "tracedTime")
+  quarEnd <- get_attr(dat, "quarEnd")
   # vax <- get_attr(dat, "vax")
   
   ## Find infected nodes ##
