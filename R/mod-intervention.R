@@ -38,13 +38,17 @@ intervention_covid_contacttrace <- function(dat, at) {
   
   if (nEligCI > 0) {
       
-     #if (nEligCI > 0 & at >= 25) browser()
+      browser()
+      # if (nEligCI > 0 & at >= 25) browser()
     
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
     
       ## Look up discordant edgelist ##
-      del_ct <- get_partners(dat, get_posit_ids(dat, idsEligCI))
+      # del_ct <- get_partners(dat, get_posit_ids(dat, idsEligCI))
+      del_ct <- get_partners(dat, idsEligCI, only.active = TRUE)
+      del_ct$index <- get_posit_ids(dat, del_ct$index)
+      del_ct$partner <- get_posit_ids(dat, del_ct$partner)
       
       ## If any discordant pairs, proceed ##
       if (!(is.null(del_ct))) {
@@ -55,13 +59,13 @@ intervention_covid_contacttrace <- function(dat, at) {
         
         # Set parameters on discordant edgelist data frame
         # initialize columns to add from dat
-        del_ct$dxTime <- 0
-        del_ct$statusTime.Ic <- 0
-        del_ct$symendTime <- 0
-        del_ct$traced.cc <- 0
-        del_ct$tracedTime <- 0
-        del_ct$quar <- 0
-        del_ct$quarEnd <- 0
+        # del_ct$dxTime <- 0
+        # del_ct$statusTime.Ic <- 0
+        # del_ct$symendTime <- 0
+        # del_ct$traced.cc <- 0
+        # del_ct$tracedTime <- 0
+        # del_ct$quar <- 0
+        # del_ct$quarEnd <- 0
         # consider putting in initialization for status column as 's'
         
         del_ct$dxTime <- dxTime[del_ct$index]
@@ -77,11 +81,9 @@ intervention_covid_contacttrace <- function(dat, at) {
         # Assign new isolation end attribute to discordant edgelist data frame
         # initialize iso.end column
         del_ct$iso.end <- 0
-       
         del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
-        
         if (any(del_ct$status == 'ic')) {
-          del_ct$iso.end[del_ct$status == 'ic'] <- max((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
+          del_ct$iso.end[del_ct$status == 'ic'] <- pmax((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
                                                        del_ct$symendTime[del_ct$status == 'ic'],
                                                        na.rm = TRUE)
         } ## this is not working for ic individuals 
