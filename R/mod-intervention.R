@@ -38,36 +38,20 @@ intervention_covid_contacttrace <- function(dat, at) {
   
   if (nEligCI > 0) {
       
-      browser()
-      # if (nEligCI > 0 & at >= 25) browser()
+      # if (nEligCI > 0 & at >= 30) browser()
     
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
     
       ## Look up discordant edgelist ##
-      # del_ct <- get_partners(dat, get_posit_ids(dat, idsEligCI))
-      del_ct <- get_partners(dat, idsEligCI, only.active = TRUE)
+      del_ct <- get_partners(dat, idsEligCI)
       del_ct$index <- get_posit_ids(dat, del_ct$index)
       del_ct$partner <- get_posit_ids(dat, del_ct$partner)
       
       ## If any discordant pairs, proceed ##
       if (!(is.null(del_ct))) {
-        
-        # dxTime <- get_param(dat, "dxTime")
-        # statusTime.Ic <- get_param(dat, "statusTime.Ic")
-        # symendTime <- get_param(dat, "symendTime")
-        
+
         # Set parameters on discordant edgelist data frame
-        # initialize columns to add from dat
-        # del_ct$dxTime <- 0
-        # del_ct$statusTime.Ic <- 0
-        # del_ct$symendTime <- 0
-        # del_ct$traced.cc <- 0
-        # del_ct$tracedTime <- 0
-        # del_ct$quar <- 0
-        # del_ct$quarEnd <- 0
-        # consider putting in initialization for status column as 's'
-        
         del_ct$dxTime <- dxTime[del_ct$index]
         del_ct$statusTime.Ic <- statusTime.Ic[del_ct$index]
         del_ct$symendTime <- symendTime[del_ct$index]
@@ -86,17 +70,15 @@ intervention_covid_contacttrace <- function(dat, at) {
           del_ct$iso.end[del_ct$status == 'ic'] <- pmax((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
                                                        del_ct$symendTime[del_ct$status == 'ic'],
                                                        na.rm = TRUE)
-        } ## this is not working for ic individuals 
+        } 
         # comparing 10 days after symptom onset to symptom resolution to find max
         
         # Filter discordant edgelist for eligible contacts, assign new attribute for eligibility
         del_ct$eligible.cc <- 0
-        
         del_ct$eligible.cc[del_ct$status %in% c("a", "ip") & 
                              (del_ct$stop >= (del_ct$dxTime - 2) | is.na(del_ct$stop)) &
                              (del_ct$start <= del_ct$iso.end | 
                                 del_ct$stop >= (del_ct$dxTime - 2))] <- 1
-        
         del_ct$eligible.cc[del_ct$status == "ic" & 
                              (del_ct$stop >= (del_ct$statusTime.Ic - 2) | is.na(del_ct$stop)) &
                              (del_ct$start <= del_ct$iso.end | 
@@ -194,12 +176,12 @@ intervention_covid_contacttrace <- function(dat, at) {
         
         # Save updated attributes 
           dat <- set_attr(dat, "eligible.case", eligible.case)
-          dat <- set_attr(dat, "traced.cc", 0, get_posit_ids(dat, cc.not.traced))
-          dat <- set_attr(dat, "traced.cc", 1, get_posit_ids(dat, ids.traced))
-          dat <- set_attr(dat, "quar", 0, get_posit_ids(dat, ids.not.quar))
-          dat <- set_attr(dat, "quar", 1, get_posit_ids(dat, ids.quar))
-          dat <- set_attr(dat, "tracedTime", at + time.lag, get_posit_ids(dat, cc.missing.quar))
-          dat <- set_attr(dat, "quarEnd", at + time.lag + 14, get_posit_ids(dat, cc.missing.quar))
+          dat <- set_attr(dat, "traced.cc", 0, cc.not.traced)
+          dat <- set_attr(dat, "traced.cc", 1, ids.traced)
+          dat <- set_attr(dat, "quar", 0, ids.not.quar)
+          dat <- set_attr(dat, "quar", 1, ids.quar)
+          dat <- set_attr(dat, "tracedTime", at + time.lag, cc.missing.quar)
+          dat <- set_attr(dat, "quarEnd", at + time.lag + 14, cc.missing.quar)
 
         ## Summary statistics
           dat <- set_epi(dat, "nQuar", at, length(ids.quar)) # number actually quarantining
