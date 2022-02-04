@@ -109,7 +109,11 @@ vax_covid_boost <- function(dat, at) {
     idsElig.vax1 <- which(active == 1 & status == "s" & vax == 0)
     nElig.vax1 <- length(idsElig.vax1)
     if (nElig.vax1 > 0) {
-      age.group <- pmin((floor(age[idsElig.vax1] / 10)) + 1, 8)
+      age.group <- ifelse(floor(age[idsElig.vax1]) <= 5, 1,
+                          ifelse(floor(age[idsElig.vax1]) <= 11, 2,
+                                 ifelse(floor(age[idsElig.vax1]) <= 17, 3,
+                                        ifelse(floor(age[idsElig.vax1]) <= 64, 4,
+                                               5))))
       vax1.rate.vec <- vax1.rate[age.group]
       vecVax <- which(rbinom(nElig.vax1, 1, vax1.rate.vec) == 1)
       idsVax <- idsElig.vax1[vecVax]
@@ -133,7 +137,13 @@ vax_covid_boost <- function(dat, at) {
   idsElig.vax2 <- which(active == 1 & vax == 2 & (at - vax1Time >= vax2.interval))
   nElig.vax2 <- length(idsElig.vax2)
   if (nElig.vax2 > 0){
-    vecVax2 <- which(rbinom(nElig.vax2, 1, vax2.rate) == 1)
+    age.group <- ifelse(floor(age[idsElig.vax2]) <= 5, 1,
+                        ifelse(floor(age[idsElig.vax2]) <= 11, 2,
+                               ifelse(floor(age[idsElig.vax2]) <= 17, 3,
+                                      ifelse(floor(age[idsElig.vax2]) <= 64, 4,
+                                             5))))
+    vax2.rate.vec <- vax2.rate[age.group]
+    vecVax2 <- which(rbinom(nElig.vax2, 1, vax2.rate.vec) == 1)
     idsVax2 <- idsElig.vax2[vecVax2]
     nVax2 <- length(idsVax2)
     if (nVax2 > 0){
@@ -141,7 +151,6 @@ vax_covid_boost <- function(dat, at) {
       vax2Time[idsVax2] <- at
     }
   }
-
   # Immunity after Vax2
   idsimmune.vax2 <- which(active == 1 & vax == 3 & at - vax2Time >= vax2.immune)
   nimmune.vax2 <- length(idsimmune.vax2)
@@ -154,6 +163,10 @@ vax_covid_boost <- function(dat, at) {
   idsElig.vax3 <- which(active == 1 & vax == 4 & (at - vax2Time >= vax3.interval))
   nElig.vax3 <- length(idsElig.vax3)
   if (nElig.vax3 > 0){
+    age.group <- ifelse(floor(age[idsElig.vax3]) <= 18, 1,
+                        ifelse(floor(age[idsElig.vax2]) <= 50, 2,
+                                             3))
+    vax3.rate.vec <- vax3.rate[age.group]
     vecVax3 <- which(rbinom(nElig.vax3, 1, vax3.rate) == 1)
     idsVax3 <- idsElig.vax3[vecVax3]
     nVax3 <- length(idsVax3)
