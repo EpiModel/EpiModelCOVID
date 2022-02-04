@@ -718,9 +718,8 @@ progress_covid_boost <- function(dat, at) {
     latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
     latest.vax[is.na(latest.vax)] <- 0
 
-    latest.vax.newInf <- latest.vax[ids.newInf] %>%
-      na.omit()
-    prop.clin.vec[vax[ids.newInf] %in% 2:6] <- prop.clin.vec[vax[ids.newInf] %in% 2:6] *
+    latest.vax.newInf <- latest.vax[ids.newInf]
+    prop.clin.vec <- prop.clin.vec *
       (2 ^ (latest.vax.newInf / half.life))
 
     # Strain dependent clinical progression probabilities
@@ -815,9 +814,10 @@ progress_covid_boost <- function(dat, at) {
     latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
     latest.vax[is.na(latest.vax)] <- 0
 
-    latest.vax.newIc <- latest.vax[ids.newIc] %>%
-      na.omit()
-    prop.hosp.vec[vax[ids.newIc] %in% 2:6] <- prop.hosp.vec[vax[ids.newIc] %in% 2:6] *
+    #if(at == 17) browser()
+
+    latest.vax.newIc <- latest.vax[ids.newIc]
+    prop.hosp.vec <- prop.hosp.vec *
       (2 ^ (latest.vax.newIc / half.life))
 
     # Strain dependent hospitalization probabilities
@@ -898,6 +898,7 @@ progress_covid_boost <- function(dat, at) {
   dat <- set_epi(dat, "eip.flow", at, num.new.EtoIp)
   dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
   dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
+  dat <- set_epi(dat, "ich.flow", at, num.new.IctoH)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
   dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
 
