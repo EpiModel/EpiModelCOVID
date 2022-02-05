@@ -92,7 +92,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         # Sample pool of eligible close contacts
         
         if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
-          
+          #browser()
           # Only sample group that has not already been traced
           ids.not.traced <- which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
           num.not.traced <- length(ids.not.traced)
@@ -180,8 +180,8 @@ intervention_covid_contacttrace <- function(dat, at) {
           dat <- set_attr(dat, "traced.cc", 1, ids.traced)
           dat <- set_attr(dat, "quar", 0, ids.not.quar)
           dat <- set_attr(dat, "quar", 1, ids.quar)
-          dat <- set_attr(dat, "tracedTime", at + time.lag, cc.missing.quar)
-          dat <- set_attr(dat, "quarEnd", at + time.lag + 14, cc.missing.quar)
+          dat <- set_attr(dat, "tracedTime", at + baseline.lag, cc.missing.quar)
+          dat <- set_attr(dat, "quarEnd", at + baseline.lag + 14, cc.missing.quar)
 
         ## Summary statistics
           dat <- set_epi(dat, "nQuar", at, length(ids.quar)) # number actually quarantining
