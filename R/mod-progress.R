@@ -709,16 +709,16 @@ progress_covid_boost <- function(dat, at) {
       vax3.rr.clinical
 
     # Wanning vaccine provided protection
-    sinceVax1 <- ifelse((at - vax1Time - vax1.immune) >= 0,
-                        at - vax1Time - vax1.immune, 0)
-    sinceVax2 <- ifelse((at - vax2Time - vax2.immune) >= 0,
-                        at - vax2Time - vax2.immune, 0)
-    sinceVax3 <- ifelse((at - vax3Time - vax3.immune) >= 0,
-                        at - vax3Time - vax3.immune, 0)
+    sinceVax1 <- ifelse((at - vax1Time[ids.newInf] - vax1.immune) >= 0,
+                        at - vax1Time[ids.newInf] - vax1.immune, 0)
+    sinceVax2 <- ifelse((at - vax2Time[ids.newInf] - vax2.immune) >= 0,
+                        at - vax2Time[ids.newInf] - vax2.immune, 0)
+    sinceVax3 <- ifelse((at - vax3Time[ids.newInf] - vax3.immune) >= 0,
+                        at - vax3Time[ids.newInf] - vax3.immune, 0)
     latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
     latest.vax[is.na(latest.vax)] <- 0
 
-    latest.vax.newInf <- latest.vax[ids.newInf]
+    latest.vax.newInf <- latest.vax
     prop.clin.vec <- prop.clin.vec *
       (2 ^ (latest.vax.newInf / half.life))
 
@@ -726,6 +726,7 @@ progress_covid_boost <- function(dat, at) {
     prop.clin.vec[strain[ids.newInf] == 2] <-
       prop.clin.vec[strain[ids.newInf] == 2] * strain.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
+
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clin.vec)
     clinical[ids.newInf] <- vec.new.clinical
   }
@@ -763,6 +764,7 @@ progress_covid_boost <- function(dat, at) {
   ## Clinical Pathway
   # E to Ip: latent move to preclinical infectious
   num.new.EtoIp <- 0
+  num.new.EtoIp65 <- 0
   ids.Ec <- which(active == 1 & status == "e" & statusTime < at & clinical == 1)
   num.Ec <- length(ids.Ec)
   if (num.Ec > 0) {
@@ -770,6 +772,8 @@ progress_covid_boost <- function(dat, at) {
     if (length(vec.new.Ip) > 0) {
       ids.new.Ip <- ids.Ec[vec.new.Ip]
       num.new.EtoIp <- length(ids.new.Ip)
+      ids.new.Ip65 <- which(age[ids.new.Ip] >= 65)
+      num.new.EtoIp <- length(ids.new.Ip65)
       status[ids.new.Ip] <- "ip"
       statusTime[ids.new.Ip] <- at
     }
@@ -777,6 +781,7 @@ progress_covid_boost <- function(dat, at) {
 
   # Ip to Ic: preclinical infectious move to clinical infectious
   num.new.IptoIc <- 0
+  num.new.IptoIc65 <- 0
   ids.Ip <- which(active == 1 & status == "ip" & statusTime < at & clinical == 1)
   num.Ip <- length(ids.Ip)
   if (num.Ip > 0) {
@@ -784,6 +789,8 @@ progress_covid_boost <- function(dat, at) {
     if (length(vec.new.Ic) > 0) {
       ids.new.Ic <- ids.Ip[vec.new.Ic]
       num.new.IptoIc <- length(ids.new.Ic)
+      ids.new.Ic65 <- which(age[ids.new.Ic] >= 65)
+      num.new.IptoIc65 <- length(ids.new.Ic65)
       status[ids.new.Ic] <- "ic"
       statusTime[ids.new.Ic] <- at
     }
@@ -792,6 +799,7 @@ progress_covid_boost <- function(dat, at) {
   ## Determine Hospitalized (Ic to H) or Recovered (Ic to R) pathway
   ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
   num.newIc <- length(ids.newIc)
+  # if(num.newIc >= 1 & at >= 29)browser()
   if (num.newIc > 0) {
     age.group <- pmin((floor(age[ids.newIc] / 10)) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
@@ -805,18 +813,16 @@ progress_covid_boost <- function(dat, at) {
       vax3.rr.hosp
 
     # Waning vaccine provided protection
-    sinceVax1 <- ifelse((at - vax1Time - vax1.immune) >= 0,
-                        at - vax1Time - vax1.immune, 0)
-    sinceVax2 <- ifelse((at - vax2Time - vax2.immune) >= 0,
-                        at - vax2Time - vax2.immune, 0)
-    sinceVax3 <- ifelse((at - vax3Time - vax3.immune) >= 0,
-                        at - vax3Time - vax3.immune, 0)
+    sinceVax1 <- ifelse((at - vax1Time[ids.newIc] - vax1.immune) >= 0,
+                        at - vax1Time[ids.newIc] - vax1.immune, 0)
+    sinceVax2 <- ifelse((at - vax2Time[ids.newIc] - vax2.immune) >= 0,
+                        at - vax2Time[ids.newIc] - vax2.immune, 0)
+    sinceVax3 <- ifelse((at - vax3Time[ids.newIc] - vax3.immune) >= 0,
+                        at - vax3Time[ids.newIc] - vax3.immune, 0)
     latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
     latest.vax[is.na(latest.vax)] <- 0
 
-    #if(at == 17) browser()
-
-    latest.vax.newIc <- latest.vax[ids.newIc]
+    latest.vax.newIc <- latest.vax
     prop.hosp.vec <- prop.hosp.vec *
       (2 ^ (latest.vax.newIc / half.life))
 
@@ -831,6 +837,7 @@ progress_covid_boost <- function(dat, at) {
 
   # Ic to H: clinical infectious move to hospitalized
   num.new.IctoH <- 0
+  num.new.IctoH65 <- 0
   ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
   num.Ich <- length(ids.Ich)
   if (num.Ich > 0) {
@@ -838,6 +845,8 @@ progress_covid_boost <- function(dat, at) {
     if (length(vec.new.H) > 0) {
       ids.new.H <- ids.Ich[vec.new.H]
       num.new.IctoH <- length(ids.new.H)
+      ids.new.H65 <- which(age[ids.new.H] >= 65)
+      num.new.IctoH65 <- length(ids.new.H65)
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
     }
@@ -896,9 +905,12 @@ progress_covid_boost <- function(dat, at) {
   dat <- set_epi(dat, "ea.flow", at, num.new.EtoA)
   dat <- set_epi(dat, "ar.flow", at, num.new.AtoR)
   dat <- set_epi(dat, "eip.flow", at, num.new.EtoIp)
+  dat <- set_epi(dat, "eip65.flow", at, num.new.EtoIp65)
   dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
+  dat <- set_epi(dat, "ipic65.flow", at, num.new.IptoIc65)
   dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
   dat <- set_epi(dat, "ich.flow", at, num.new.IctoH)
+  dat <- set_epi(dat, "ich65.flow", at, num.new.IctoH65)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
   dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
 
