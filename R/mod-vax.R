@@ -160,6 +160,9 @@ vax_covid_boost <- function(dat, at) {
 
   ## Vax3 - Boost
   nVax3 <- 0
+  nVax3.65 <- 0
+  nVax3.18 <- 0
+  nVax3.50 <- 0
   idsElig.vax3 <- which(active == 1 & vax == 4 & (at - vax2Time >= vax3.interval))
   nElig.vax3 <- length(idsElig.vax3)
   if (nElig.vax3 > 0){
