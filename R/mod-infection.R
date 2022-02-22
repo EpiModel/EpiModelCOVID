@@ -475,6 +475,7 @@ infect_covid_boost <- function(dat, at) {
   status <- get_attr(dat, "status")
   infTime <- get_attr(dat, "infTime")
   statusTime <- get_attr(dat, "statusTime")
+  age <- get_attr(dat, "age")
 
   vax <- get_attr(dat, "vax")
   vax1Time <- get_attr(dat, "vax1Time")
@@ -506,6 +507,7 @@ infect_covid_boost <- function(dat, at) {
 
   nLayers <- length(dat$el)
   nInf <- rep(0, nLayers)
+  nInf65 <- rep(0, nLayers)
 
   #if(at == 40)browser()
 
@@ -539,22 +541,17 @@ infect_covid_boost <- function(dat, at) {
           vax3.rr.infect
 
         # Waning Vaccine Immunity
-
         # Record time since vax
-        sinceVax1 <- ifelse((at - vax1Time - vax1.immune) >= 0,
-                            at - vax1Time - vax1.immune, 0)
-        sinceVax2 <- ifelse((at - vax2Time - vax2.immune) >= 0,
-                            at - vax2Time - vax2.immune, 0)
-        sinceVax3 <- ifelse((at - vax3Time - vax3.immune) >= 0,
-                            at - vax3Time - vax3.immune, 0)
+        sinceVax1 <- ifelse((at - vax1Time[del$sus] - vax1.immune) >= 0,
+                            at - vax1Time[del$sus] - vax1.immune, 0)
+        sinceVax2 <- ifelse((at - vax2Time[del$sus] - vax2.immune) >= 0,
+                            at - vax2Time[del$sus] - vax2.immune, 0)
+        sinceVax3 <- ifelse((at - vax3Time[del$sus] - vax3.immune) >= 0,
+                            at - vax3Time[del$sus] - vax3.immune, 0)
         latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
         latest.vax[is.na(latest.vax)] <- 0
 
-        del$latest.vax <- latest.vax[del$sus]
-        #del$vax.mult <- (2 ^ (del$latest.vax / half.life))
-
-        #if(at == 50)browser()
-
+        del$latest.vax <- latest.vax
         del$transProb <- del$transProb *
           (2 ^ (del$latest.vax / half.life))
 
@@ -601,6 +598,11 @@ infect_covid_boost <- function(dat, at) {
         idsNewInf <- unique(del$sus)
         nInf[layer] <- length(idsNewInf)
 
+#if(nInf >= 1)browser()
+
+        idsNewInf65 <- which(age[idsNewInf] >= 65)
+        nInf65[layer] <- length(idsNewInf65)
+
         # Determine which pairs actually involved infection
 
         infpairs <- sapply(idsNewInf, function(x) min(which(del$sus == x)))
@@ -619,13 +621,14 @@ infect_covid_boost <- function(dat, at) {
         } else {
           nInf1 <- nInf2 <- totInf <- 0
         }
+        strain.new <- strain[idsNewInf]
 
         # Set new attributes for those newly infected
         if (nInf[layer] > 0) {
           dat <- set_attr(dat, "status", "e", idsNewInf)
           dat <- set_attr(dat, "infTime", at, idsNewInf)
           dat <- set_attr(dat, "statusTime", at, idsNewInf)
-          dat <- set_attr(dat, "strain", strain)
+          dat <- set_attr(dat, "strain", strain.new, idsNewInf)
         }
       }
     }
@@ -633,6 +636,7 @@ infect_covid_boost <- function(dat, at) {
 
   ## Summary statistics for incidence
   dat$epi$se.flow[at] <- sum(nInf)
+  dat$epi$se65.flow[at] <- sum(nInf65)
 
   return(dat)
 }
