@@ -20,8 +20,8 @@ intervention_covid_contacttrace <- function(dat, at) {
   
   
   ## Identify pool of eligible cases ##
-  if (length(active) != length(status) & length(active) != length(dxStatus) & 
-      length(active)!= length(eligible.case)) browser()
+  # if (length(active) != length(status) & length(active) != length(dxStatus) & 
+  #     length(active)!= length(eligible.case)) browser()
   
   
   idsEligCI <- which(active == 1 & status %in% c("a", "ic", "ip") & 
