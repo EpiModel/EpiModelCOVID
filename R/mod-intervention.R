@@ -92,7 +92,6 @@ intervention_covid_contacttrace <- function(dat, at) {
         # Sample pool of eligible close contacts
         
         if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
-          #browser()
           # Only sample group that has not already been traced
           ids.not.traced <- which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
           num.not.traced <- length(ids.not.traced)
@@ -103,7 +102,8 @@ intervention_covid_contacttrace <- function(dat, at) {
           
           # Apply contact tracing attributes to close contacts
           ids.missing.quar <- which(del_ct$traced.cc == 1 & is.na(del_ct$quar))
-          cc.missing.quar <- del_ct$partner[ids.missing.quar]
+          # cc.missing.quar <- del_ct$partner[ids.missing.quar]
+          # if (length(ids.missing.quar < 1)) browser()
           num.missing.quar <- length(ids.missing.quar)
           if (num.missing.quar > 0) {
             del_ct$tracedTime[ids.missing.quar] <- at + baseline.lag
@@ -128,7 +128,7 @@ intervention_covid_contacttrace <- function(dat, at) {
           
           # Apply contact tracing attributes to close contacts
           ids.missing.quar <- which(del_ct$traced.cc == 1 & is.na(del_ct$quar))
-          cc.missing.quar <- del_ct$partner[ids.missing.quar]
+          # cc.missing.quar <- del_ct$partner[ids.missing.quar]
           num.missing.quar <- length(ids.missing.quar)
           if (num.missing.quar > 0) {
             del_ct$tracedTime[ids.missing.quar] <- at + time.lag
@@ -143,6 +143,10 @@ intervention_covid_contacttrace <- function(dat, at) {
         # Supplying empty set of contacts before interventions begin
         if (at < inter.start.time) {
           cc.missing.quar <- del_ct$partner[!is.na(del_ct$traced.cc) & is.na(del_ct$quar)]
+        }
+        
+        if (at >= inter.start.time) {
+          cc.missing.quar <- del_ct$partner[del_ct$traced.cc == 1 & is.na(del_ct$quar)]
         }
         
         ids.traced <- del_ct$partner[del_ct$traced.cc == 1 & !is.na(del_ct$traced.cc)]
@@ -171,8 +175,10 @@ intervention_covid_contacttrace <- function(dat, at) {
         }
         
         ids.quar <- del_ct$partner[del_ct$quar == 1 & !is.na(del_ct$quar)]
+        nQuar <- length(which(!is.na(del_ct$partner[del_ct$quar == 1])))
         ids.not.quar <- del_ct$partner[del_ct$quar == 0 & !is.na(del_ct$quar)]
         
+        if (length(ids.quar) < 1) browser()
         
         # Save updated attributes 
           dat <- set_attr(dat, "eligible.case", eligible.case)
@@ -184,7 +190,7 @@ intervention_covid_contacttrace <- function(dat, at) {
           dat <- set_attr(dat, "quarEnd", at + baseline.lag + 14, cc.missing.quar)
 
         ## Summary statistics
-          dat <- set_epi(dat, "nQuar", at, length(ids.quar)) # number actually quarantining
+          dat <- set_epi(dat, "nQuar", at, nQuar) # number actually quarantining
           dat <- set_epi(dat, "nTraced", at, nTraced) # number of contacts traced
           dat <- set_epi(dat, "nElig.CC", at, nEligCT) # number of contacts eligible for tracing
 

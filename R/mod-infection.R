@@ -436,13 +436,14 @@ infect_covid_contacttrace <- function(dat, at) {
           del$actRate <- del$actRate * act.rate.inter.rr
         }
         
-        # Case isolation with diagnosed or symptomatic infection
+        # Case isolation with diagnosed, symptomatic, hospitalized,
+        # or intesive care infection
         if (at >= act.rate.dx.inter.time) {
           del$actRate[del$dx == 2] <- del$actRate[del$dx == 2] *
             act.rate.dx.inter.rr
         }
         if (at >= act.rate.sympt.inter.time) {
-          del$actRate[del$stat == "ic"] <- del$actRate[del$stat == "ic"] *
+          del$actRate[del$stat %in% c("ic", "h", "icu")] <- del$actRate[del$stat %in% c("ic", "h", "icu")] *
             act.rate.sympt.inter.rr
         }
         
