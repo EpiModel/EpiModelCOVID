@@ -11,7 +11,7 @@ progress_covid <- function(dat, at) {
   hospit <- get_attr(dat, "hospit")
   age <- get_attr(dat, "age")
   vax <- get_attr(dat, "vax")
-
+  
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
   vax.rr.clinical <- get_param(dat, "vax.rr.clinical")

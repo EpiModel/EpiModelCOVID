@@ -178,7 +178,7 @@ intervention_covid_contacttrace <- function(dat, at) {
         nQuar <- length(which(!is.na(del_ct$partner[del_ct$quar == 1])))
         ids.not.quar <- del_ct$partner[del_ct$quar == 0 & !is.na(del_ct$quar)]
         
-        if (length(ids.quar) < 1) browser()
+        # if (length(ids.quar) < 1) browser()
         
         # Save updated attributes 
           dat <- set_attr(dat, "eligible.case", eligible.case)
