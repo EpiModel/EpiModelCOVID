@@ -38,7 +38,7 @@ intervention_covid_contacttrace <- function(dat, at) {
   
   if (nEligCI > 0) {
       
-      # if (nEligCI > 0 & at >= 30) browser()
+      # if (nEligCI > 0 & at > 50) browser()
     
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
@@ -72,8 +72,16 @@ intervention_covid_contacttrace <- function(dat, at) {
                                                        na.rm = TRUE)
         } 
         # comparing 10 days after symptom onset to symptom resolution to find max
+
         
+        # Filter now for only contacts that have NOT been traced and for traced contacts 
+        #   FINISHED with their quarantine
         # Filter discordant edgelist for eligible contacts, assign new attribute for eligibility
+        
+        del_ct_traced <- del_ct[which(del_ct$traced.cc == 1), , 
+                         drop = FALSE] 
+        del_ct <- del_ct[which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc)), , 
+                         drop = FALSE]  
         del_ct$eligible.cc <- 0
         del_ct$eligible.cc[del_ct$status %in% c("a", "ip") & 
                              (del_ct$stop >= (del_ct$dxTime - 2) | is.na(del_ct$stop)) &
@@ -177,17 +185,36 @@ intervention_covid_contacttrace <- function(dat, at) {
         ids.quar <- del_ct$partner[del_ct$quar == 1 & !is.na(del_ct$quar)]
         nQuar <- length(which(!is.na(del_ct$partner[del_ct$quar == 1])))
         ids.not.quar <- del_ct$partner[del_ct$quar == 0 & !is.na(del_ct$quar)]
+        ids.quar.disc <- del_ct$partner[is.na(del_ct$quar)]
+        
+        # Check tracing and quarantining attributes for those already traced
+        # Supplying empty set of contacts before interventions begin
+        if (at < inter.start.time | length(del_ct_traced$partner) < 1) {
+          ids.finished.quar <- del_ct_traced$partner[del_ct_traced$quarEnd < at]
+        }
+        
+        if (length(del_ct_traced$partner) > 0 & at >= inter.start.time) {
+          ids.still.quar <- del_ct_traced$partner[del_ct_traced$quarEnd >= at]
+          
+          ids.finished.quar <- del_ct_traced$partner[del_ct_traced$quarEnd < at]
+        }
+        
         
         # if (length(ids.quar) < 1) browser()
-        
+          
         # Save updated attributes 
           dat <- set_attr(dat, "eligible.case", eligible.case)
+          dat <- set_attr(dat, "traced.cc", NA, ids.finished.quar)
           dat <- set_attr(dat, "traced.cc", 0, cc.not.traced)
           dat <- set_attr(dat, "traced.cc", 1, ids.traced)
+          dat <- set_attr(dat, "quar", NA, ids.quar.disc)
+          dat <- set_attr(dat, "quar", NA, ids.finished.quar)
           dat <- set_attr(dat, "quar", 0, ids.not.quar)
           dat <- set_attr(dat, "quar", 1, ids.quar)
-          dat <- set_attr(dat, "tracedTime", at + baseline.lag, cc.missing.quar)
-          dat <- set_attr(dat, "quarEnd", at + baseline.lag + 14, cc.missing.quar)
+          dat <- set_attr(dat, "tracedTime", at + baseline.lag, ids.traced)
+          dat <- set_attr(dat, "tracedTime", NA, ids.finished.quar)
+          dat <- set_attr(dat, "quarEnd", at + baseline.lag + 14, ids.traced)
+          dat <- set_attr(dat, "quarEnd", NA, ids.finished.quar)
 
         ## Summary statistics
           dat <- set_epi(dat, "nQuar", at, nQuar) # number actually quarantining
