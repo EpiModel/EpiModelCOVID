@@ -437,7 +437,7 @@ infect_covid_contacttrace <- function(dat, at) {
         }
         
         # Case isolation with diagnosed, symptomatic, hospitalized,
-        # or intesive care infection
+        # or intensive care infection
         if (at >= act.rate.dx.inter.time) {
           del$actRate[del$dx == 2] <- del$actRate[del$dx == 2] *
             act.rate.dx.inter.rr
@@ -449,12 +449,12 @@ infect_covid_contacttrace <- function(dat, at) {
         
         # Contact quarantine with tracing
         del$quar <- quar[del$sus]
-        del$tracedTime <- tracedTime[del$sus]
-        del$quarEnd <- quarEnd[del$sus]
+        # del$tracedTime <- tracedTime[del$sus]
+        # del$quarEnd <- quarEnd[del$sus]
         
         
         if (at >= act.rate.quar.inter.time) {
-          del$actRate[del$quar == 1 & at <= quarEnd & at >= tracedTime] <- del$actRate[del$quar == 1 & at <= quarEnd & at >= tracedTime] *
+          del$actRate[del$quar == 1] <- del$actRate[del$quar == 1] *
             act.rate.quar.inter.rr
         }
         
