@@ -454,7 +454,7 @@ infect_covid_contacttrace <- function(dat, at) {
         
         
         if (at >= act.rate.quar.inter.time) {
-          del$actRate[del$quar == 1] <- del$actRate[del$quar == 1] *
+          del$actRate[del$quar == 1 & !is.na(del$quar)] <- del$actRate[del$quar == 1 & !is.na(del$quar)] *
             act.rate.quar.inter.rr
         }
         
