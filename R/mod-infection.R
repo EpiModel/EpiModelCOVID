@@ -449,12 +449,16 @@ infect_covid_contacttrace <- function(dat, at) {
         
         # Contact quarantine with tracing
         del$quar <- quar[del$sus]
-        # del$tracedTime <- tracedTime[del$sus]
-        # del$quarEnd <- quarEnd[del$sus]
+        del$tracedTime <- tracedTime[del$sus]
+        del$quarEnd <- quarEnd[del$sus]
         
         
         if (at >= act.rate.quar.inter.time) {
-          del$actRate[del$quar == 1 & !is.na(del$quar)] <- del$actRate[del$quar == 1 & !is.na(del$quar)] *
+          del$actRate[del$quar == 1 & !is.na(del$quar) & 
+                        at >= del$tracedTime & at <= del$quarEnd] <- del$actRate[del$quar == 1 & 
+                                                                                   !is.na(del$quar) &
+                                                                                   at >= del$tracedTime & 
+                                                                                   at <= del$quarEnd] *
             act.rate.quar.inter.rr
         }
         
