@@ -8,7 +8,6 @@ infect_covid_ship <- function(dat, at) {
   status <- dat$attr$status
   infTime <- dat$attr$infTime
   statusTime <- dat$attr$statusTime
-  transmissions <- dat$attr$transmissions
 
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
@@ -371,6 +370,8 @@ infect_covid_contacttrace <- function(dat, at) {
   quar <- get_attr(dat, "quar")
   tracedTime <- get_attr(dat, "tracedTime")
   quarEnd <- get_attr(dat, "quarEnd")
+  transmissions <- dat$attr$transmissions
+  age.grp <- get_attr(dat, "age.grp")
   # vax <- get_attr(dat, "vax")
   
   ## Find infected nodes ##
@@ -388,9 +389,10 @@ infect_covid_contacttrace <- function(dat, at) {
   act.rate.quar.inter.time <- get_param(dat, "act.rate.quar.inter.time")
   # vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   # vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
-  
+
   nLayers <- length(dat$el)
   nInf <- rep(0, nLayers)
+  nAge <- rep(0, 9)
   
   if (length(idsInf) > 0) {
     for (layer in seq_len(nLayers)) {
@@ -471,14 +473,24 @@ infect_covid_contacttrace <- function(dat, at) {
         del <- del[which(transmit == 1), , drop = FALSE]
         
         # Look up new ids if any transmissions occurred
+        # browser()
         idsNewInf <- unique(del$sus)
         nInf[layer] <- length(idsNewInf)
+        
+        age.group <- age.grp[idsNewInf]
+        groups <- c(sum(age.group == 1), sum(age.group == 2), sum(age.group == 3),
+                    sum(age.group == 4), sum(age.group == 5), sum(age.group == 6),
+                    sum(age.group == 7), sum(age.group == 8), sum(age.group %in% c(9,10)))
+        nAge <- groups
+        
+        if(length(idsNewInf) != sum(nAge)) browser()
         
         # Set new attributes for those newly infected
         if (nInf[layer] > 0) {
           dat <- set_attr(dat, "status", "e", idsNewInf)
           dat <- set_attr(dat, "infTime", at, idsNewInf)
           dat <- set_attr(dat, "statusTime", at, idsNewInf)
+          
         }
       }
     }
@@ -486,6 +498,17 @@ infect_covid_contacttrace <- function(dat, at) {
   
   ## Summary statistics for incidence
   dat$epi$se.flow[at] <- sum(nInf)
+  dat$epi$se.flow.hh[at] <- sum(nInf[1])
+  dat$epi$se.flow.cc[at] <- sum(nInf[2])
+  dat$epi$se.flow.age1[at] <- sum(nAge[1])
+  dat$epi$se.flow.age2[at] <- sum(nAge[2])
+  dat$epi$se.flow.age3[at] <- sum(nAge[3])
+  dat$epi$se.flow.age4[at] <- sum(nAge[4])
+  dat$epi$se.flow.age5[at] <- sum(nAge[5])
+  dat$epi$se.flow.age6[at] <- sum(nAge[6])
+  dat$epi$se.flow.age7[at] <- sum(nAge[7])
+  dat$epi$se.flow.age8[at] <- sum(nAge[8])
+  dat$epi$se.flow.age9[at] <- sum(nAge[9])
   
   return(dat)
 }
