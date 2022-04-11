@@ -105,6 +105,7 @@ vax_covid_boost <- function(dat, at) {
 
   ## Vax1
   nVax <- 0
+  nVax1.65 <- 0
   if (at >= vax.start) {
     idsElig.vax1 <- which(active == 1 & status == "s" & vax == 0)
     nElig.vax1 <- length(idsElig.vax1)
@@ -114,10 +115,12 @@ vax_covid_boost <- function(dat, at) {
                                  ifelse(floor(age[idsElig.vax1]) <= 17, 3,
                                         ifelse(floor(age[idsElig.vax1]) <= 64, 4,
                                                5))))
+
       vax1.rate.vec <- vax1.rate[age.group]
       vecVax <- which(rbinom(nElig.vax1, 1, vax1.rate.vec) == 1)
       idsVax <- idsElig.vax1[vecVax]
       nVax <- length(idsVax)
+      nVax1.65 <- length(which(age[idsVax] >= 65))
       if (nVax > 0) {
         vax[idsVax] <- 1
         vax1Time[idsVax] <- at
@@ -134,6 +137,7 @@ vax_covid_boost <- function(dat, at) {
 
   ## Vax2
   nVax2 <- 0
+  nVax2.65 <- 0
   idsElig.vax2 <- which(active == 1 & vax == 2 & (at - vax1Time >= vax2.interval))
   nElig.vax2 <- length(idsElig.vax2)
   if (nElig.vax2 > 0){
@@ -146,6 +150,7 @@ vax_covid_boost <- function(dat, at) {
     vecVax2 <- which(rbinom(nElig.vax2, 1, vax2.rate.vec) == 1)
     idsVax2 <- idsElig.vax2[vecVax2]
     nVax2 <- length(idsVax2)
+    nVax2.65 <- length(which(age[idsVax2] >= 65))
     if (nVax2 > 0){
       vax[idsVax2] <- 3
       vax2Time[idsVax2] <- at
@@ -161,8 +166,6 @@ vax_covid_boost <- function(dat, at) {
   ## Vax3 - Boost
   nVax3 <- 0
   nVax3.65 <- 0
-  nVax3.18 <- 0
-  nVax3.50 <- 0
   idsElig.vax3 <- which(active == 1 & vax == 4 & (at - vax2Time >= vax3.interval))
   nElig.vax3 <- length(idsElig.vax3)
   if (nElig.vax3 > 0){
@@ -173,6 +176,7 @@ vax_covid_boost <- function(dat, at) {
     vecVax3 <- which(rbinom(nElig.vax3, 1, vax3.rate) == 1)
     idsVax3 <- idsElig.vax3[vecVax3]
     nVax3 <- length(idsVax3)
+    nVax3.65 <- length(which(age[idsVax3] >= 65))
     if (nVax3 > 0){
       vax[idsVax3] <- 5
       vax3Time[idsVax3] <- at
@@ -195,9 +199,11 @@ vax_covid_boost <- function(dat, at) {
 
   ## Summary statistics ##
   dat <- set_epi(dat, "nVax1", at, nVax)
+  dat <- set_epi(dat, "nVax1.65", at, nVax1.65)
   dat <- set_epi(dat, "nVax2", at, nVax2)
+  dat <- set_epi(dat, "nVax2.65", at, nVax2.65)
   dat <- set_epi(dat, "nVax3", at, nVax3)
-  dat <- set_epi(dat, "nVaxImmunePart", at, nimmune.vax2)
+  dat <- set_epi(dat, "nVax3.65", at, nVax3.65)
 
   return(dat)
 }
