@@ -509,8 +509,6 @@ infect_covid_boost <- function(dat, at) {
   nInf <- rep(0, nLayers)
   nInf65 <- rep(0, nLayers)
 
-  #if(at == 40)browser()
-
   if (length(idsInf) > 0) {
     for (layer in seq_len(nLayers)) {
       ## Look up discordant edgelist ##
@@ -597,8 +595,6 @@ infect_covid_boost <- function(dat, at) {
         # Look up new ids if any transmissions occurred
         idsNewInf <- unique(del$sus)
         nInf[layer] <- length(idsNewInf)
-
-#if(nInf >= 1)browser()
 
         idsNewInf65 <- which(age[idsNewInf] >= 65)
         nInf65[layer] <- length(idsNewInf65)
