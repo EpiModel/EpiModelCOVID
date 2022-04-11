@@ -730,11 +730,14 @@ progress_covid_boost <- function(dat, at) {
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clin.vec)
     clinical[ids.newInf] <- vec.new.clinical
   }
-  # if (any(status == "e" & is.na(clinical))) browser()
 
   ## Subclinical Pathway
   # E to A: latent move to asymptomatic infectious
   num.new.EtoA <- 0
+  num.new.EtoA.65 <- 0
+  num.new.EtoA.vax1 <- 0
+  num.new.EtoA.vax2 <- 0
+  num.new.EtoA.vax3 <- 0
   ids.Es <- which(active == 1 & status == "e" & statusTime < at & clinical == 0)
   num.Es <- length(ids.Es)
   if (num.Es > 0) {
@@ -742,6 +745,10 @@ progress_covid_boost <- function(dat, at) {
     if (length(vec.new.A) > 0) {
       ids.new.A <- ids.Es[vec.new.A]
       num.new.EtoA <- length(ids.new.A)
+      num.new.EtoA.65 <- length(which(age[ids.new.A] >= 65))
+      num.new.EtoA.vax1 <- length(which(vax[ids.new.A] %in% 2:3))
+      num.new.EtoA.vax2 <- length(which(vax[ids.new.A] %in% 4:5))
+      num.new.EtoA.vax3 <- length(which(vax[ids.new.A] == 6))
       status[ids.new.A] <- "a"
       statusTime[ids.new.A] <- at
     }
@@ -764,7 +771,10 @@ progress_covid_boost <- function(dat, at) {
   ## Clinical Pathway
   # E to Ip: latent move to preclinical infectious
   num.new.EtoIp <- 0
-  num.new.EtoIp65 <- 0
+  num.new.EtoIp.65 <- 0
+  num.new.EtoIp.vax1 <- 0
+  num.new.EtoIp.vax2 <- 0
+  num.new.EtoIp.vax3 <- 0
   ids.Ec <- which(active == 1 & status == "e" & statusTime < at & clinical == 1)
   num.Ec <- length(ids.Ec)
   if (num.Ec > 0) {
@@ -772,8 +782,10 @@ progress_covid_boost <- function(dat, at) {
     if (length(vec.new.Ip) > 0) {
       ids.new.Ip <- ids.Ec[vec.new.Ip]
       num.new.EtoIp <- length(ids.new.Ip)
-      ids.new.Ip65 <- which(age[ids.new.Ip] >= 65)
-      num.new.EtoIp <- length(ids.new.Ip65)
+      num.new.EtoIp.65 <- length(which(age[ids.new.Ip] >= 65))
+      num.new.EtoIp.vax1 <- length(which(vax[ids.new.Ip] %in% 2:3))
+      num.new.EtoIp.vax2 <- length(which(vax[ids.new.Ip] %in% 4:5))
+      num.new.EtoIp.vax3 <- length(which(vax[ids.new.Ip] == 6))
       status[ids.new.Ip] <- "ip"
       statusTime[ids.new.Ip] <- at
     }
@@ -781,7 +793,10 @@ progress_covid_boost <- function(dat, at) {
 
   # Ip to Ic: preclinical infectious move to clinical infectious
   num.new.IptoIc <- 0
-  num.new.IptoIc65 <- 0
+  num.new.IptoIc.65 <- 0
+  num.new.IptoIc.vax1 <- 0
+  num.new.IptoIc.vax2 <- 0
+  num.new.IptoIc.vax3 <- 0
   ids.Ip <- which(active == 1 & status == "ip" & statusTime < at & clinical == 1)
   num.Ip <- length(ids.Ip)
   if (num.Ip > 0) {
@@ -789,8 +804,11 @@ progress_covid_boost <- function(dat, at) {
     if (length(vec.new.Ic) > 0) {
       ids.new.Ic <- ids.Ip[vec.new.Ic]
       num.new.IptoIc <- length(ids.new.Ic)
-      ids.new.Ic65 <- which(age[ids.new.Ic] >= 65)
-      num.new.IptoIc65 <- length(ids.new.Ic65)
+      ids.new.Ic.65 <- which(age[ids.new.Ic] >= 65)
+      num.new.IptoIc.65 <- length(ids.new.Ic.65)
+      num.new.IptoIc.vax1 <- length(which(vax[ids.new.Ic] %in% 2:3))
+      num.new.IptoIc.vax2 <- length(which(vax[ids.new.Ic] %in% 4:5))
+      num.new.IptoIc.vax3 <- length(which(vax[ids.new.Ic] == 6))
       status[ids.new.Ic] <- "ic"
       statusTime[ids.new.Ic] <- at
     }
@@ -799,7 +817,7 @@ progress_covid_boost <- function(dat, at) {
   ## Determine Hospitalized (Ic to H) or Recovered (Ic to R) pathway
   ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
   num.newIc <- length(ids.newIc)
-  # if(num.newIc >= 1 & at >= 29)browser()
+
   if (num.newIc > 0) {
     age.group <- pmin((floor(age[ids.newIc] / 10)) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
@@ -837,7 +855,10 @@ progress_covid_boost <- function(dat, at) {
 
   # Ic to H: clinical infectious move to hospitalized
   num.new.IctoH <- 0
-  num.new.IctoH65 <- 0
+  num.new.IctoH.65 <- 0
+  num.new.IctoH.vax1 <- 0
+  num.new.IctoH.vax2 <- 0
+  num.new.IctoH.vax3 <- 0
   ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
   num.Ich <- length(ids.Ich)
   if (num.Ich > 0) {
@@ -845,8 +866,11 @@ progress_covid_boost <- function(dat, at) {
     if (length(vec.new.H) > 0) {
       ids.new.H <- ids.Ich[vec.new.H]
       num.new.IctoH <- length(ids.new.H)
-      ids.new.H65 <- which(age[ids.new.H] >= 65)
-      num.new.IctoH65 <- length(ids.new.H65)
+      ids.new.H.65 <- which(age[ids.new.H] >= 65)
+      num.new.IctoH.65 <- length(ids.new.H.65)
+      num.new.IctoH.vax1 <- length(which(vax[ids.new.H] %in% 2:3))
+      num.new.IctoH.vax2 <- length(which(vax[ids.new.H] %in% 4:5))
+      num.new.IctoH.vax3 <- length(which(vax[ids.new.H] == 6))
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
     }
@@ -903,14 +927,27 @@ progress_covid_boost <- function(dat, at) {
 
   ## Save summary statistics
   dat <- set_epi(dat, "ea.flow", at, num.new.EtoA)
+  dat <- set_epi(dat, "ea.flow.65", at, num.new.EtoA.65)
+  dat <- set_epi(dat, "ea.flow.vax1", at, num.new.EtoA.vax1)
+  dat <- set_epi(dat, "ea.flow.vax2", at, num.new.EtoA.vax2)
+  dat <- set_epi(dat, "ea.flow.vax3", at, num.new.EtoA.vax3)
   dat <- set_epi(dat, "ar.flow", at, num.new.AtoR)
   dat <- set_epi(dat, "eip.flow", at, num.new.EtoIp)
-  dat <- set_epi(dat, "eip65.flow", at, num.new.EtoIp65)
+  dat <- set_epi(dat, "eip.flow.65", at, num.new.EtoIp.65)
+  dat <- set_epi(dat, "eip.flow.vax1", at, num.new.EtoIp.vax1)
+  dat <- set_epi(dat, "eip.flow.vax2", at, num.new.EtoIp.vax2)
+  dat <- set_epi(dat, "eip.flow.vax3", at, num.new.EtoIp.vax3)
   dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
-  dat <- set_epi(dat, "ipic65.flow", at, num.new.IptoIc65)
+  dat <- set_epi(dat, "ipic.flow.65", at, num.new.IptoIc.65)
+  dat <- set_epi(dat, "ipic.flow.vax1", at, num.new.IptoIc.vax1)
+  dat <- set_epi(dat, "ipic.flow.vax2", at, num.new.IptoIc.vax2)
+  dat <- set_epi(dat, "ipic.flow.vax3", at, num.new.IptoIc.vax3)
   dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
   dat <- set_epi(dat, "ich.flow", at, num.new.IctoH)
-  dat <- set_epi(dat, "ich65.flow", at, num.new.IctoH65)
+  dat <- set_epi(dat, "ich.flow.65", at, num.new.IctoH.65)
+  dat <- set_epi(dat, "ich.flow.vax1", at, num.new.IctoH.vax1)
+  dat <- set_epi(dat, "ich.flow.vax2", at, num.new.IctoH.vax2)
+  dat <- set_epi(dat, "ich.flow.vax3", at, num.new.IctoH.vax3)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
   dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
 
