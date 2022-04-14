@@ -18,8 +18,12 @@ init_covid_ship <- function(x, param, init, control, s) {
   # Initial network simulations
   dat$nw <- list()
   for (i in 1:length(x)) {
-    dat$nw[[i]] <- simulate(x[[i]]$fit, basis = x[[i]]$fit$newnetwork,
-                            dynamic = FALSE)
+    dat$nw[[i]] <- simulate(
+      x[[i]]$fit,
+      response = NULL,
+      basis = x[[i]]$fit$newnetwork,
+      dynamic = FALSE
+    )
   }
   nw <- dat$nw
 
@@ -133,8 +137,12 @@ init_covid_corporate <- function(x, param, init, control, s) {
   # Initial network simulations
   dat$nw <- list()
   for (i in 1:length(x)) {
-    dat$nw[[i]] <- simulate(x[[i]]$fit, basis = x[[i]]$fit$newnetwork,
-                            dynamic = FALSE)
+    dat$nw[[i]] <- simulate(
+      x[[i]]$fit,
+      response = NULL,
+      basis = x[[i]]$fit$newnetwork,
+      dynamic = FALSE
+    )
   }
   nw <- dat$nw
 
@@ -238,7 +246,11 @@ init_covid_contacttrace <- function(x, param, init, control, s) {
   # Initial network simulations
   dat$nw <- list()
   for (i in 1:length(x)) {
-    dat$nw[[i]] <- simulate(x[[i]]$fit, basis = x[[i]]$fit$newnetwork)
+    dat$nw[[i]] <- simulate(
+      x[[i]]$fit,
+      response = NULL,
+      basis = x[[i]]$fit$newnetwork
+    )
   }
   nw <- dat$nw
 
@@ -280,7 +292,7 @@ init_covid_contacttrace <- function(x, param, init, control, s) {
       )
 
       dat$stats$nwstats[[i]] <- matrix(
-        nwstats, 
+        nwstats,
         nrow = 1, ncol = length(nwstats),
         dimnames = list(NULL, names(nwstats))
       )
