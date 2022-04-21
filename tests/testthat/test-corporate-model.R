@@ -68,6 +68,7 @@ est.cc <- netest(
 )
 
 est <- list(est.hh, est.oo, est.cc)
+est <- lapply(est, trim_netest, as.networkLite = FALSE)
 
 # Model Testing -----------------------------------------------------------
 

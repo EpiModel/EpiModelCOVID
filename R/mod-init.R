@@ -122,25 +122,17 @@ init_status_covid_ship <- function(dat) {
 #' @export
 init_covid_corporate <- function(x, param, init, control, s) {
 
-  # Master Data List
-  dat <- list()
-  dat$param <- param
-  dat$init <- init
-  dat$control <- control
-
-  dat$attr <- list()
-  dat$stats <- list()
-  dat$stats$nwstats <- list()
-  dat$temp <- list()
+  ## Master Data List Setup ##
+  dat <- create_dat_object(param, init, control)
 
   ## Network Setup ##
   # Initial network simulations
   dat$nw <- list()
-  for (i in 1:length(x)) {
-    dat$nw[[i]] <- simulate(
-      x[[i]]$fit,
+  for (i in seq_along(x)) {
+    dat[["nw"]][[i]] <- simulate(
+      x[[i]][["fit"]],
       response = NULL,
-      basis = x[[i]]$fit$newnetwork,
+      basis = x[[i]][["fit"]][["newnetwork"]],
       dynamic = FALSE
     )
   }
@@ -148,7 +140,7 @@ init_covid_corporate <- function(x, param, init, control, s) {
 
   # Pull Network parameters
   dat$nwparam <- list()
-  for (i in 1:length(x)) {
+  for (i in seq_along(x)) {
     dat$nwparam[i] <- list(x[[i]][-which(names(x[[i]]) == "fit")])
   }
 

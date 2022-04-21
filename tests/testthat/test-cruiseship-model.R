@@ -108,6 +108,7 @@ est3 <- suppressMessages(
 )
 
 est <- list(est1, est2, est3, est1, est2, est3)
+est <- lapply(est, trim_netest, as.networkLite = FALSE)
 
 
 # Model Testing -----------------------------------------------------------
