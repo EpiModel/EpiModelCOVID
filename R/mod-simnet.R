@@ -19,16 +19,16 @@ resim_nets_covid_ship <- function(dat, at) {
   # Network Resimulation
   for (i in nets) {
     nwparam <- EpiModel::get_nwparam(dat, network = i)
-    isTERGM <- ifelse(nwparam$coef.diss$duration > 1, TRUE, FALSE)
+    isTERGM <- nwparam$coef.diss$duration > 1
 
     nwL <- networkLite(dat[["el"]][[i]], dat[["attr"]])
 
-    if (get_control(dat, "tergmLite.track.duration") == TRUE) {
+    if (get_control(dat, "tergmLite.track.duration")) {
       nwL %n% "time" <- dat[["nw"]][[i]] %n% "time"
       nwL %n% "lasttoggle" <- dat[["nw"]][[i]] %n% "lasttoggle"
     }
 
-    if (isTERGM == TRUE) {
+    if (isTERGM) {
       dat[["nw"]][[i]] <- simulate(
         nwL,
         formation = nwparam[["formation"]],
@@ -67,8 +67,9 @@ resim_nets_covid_ship <- function(dat, at) {
 resim_nets_covid_corporate <- function(dat, at) {
 
   # controls
-  set.control.stergm <- get_control(dat, "set.control.stergm")
+  set.control.tergm <- get_control(dat, "set.control.tergm")
   set.control.ergm <- get_control(dat, "set.control.ergm")
+  save.nwstats <- get_control(dat, "save.nwstats")
 
   ## Edges correction
   dat <- edges_correct_covid(dat, at)
@@ -76,28 +77,27 @@ resim_nets_covid_corporate <- function(dat, at) {
   # Network Resimulation
   for (i in 1:length(dat$el)) {
     nwparam <- EpiModel::get_nwparam(dat, network = i)
-    isTERGM <- ifelse(nwparam$coef.diss$duration > 1, TRUE, FALSE)
+    isTERGM <- nwparam$coef.diss$duration > 1
 
     nwL <- networkLite(dat[["el"]][[i]], dat[["attr"]])
 
-    if (get_control(dat, "tergmLite.track.duration") == TRUE) {
+    if (get_control(dat, "tergmLite.track.duration")) {
       nwL %n% "time" <- dat[["nw"]][[i]] %n% "time"
       nwL %n% "lasttoggle" <- dat[["nw"]][[i]] %n% "lasttoggle"
     }
 
-    if (isTERGM == TRUE) {
+    if (isTERGM) {
       dat[["nw"]][[i]] <- simulate(
-        nwL,
-        formation = nwparam[["formation"]],
-        dissolution = nwparam[["coef.diss"]][["dissolution"]],
-        coef.form = nwparam[["coef.form"]],
-        coef.diss = nwparam[["coef.diss"]][["coef.adj"]],
+        nwL ~ Form(nwparam[["formation"]]) +
+              Persist(nwparam[["coef.diss"]][["dissolution"]]),
+        coef = c(nwparam[["coef.form"]], nwparam[["coef.diss"]][["coef.adj"]]),
         constraints = nwparam[["constraints"]],
         time.start = at - 1,
         time.slices = 1,
         time.offset = 1,
-        control = set.control.stergm,
-        output = "final"
+        control = set.control.tergm,
+        output = "final",
+        dynamic = TRUE
       )
     } else {
       dat[["nw"]][[i]] <- simulate(
@@ -114,17 +114,21 @@ resim_nets_covid_corporate <- function(dat, at) {
 
     dat[["el"]][[i]] <- as.edgelist(dat[["nw"]][[i]])
 
-    if (get_control(dat, "save.nwstats") == TRUE) {
-      term.options <- if (isTERGM == TRUE) {
-        set.control.stergm$term.options
+    if (save.nwstats) {
+      if (isTERGM) {
+        term.options <- set.control.tergm$term.options
       } else {
-        set.control.ergm$term.options
+        term.options <- set.control.ergm$term.options
       }
-      dat$stats$nwstats[[i]] <- rbind(dat$stats$nwstats[[i]],
-                                      summary(dat$control$nwstats.formulas[[i]],
-                                              basis = nwL,
-                                              term.options = term.options,
-                                              dynamic = isTERGM))
+      dat$stats$nwstats[[i]] <- rbind(
+        dat$stats$nwstats[[i]],
+        summary(
+          dat$control$nwstats.formulas[[i]],
+          basis = nwL,
+          term.options = term.options,
+          dynamic = isTERGM
+        )
+      )
     }
 
   }
