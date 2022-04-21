@@ -21,7 +21,7 @@ RoxygenNote: 7.1.2
 Encoding: UTF-8
 Config/testthat/edition: 3
 Remotes:
-    github::statnet/EpiModel@master,
+    github::statnet/EpiModel@main,
     github::statnet/statnet@master,
     github::statnet/statnet.common@master,
     github::statnet/network@master,
