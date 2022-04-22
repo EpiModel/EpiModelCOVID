@@ -2,11 +2,6 @@
 #' @rdname moduleset-ship
 #' @export
 resim_nets_covid_ship <- function(dat, at) {
-
-  # controls
-  set.control.stergm <- get_control(dat, "set.control.stergm")
-  set.control.ergm <- get_control(dat, "set.control.ergm")
-
   ## Edges correction
   dat <- edges_correct_covid(dat, at)
 
@@ -56,10 +51,12 @@ resim_nets_covid_ship <- function(dat, at) {
         object = nwparam[["formation"]],
         coef = nwparam[["coef.form"]],
         constraints = nwparam[["constraints"]],
-        control = set.control.ergm,
-        dynamic = FALSE,
-        nsim = 1,
-        output = "network"
+        control = set.control.tergm,
+        time.start = at - 1,
+        time.slices = 1,
+        time.offset = 1,
+        dynamic = TRUE,
+        output = "final"
       )
     }
 
@@ -130,10 +127,12 @@ resim_nets_covid_corporate <- function(dat, at) {
         object = nwparam[["formation"]],
         coef = nwparam[["coef.form"]],
         constraints = nwparam[["constraints"]],
-        control = set.control.ergm,
-        dynamic = FALSE,
-        nsim = 1,
-        output = "network"
+        control = set.control.tergm,
+        time.start = at - 1,
+        time.slices = 1,
+        time.offset = 1,
+        dynamic = TRUE,
+        output = "final"
       )
     }
 
