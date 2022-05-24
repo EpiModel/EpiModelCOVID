@@ -36,6 +36,7 @@ est.hh <- netest(
   formation.hh,
   target.stats.hh,
   coef.diss.hh,
+  keep.fit = TRUE,
   set.control.ergm = control.ergm(MCMLE.maxit = 500)
 )
 
@@ -50,6 +51,7 @@ est.oo <- netest(
   formation.oo,
   target.stats.oo,
   coef.diss.oo,
+  keep.fit = TRUE,
   set.control.ergm = control.ergm(MCMLE.maxit = 500)
 )
 
@@ -64,11 +66,12 @@ est.cc <- netest(
   formation.cc,
   target.stats.cc,
   coef.diss.cc,
+  keep.fit = TRUE,
   set.control.ergm = control.ergm(MCMLE.maxit = 500)
 )
 
 est <- list(est.hh, est.oo, est.cc)
-est <- lapply(est, trim_netest, as.networkLite = FALSE)
+# est <- lapply(est, trim_netest, as.networkLite = FALSE)
 
 # Model Testing -----------------------------------------------------------
 
