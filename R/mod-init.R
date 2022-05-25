@@ -127,21 +127,24 @@ init_covid_corporate <- function(x, param, init, control, s) {
 
   ## Network Setup ##
   # Initial network simulations
-  dat$nw <- list()
-  for (i in seq_along(x)) {
+  dat[["nw"]] <- list()
+  for (i in 1:3) {
     dat[["nw"]][[i]] <- simulate(
-      x[[i]][["fit"]],
-      response = NULL,
-      basis = x[[i]][["fit"]][["newnetwork"]],
+      x[[i]][["formula"]],
+      coef = x[[i]][["coef.form.crude"]],
+      basis = x[[i]][["newnetwork"]],
+      constraints = x[[i]][["constraints"]],
+      control = get_control(dat, "set.control.ergm"),
       dynamic = FALSE
     )
   }
-  nw <- dat$nw
+  nw <- dat[["nw"]]
 
   # Pull Network parameters
-  dat$nwparam <- list()
+  dat[["nwparam"]] <- list()
   for (i in seq_along(x)) {
-    dat$nwparam[i] <- list(x[[i]][-which(names(x[[i]]) == "fit")])
+    dat[["nwparam"]][i] <- list(x[[i]][!(names(x[[i]]) %in% c("fit", "newnetwork"))])
+    dat[["nwparam"]][[i]]["isTERGM"] <- all(x[[i]][["coef.diss"]][["duration"]] > 1)
   }
 
   ## Nodal Attributes Setup ##
@@ -149,10 +152,10 @@ init_covid_corporate <- function(x, param, init, control, s) {
   dat <- append_core_attr(dat, 1, num)
 
   # Pull in attributes on network
-  nwattr.all <- names(nw[[1]][["val"]][[1]])
+  nwattr.all <- list.vertex.attributes(nw[[1]])
   nwattr.use <- nwattr.all[!nwattr.all %in% c("na", "vertex.names")]
   for (i in seq_along(nwattr.use)) {
-    dat$attr[[nwattr.use[i]]] <- get.vertex.attribute(nw[[1]], nwattr.use[i])
+    dat[["attr"]][[nwattr.use[i]]] <- get.vertex.attribute(nw[[1]], nwattr.use[i])
   }
 
   # Convert to tergmLite method
@@ -166,21 +169,28 @@ init_covid_corporate <- function(x, param, init, control, s) {
 
   # Network stats
   if (get_control(dat, "save.nwstats") == TRUE) {
-    for (i in 1:length(x)) {
+    for (i in seq_along(x)) {
       nwL <- networkLite(dat$el[[i]], dat$attr)
-      nwstats <- summary(dat$control$nwstats.formulas[[i]],
-                         basis = nwL,
-                         term.options = dat$control$mcmc.control[[i]]$term.options,
-                         dynamic = i < 3)
+      isTERGM <- get_nwparam(dat, network = i)[["isTERGM"]]
+      nwstats <- summary(
+        dat$control$nwstats.formulas[[i]],
+        basis = nwL,
+        term.options = dat$control$mcmc.control[[i]]$term.options,
+        dynamic = isTERGM
+      )
 
-      dat$stats$nwstats[[i]] <- matrix(nwstats, nrow = 1,
-                                       ncol = length(nwstats),
-                                       dimnames = list(NULL, names(nwstats)))
+      dat[["stats"]][["nwstats"]][[i]] <- matrix(
+        nwstats,
+        nrow = 1, ncol = length(nwstats),
+        dimnames = list(NULL, names(nwstats))
+      )
 
-      dat$stats$nwstats[[i]] <- as.data.frame(dat$stats$nwstats[[i]])
+      dat[["stats"]][["nwstats"]][[i]] <-
+        as.data.frame(dat[["stats"]][["nwstats"]][[i]])
     }
   }
 
+  class(dat) <- "dat"
   return(dat)
 }
 
