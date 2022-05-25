@@ -97,16 +97,11 @@ resim_nets_covid_corporate <- function(dat, at) {
   dat <- edges_correct_covid(dat, at)
 
   # Network Resimulation
-  for (i in 1:length(dat$el)) {
-    nwparam <- EpiModel::get_nwparam(dat, network = i)
-    isTERGM <- nwparam$coef.diss$duration > 1
+  for (i in seq_along(dat[["el"]])) {
+    nwparam <- get_nwparam(dat, network = i)
+    isTERGM <- nwparam[["isTERGM"]]
 
     nwL <- networkLite(dat[["el"]][[i]], dat[["attr"]])
-
-    if (get_control(dat, "tergmLite.track.duration")) {
-      nwL %n% "time" <- dat[["nw"]][[i]] %n% "time"
-      nwL %n% "lasttoggle" <- dat[["nw"]][[i]] %n% "lasttoggle"
-    }
 
     if (isTERGM) {
       dat[["nw"]][[i]] <- simulate(
