@@ -125,7 +125,6 @@ test_that("base corporate model parameterization", {
     aging.FUN = aging_covid,
     departures.FUN = deaths_covid_corporate,
     arrivals.FUN = arrival_covid_corporate,
-    edges_correct.FUN = NULL,
     resim_nets.FUN = resim_nets_covid_corporate,
     infection.FUN = infect_covid_corporate,
     recovery.FUN = progress_covid,
@@ -144,7 +143,6 @@ test_that("base corporate model parameterization", {
       "prevalence.FUN"
     ),
     resimulate.network = TRUE,
-    skip.check = TRUE,
     tergmLite = TRUE,
     verbose = FALSE
   )
