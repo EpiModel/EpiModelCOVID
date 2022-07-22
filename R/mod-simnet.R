@@ -150,3 +150,13 @@ edges_correct_covid <- function(dat, at) {
 
   return(dat)
 }
+
+update_nwstats <- function(dat) {
+  for (i in seq_along(dat[["nwparam"]])) {
+    new.nwstats <- tail(attributes(dat$nw[[i]])$stats, 1)
+    keep.cols <- which(!duplicated(colnames(new.nwstats)))
+    new.nwstats <- new.nwstats[, keep.cols, drop = FALSE]
+    dat$stats$nwstats[[i]] <- rbind(dat$stats$nwstats[[i]], new.nwstats)
+  }
+  return(dat)
+}
