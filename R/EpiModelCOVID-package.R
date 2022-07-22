@@ -67,4 +67,3 @@ NULL
 #' @name moduleset-corporate
 #'
 NULL
-
