@@ -56,20 +56,8 @@ init_covid_ship <- function(x, param, init, control, s) {
   dat <- prevalence_covid_ship(dat, at = 1)
 
   # Network stats
-  if (get_control(dat, "save.nwstats") == TRUE) {
-    for (i in 1:length(x)) {
-      nwL <- networkLite(dat$el[[i]], dat$attr)
-      nwstats <- summary(dat$control$nwstats.formulas[[i]],
-                         basis = nwL,
-                         term.options = dat$control$mcmc.control[[i]]$term.options,
-                         dynamic = i < 3)
-
-      dat$stats$nwstats[[i]] <- matrix(nwstats, nrow = 1,
-                                       ncol = length(nwstats),
-                                       dimnames = list(NULL, names(nwstats)))
-
-      dat$stats$nwstats[[i]] <- as.data.frame(dat$stats$nwstats[[i]])
-    }
+  if (get_control(dat, "save.nwstats")) {
+    dat <- initialize_nwstats(dat)
   }
 
   return(dat)
@@ -168,26 +156,8 @@ init_covid_corporate <- function(x, param, init, control, s) {
   dat <- prevalence_covid_corporate(dat, at = 1)
 
   # Network stats
-  if (get_control(dat, "save.nwstats") == TRUE) {
-    for (i in seq_along(x)) {
-      nwL <- networkLite(dat$el[[i]], dat$attr)
-      isTERGM <- get_nwparam(dat, network = i)[["isTERGM"]]
-      nwstats <- summary(
-        dat$control$nwstats.formulas[[i]],
-        basis = nwL,
-        term.options = dat$control$mcmc.control[[i]]$term.options,
-        dynamic = isTERGM
-      )
-
-      dat[["stats"]][["nwstats"]][[i]] <- matrix(
-        nwstats,
-        nrow = 1, ncol = length(nwstats),
-        dimnames = list(NULL, names(nwstats))
-      )
-
-      dat[["stats"]][["nwstats"]][[i]] <-
-        as.data.frame(dat[["stats"]][["nwstats"]][[i]])
-    }
+  if (get_control(dat, "save.nwstats")) {
+    dat <- initialize_nwstats(dat)
   }
 
   class(dat) <- "dat"
@@ -355,5 +325,16 @@ init_status_covid_contacttrace <- function(dat) {
   # dat <- set_attr(dat, "vax", vax)
   # dat <- set_attr(dat, "vax1Time", vax1Time)
 
+  return(dat)
+}
+
+initialize_nwstats <- function(dat) {
+  dat[["stats"]][["nwstats"]] <- list()
+  for (i in seq_along(dat[["nwparam"]])) {
+    new.nwstats <- attributes(dat$nw[[i]])$stats
+    keep.cols <- which(!duplicated(colnames(new.nwstats)))
+    new.nwstats <- new.nwstats[, keep.cols, drop = FALSE]
+    dat$stats$nwstats[[i]] <- new.nwstats
+  }
   return(dat)
 }
