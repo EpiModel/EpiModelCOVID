@@ -36,7 +36,6 @@ progress_covid <- function(dat, at) {
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clin.vec)
     clinical[ids.newInf] <- vec.new.clinical
   }
-  # if (any(status == "e" & is.na(clinical))) browser()
 
   ## Subclinical Pathway
   # E to A: latent move to asymptomatic infectious
@@ -108,14 +107,12 @@ progress_covid <- function(dat, at) {
   }
 
   # Ic to H: clinical infectious move to hospitalized
-  num.new.IctoH <- 0
   ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
   num.Ich <- length(ids.Ich)
   if (num.Ich > 0) {
     vec.new.H <- which(rbinom(num.Ich, 1, ich.rate) == 1)
     if (length(vec.new.H) > 0) {
       ids.new.H <- ids.Ich[vec.new.H]
-      num.new.IctoH <- length(ids.new.H)
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
     }
@@ -175,7 +172,6 @@ progress_covid_ship <- function(dat, at) {
   active <- dat$attr$active
   status <- dat$attr$status
   statusTime <- dat$attr$statusTime
-  infTime <- dat$attr$infTime
   clinical <- dat$attr$clinical
   age <- dat$attr$age
 

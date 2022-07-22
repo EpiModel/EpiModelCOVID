@@ -21,7 +21,7 @@ prevalence_covid_ship <- function(dat, at) {
                  "se.pp.flow", "se.pc.flow", "se.cp.flow", "se.cc.flow",
                  "meanAge", "meanClinic")
   if (at == 1) {
-    for (i in 1:length(var.names)) {
+    for (i in seq_along(var.names)) {
       dat$epi[[var.names[i]]] <- rep(0, nsteps)
     }
   }
@@ -53,10 +53,7 @@ prevalence_covid_corporate <- function(dat, at) {
 
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
-  dxStatus <- get_attr(dat, "dxStatus")
   vax <- get_attr(dat, "vax")
-
-  nsteps <- get_control(dat, "nsteps")
 
   # Initialize Outputs
   var.names <- c("num", "s.num", "e.num", "a.num", "ip.num", "ic.num", "r.num",

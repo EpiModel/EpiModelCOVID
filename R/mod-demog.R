@@ -4,7 +4,7 @@
 aging_covid <- function(dat, at) {
 
   age <- get_attr(dat, "age")
-  age <- age + 1/365
+  age <- age + 1 / 365
   dat <- set_attr(dat, "age", age)
 
   return(dat)
@@ -45,7 +45,7 @@ deaths_covid_ship <- function(dat, at) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
       dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in 1:length(dat$el)) {
+      for (i in seq_along(dat$el)) {
         dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
       }
     }
@@ -94,7 +94,7 @@ deaths_covid_corporate <- function(dat, at) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
       dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in 1:length(dat$el)) {
+      for (i in seq_along(dat$el)) {
         dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
       }
     }
@@ -114,7 +114,6 @@ offload_covid_ship <- function(dat, at) {
 
   ## Attributes ##
   active <- dat$attr$active
-  age <- dat$attr$age
   status <- dat$attr$status
   dxStatus <- dat$attr$dxStatus
   type <- dat$attr$type
@@ -143,7 +142,7 @@ offload_covid_ship <- function(dat, at) {
       active[idsExits] <- 0
       inactive <- which(active == 0)
       dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in 1:length(dat$el)) {
+      for (i in seq_along(dat$el)) {
         dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
       }
     }
@@ -173,7 +172,7 @@ arrival_covid_corporate <- function(dat, at) {
 
   # Update Networks
   if (nNew > 0) {
-    for (i in 1:length(dat$el)) {
+    for (i in seq_along(dat$el)) {
       dat$el[[i]] <- add_vertices(dat$el[[i]], nNew)
     }
   }
@@ -188,8 +187,6 @@ arrival_covid_corporate <- function(dat, at) {
 setNewAttr_covid_corporate <- function(dat, at, nNew) {
 
   dat <- append_core_attr(dat, at, nNew)
-
-  newIds <- which(dat$attr$entrTime == at)
 
   arrival.age <- get_param(dat, "arrival.age")
   newAges <- rep(arrival.age, nNew)

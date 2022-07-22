@@ -162,7 +162,7 @@ edges_correct_covid <- function(dat, at) {
   new.num <- sum(dat$attr$active == 1, na.rm = TRUE)
   adjust <- log(old.num) - log(new.num)
 
-  for (i in 1:length(dat$nwparam)) {
+  for (i in seq_along(dat$nwparam)) {
     coef.form1 <- get_nwparam(dat, network = i)$coef.form
     coef.form1[1] <- coef.form1[1] + adjust
     dat$nwparam[[i]]$coef.form <- coef.form1
