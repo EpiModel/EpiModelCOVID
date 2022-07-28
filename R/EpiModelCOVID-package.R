@@ -15,6 +15,7 @@
 #'
 #' @import EpiModel ergm network
 #' @importFrom stats rbinom simulate rpois
+#' @importFrom utils tail
 #'
 #' @docType package
 #' @keywords package

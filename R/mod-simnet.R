@@ -16,6 +16,7 @@ resim_nets_covid_ship <- function(dat, at) {
   set.control.tergm <- get_control(dat, "set.control.tergm")
   set.control.ergm <- get_control(dat, "set.control.ergm")
   save.nwstats <- get_control(dat, "save.nwstats")
+  nwstats.formulas <- get_control(dat, "nwstats.formulas")
 
   ## Edges correction
   dat <- edges_correct_covid(dat, at)
@@ -41,6 +42,7 @@ resim_nets_covid_ship <- function(dat, at) {
         time.start = at - 1,
         time.slices = 1,
         time.offset = 1,
+        monitor = nwstats.formulas[[i]],
         control = set.control.tergm,
         output = "final",
         dynamic = TRUE
@@ -51,6 +53,7 @@ resim_nets_covid_ship <- function(dat, at) {
         object = nwparam[["formation"]],
         coef = nwparam[["coef.form"]],
         constraints = nwparam[["constraints"]],
+        monitor = nwstats.formulas[[i]],
         control = set.control.tergm,
         time.start = at - 1,
         time.slices = 1,
@@ -61,23 +64,10 @@ resim_nets_covid_ship <- function(dat, at) {
     }
 
     dat[["el"]][[i]] <- as.edgelist(dat[["nw"]][[i]])
+  }
 
-    if (save.nwstats) {
-      if (isTERGM) {
-        term.options <- set.control.tergm$term.options
-      } else {
-        term.options <- set.control.ergm$term.options
-      }
-      dat$stats$nwstats[[i]] <- rbind(
-        dat$stats$nwstats[[i]],
-        summary(
-          dat$control$nwstats.formulas[[i]],
-          basis = nwL,
-          term.options = term.options,
-          dynamic = isTERGM
-        )
-      )
-    }
+  if (save.nwstats) {
+    dat <- update_nwstats(dat)
   }
 
   return(dat)
@@ -92,6 +82,7 @@ resim_nets_covid_corporate <- function(dat, at) {
   set.control.tergm <- get_control(dat, "set.control.tergm")
   set.control.ergm <- get_control(dat, "set.control.ergm")
   save.nwstats <- get_control(dat, "save.nwstats")
+  nwstats.formulas <- get_control(dat, "nwstats.formulas")
 
   ## Edges correction
   dat <- edges_correct_covid(dat, at)
@@ -112,6 +103,7 @@ resim_nets_covid_corporate <- function(dat, at) {
         time.start = at - 1,
         time.slices = 1,
         time.offset = 1,
+        monitor = nwstats.formulas[[i]],
         control = set.control.tergm,
         output = "final",
         dynamic = TRUE
@@ -122,6 +114,7 @@ resim_nets_covid_corporate <- function(dat, at) {
         object = nwparam[["formation"]],
         coef = nwparam[["coef.form"]],
         constraints = nwparam[["constraints"]],
+        monitor = nwstats.formulas[[i]],
         control = set.control.tergm,
         time.start = at - 1,
         time.slices = 1,
@@ -132,25 +125,12 @@ resim_nets_covid_corporate <- function(dat, at) {
     }
 
     dat[["el"]][[i]] <- as.edgelist(dat[["nw"]][[i]])
-
-    if (save.nwstats) {
-      if (isTERGM) {
-        term.options <- set.control.tergm$term.options
-      } else {
-        term.options <- set.control.ergm$term.options
-      }
-      dat$stats$nwstats[[i]] <- rbind(
-        dat$stats$nwstats[[i]],
-        summary(
-          dat$control$nwstats.formulas[[i]],
-          basis = nwL,
-          term.options = term.options,
-          dynamic = isTERGM
-        )
-      )
-    }
-
   }
+
+  if (save.nwstats) {
+    dat <- update_nwstats(dat)
+  }
+
 
   return(dat)
 }
@@ -168,5 +148,15 @@ edges_correct_covid <- function(dat, at) {
     dat$nwparam[[i]]$coef.form <- coef.form1
   }
 
+  return(dat)
+}
+
+update_nwstats <- function(dat) {
+  for (i in seq_along(dat[["nwparam"]])) {
+    new.nwstats <- tail(attributes(dat$nw[[i]])$stats, 1)
+    keep.cols <- which(!duplicated(colnames(new.nwstats)))
+    new.nwstats <- new.nwstats[, keep.cols, drop = FALSE]
+    dat$stats$nwstats[[i]] <- rbind(dat$stats$nwstats[[i]], new.nwstats)
+  }
   return(dat)
 }

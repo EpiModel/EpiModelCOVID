@@ -108,7 +108,7 @@ est3 <- suppressMessages(
 )
 
 est <- list(est1, est2, est3, est1, est2, est3)
-est <- lapply(est, trim_netest, as.networkLite = FALSE)
+est <- lapply(est, trim_netest)
 
 
 # Model Testing -----------------------------------------------------------
@@ -189,6 +189,7 @@ test_that("base ship model parameterization", {
     resimulate.network = TRUE,
     skip.check = TRUE,
     tergmLite = TRUE,
+    save.nwstats = FALSE,
     verbose = FALSE
   )
 

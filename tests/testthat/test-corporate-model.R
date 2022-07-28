@@ -144,6 +144,10 @@ test_that("base corporate model parameterization", {
     ),
     resimulate.network = TRUE,
     tergmLite = TRUE,
+    save.nwstats = TRUE,
+    nwstats.formula.1 = "formation",
+    nwstats.formula.2 = "formation",
+    nwstats.formula.3 = "formation",
     verbose = FALSE
   )
 
@@ -155,6 +159,9 @@ test_that("base corporate model parameterization", {
   expect_equal(nrow(df), 100)
   expect_gt(sum(df$se.flow, na.rm = TRUE), 0)
   expect_equal(sum(df$v1.num + df$v2.num, na.rm = TRUE), 0)
+  nws <- get_nwstats(sim)
+  expect_equal(nrow(nws), control$nsteps)
+  expect_named(nws, c("time", "sim", "edges"))
 })
 
 test_that("vax corporate model parameterization", {
@@ -228,6 +235,10 @@ test_that("vax corporate model parameterization", {
     resimulate.network = TRUE,
     skip.check = TRUE,
     tergmLite = TRUE,
+    save.nwstats = TRUE,
+    nwstats.formula.1 = "formation",
+    nwstats.formula.2 = "formation",
+    nwstats.formula.3 = "formation",
     verbose = FALSE
   )
 
@@ -242,4 +253,7 @@ test_that("vax corporate model parameterization", {
   expect_lte(sum(df$v2.num, na.rm = TRUE), sum(df$v1.num, na.rm = TRUE))
   expect_equal(sum(df$nVax1lt15 + df$nVax115to65, na.rm = TRUE), 0)
   expect_gt(sum(df$nVax1gt65, na.rm = TRUE), 0)
+  nws <- get_nwstats(sim)
+  expect_equal(nrow(nws), control$nsteps)
+  expect_named(nws, c("time", "sim", "edges"))
 })
