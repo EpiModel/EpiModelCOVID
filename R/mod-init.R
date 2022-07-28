@@ -33,7 +33,7 @@ init_covid_ship <- function(x, param, init, control, s) {
   dat <- append_core_attr(dat, 1, num)
 
   # Pull in attributes on network
-  nwattr.all <- names(nw[[1]][["val"]][[1]])
+  nwattr.all <- list.vertex.attributes(nw[[1]])
   nwattr.use <- nwattr.all[!nwattr.all %in% c("na", "vertex.names")]
   for (i in seq_along(nwattr.use)) {
     dat$attr[[nwattr.use[i]]] <- get.vertex.attribute(nw[[1]], nwattr.use[i])
