@@ -13,7 +13,7 @@
 #' @name EpiModelCOVID-package
 #' @aliases EpiModelCOVID
 #'
-#' @import EpiModel ergm network
+#' @import EpiModel ergm network tergm
 #' @importFrom stats rbinom simulate rpois
 #' @importFrom utils tail
 #'
