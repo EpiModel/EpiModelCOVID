@@ -1,6 +1,6 @@
 Package: EpiModelCOVID
-Version: 1.1.1
-Date: 2021-10-28
+Version: 1.2.0
+Date: 2022-07-29
 Title: Model Extensions to EpiModel for the Network-Based Modeling of COVID-19
 Authors@R: c(person("Samuel M.", "Jenness",
                     role = c("aut", "cre"),
@@ -10,12 +10,20 @@ Description: Provides extension functionality for the EpiModel package to simula
 License: GPL-3
 Depends:
     R (>= 4.0.0),
-    EpiModel (>= 2.2.0),
-    network (>= 1.17.0)
+    EpiModel (>= 2.3.1),
+    network (>= 1.17.2)
 Imports:
-    ergm (>= 4.0)
+    ergm (>= 4.2-6964)
 Suggests:
     testthat (>= 3.0.0)
 RoxygenNote: 7.2.1
 Encoding: UTF-8
 Config/testthat/edition: 3
+Remotes:
+   github::statnet/EpiModel@main,
+   github::statnet/statnet@master,
+   github::statnet/statnet.common@master,
+   github::statnet/network@master,
+   github::statnet/networkDynamic@master,
+   github::statnet/ergm@master,
+   github::statnet/tergm@master
