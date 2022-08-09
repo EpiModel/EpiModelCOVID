@@ -58,7 +58,7 @@ vax_covid <- function(dat, at) {
     vax2Time[idsvaxFull] <- at
   }
 
-  # Partial Immunity after first shot
+  # Full Immunity after second shot
   idsvaximmuneFull <- which(active == 1 & vax == 3 & at - vax2Time >= vax2.immune)
   nvaximmuneFull <- length(idsvaximmuneFull)
   if (nvaximmuneFull > 0){
