@@ -4,43 +4,36 @@
 init_covid_ship <- function(x, param, init, control, s) {
 
   # Master Data List
-  dat <- list()
-  dat$param <- param
-  dat$init <- init
-  dat$control <- control
-
-  dat$attr <- list()
-  dat$stats <- list()
-  dat$stats$nwstats <- list()
-  dat$temp <- list()
+  dat <- create_dat_object(param, init, control)
 
   ## Network Setup ##
   # Initial network simulations
-  dat$nw <- list()
-  for (i in 1:length(x)) {
-    dat$nw[[i]] <- simulate(
-      x[[i]]$fit,
-      response = NULL,
-      basis = x[[i]]$fit$newnetwork,
+  dat[["nw"]] <- list()
+  for (i in seq_along(x)) {
+    dat[["nw"]][[i]] <- simulate(
+      x[[i]][["formula"]],
+      coef = x[[i]][["coef.form.crude"]],
+      basis = x[[i]][["newnetwork"]],
+      constraints = x[[i]][["constraints"]],
+      control = get_control(dat, "set.control.ergm"),
       dynamic = FALSE
     )
   }
-  nw <- dat$nw
+  nw <- dat[["nw"]]
 
   # Pull Network parameters
-  dat$nwparam <- list()
-  for (i in 1:length(x)) {
-    dat$nwparam[i] <- list(x[[i]][-which(names(x[[i]]) == "fit")])
+  dat[["nwparam"]] <- list()
+  for (i in seq_along(x)) {
+    dat[["nwparam"]][i] <- list(x[[i]][!(names(x[[i]]) %in% c("fit", "newnetwork"))])
+    dat[["nwparam"]][[i]]["isTERGM"] <- all(x[[i]][["coef.diss"]][["duration"]] > 1)
   }
 
   ## Nodal Attributes Setup ##
   num <- network.size(nw[[1]])
-  dat$attr$active <- rep(1, num)
-  dat$attr$arrival.time <- rep(1, num)
-  dat$attr$uid <- 1:num
+  dat <- append_core_attr(dat, 1, num)
 
   # Pull in attributes on network
-  nwattr.all <- names(nw[[1]][["val"]][[1]])
+  nwattr.all <- list.vertex.attributes(nw[[1]])
   nwattr.use <- nwattr.all[!nwattr.all %in% c("na", "vertex.names")]
   for (i in seq_along(nwattr.use)) {
     dat$attr[[nwattr.use[i]]] <- get.vertex.attribute(nw[[1]], nwattr.use[i])
@@ -56,20 +49,8 @@ init_covid_ship <- function(x, param, init, control, s) {
   dat <- prevalence_covid_ship(dat, at = 1)
 
   # Network stats
-  if (get_control(dat, "save.nwstats") == TRUE) {
-    for (i in 1:length(x)) {
-      nwL <- networkLite(dat$el[[i]], dat$attr)
-      nwstats <- summary(dat$control$nwstats.formulas[[i]],
-                         basis = nwL,
-                         term.options = dat$control$mcmc.control[[i]]$term.options,
-                         dynamic = i < 3)
-
-      dat$stats$nwstats[[i]] <- matrix(nwstats, nrow = 1,
-                                       ncol = length(nwstats),
-                                       dimnames = list(NULL, names(nwstats)))
-
-      dat$stats$nwstats[[i]] <- as.data.frame(dat$stats$nwstats[[i]])
-    }
+  if (get_control(dat, "save.nwstats")) {
+    dat <- initialize_nwstats(dat)
   }
 
   return(dat)
@@ -168,26 +149,8 @@ init_covid_corporate <- function(x, param, init, control, s) {
   dat <- prevalence_covid_corporate(dat, at = 1)
 
   # Network stats
-  if (get_control(dat, "save.nwstats") == TRUE) {
-    for (i in seq_along(x)) {
-      nwL <- networkLite(dat$el[[i]], dat$attr)
-      isTERGM <- get_nwparam(dat, network = i)[["isTERGM"]]
-      nwstats <- summary(
-        dat$control$nwstats.formulas[[i]],
-        basis = nwL,
-        term.options = dat$control$mcmc.control[[i]]$term.options,
-        dynamic = isTERGM
-      )
-
-      dat[["stats"]][["nwstats"]][[i]] <- matrix(
-        nwstats,
-        nrow = 1, ncol = length(nwstats),
-        dimnames = list(NULL, names(nwstats))
-      )
-
-      dat[["stats"]][["nwstats"]][[i]] <-
-        as.data.frame(dat[["stats"]][["nwstats"]][[i]])
-    }
+  if (get_control(dat, "save.nwstats")) {
+    dat <- initialize_nwstats(dat)
   }
 
   class(dat) <- "dat"
@@ -236,126 +199,13 @@ init_status_covid_corporate <- function(dat) {
   return(dat)
 }
 
-
-
-#' @rdname moduleset-contacttrace
-#' @export
-init_covid_contacttrace <- function(x, param, init, control, s) {
-  dat <- create_dat_object(param, init, control)
-
-  # Master Data List
-  dat$stats$nwstats <- list()
-
-  ## Network Setup ##
-  # Initial network simulations
-  dat$nw <- list()
-  for (i in 1:length(x)) {
-    dat$nw[[i]] <- simulate(
-      x[[i]]$fit,
-      response = NULL,
-      basis = x[[i]]$fit$newnetwork
-    )
+initialize_nwstats <- function(dat) {
+  dat[["stats"]][["nwstats"]] <- list()
+  for (i in seq_along(dat[["nwparam"]])) {
+    new.nwstats <- attributes(dat$nw[[i]])$stats
+    keep.cols <- which(!duplicated(colnames(new.nwstats)))
+    new.nwstats <- new.nwstats[, keep.cols, drop = FALSE]
+    dat$stats$nwstats[[i]] <- new.nwstats
   }
-  nw <- dat$nw
-
-  # Pull Network parameters
-  dat$nwparam <- list()
-  for (i in 1:length(x)) {
-    dat$nwparam[i] <- list(x[[i]][-which(names(x[[i]]) == "fit")])
-  }
-
-  ## Nodal Attributes Setup ##
-  num <- network.size(nw[[1]])
-  dat <- append_core_attr(dat, 1, num)
-
-  # Pull in attributes on network
-  nwattr.all <- names(nw[[1]][["val"]][[1]])
-  nwattr.use <- nwattr.all[!nwattr.all %in% c("na", "vertex.names")]
-  for (i in seq_along(nwattr.use)) {
-    dat$attr[[nwattr.use[i]]] <- get.vertex.attribute(nw[[1]], nwattr.use[i])
-  }
-
-  # Convert to tergmLite method
-  dat <- init_tergmLite(dat)
-
-  ## Infection Status and Time Modules
-  dat <- init_status_covid_contacttrace(dat)
-
-  ## Get initial prevalence
-  dat <- prevalence_covid_contacttrace(dat, at = 1)
-
-  # Network stats
-  if (get_control(dat, "save.nwstats")) {
-    for (i in seq_along(x)) {
-      nwL <- networkLite(dat$el[[i]], dat$attr)
-      nwstats <- summary(
-        dat$control$nwstats.formulas[[i]],
-        basis = nwL,
-        term.options = dat$control$mcmc.control[[i]]$term.options,
-        dynamic = i < 3
-      )
-
-      dat$stats$nwstats[[i]] <- matrix(
-        nwstats,
-        nrow = 1, ncol = length(nwstats),
-        dimnames = list(NULL, names(nwstats))
-      )
-
-      dat$stats$nwstats[[i]] <- as.data.frame(dat$stats$nwstats[[i]])
-    }
-  }
-
-  for (n_network in seq_along(dat[["nw"]])) {
-    dat <- update_cumulative_edgelist(dat, n_network)
-  }
-
-  return(dat)
-}
-
-
-init_status_covid_contacttrace <- function(dat) {
-
-  e.num <- get_init(dat, "e.num")
-
-  active <- get_attr(dat, "active")
-  num <- sum(active)
-
-  ## Disease status
-  status <- rep("s", num)
-  if (e.num > 0) {
-    status[sample(which(active == 1), size = e.num)] <- "e"
-  }
-
-  dat <- set_attr(dat, "status", status)
-
-  # Infection Time and related attributes
-  idsInf <- which(status == "e")
-  infTime <- rep(NA, num)
-  eligible.case <- rep(NA, num)
-  clinical <- rep(NA, num)
-  # hospit <- rep(NA, num)
-  intensive <- rep(NA, num)
-  branch <- rep(NA, num)
-  statusTime.Ic <- rep(NA, num)
-  statusTime <- rep(NA, num)
-  statusTime[idsInf] <- 1
-  dxStatus <- rep(0, num)
-  dxTime <- rep(NA, num)
-  # vax <- rep(0, num)
-  # vax1Time <- rep(NA, num)
-
-  dat <- set_attr(dat, "statusTime", statusTime)
-  dat <- set_attr(dat, "statusTime.Ic", statusTime.Ic)
-  dat <- set_attr(dat, "infTime", infTime)
-  dat <- set_attr(dat, "clinical", clinical)
-  dat <- set_attr(dat, "eligible.case", eligible.case)
-  # dat <- set_attr(dat, "hospit", hospit)
-  dat <- set_attr(dat, "intensive", intensive)
-  dat <- set_attr(dat, "branch", branch)
-  dat <- set_attr(dat, "dxStatus", dxStatus)
-  dat <- set_attr(dat, "dxTime", dxTime)
-  # dat <- set_attr(dat, "vax", vax)
-  # dat <- set_attr(dat, "vax1Time", vax1Time)
-
   return(dat)
 }
