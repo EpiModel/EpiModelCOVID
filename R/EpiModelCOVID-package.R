@@ -35,10 +35,10 @@ NULL
 #'
 NULL
 
-#' @title EpiModel Module Set for COVID Cruise Ship Model
+#' @title EpiModel Module Set for Vaccination Decision-Making Model
 #'
 #' @description This set of functions is associated with the EpiModel study of
-#'              COVID on cruise ship environments.
+#'              vaccination decision making.
 #'
 #' @param x An \code{EpiModel} object of class `netest`.
 #' @param param An \code{EpiModel} object of class `param.net`.
@@ -48,23 +48,6 @@ NULL
 #' @param dat Master list object of network models.
 #' @param at Current time step.
 #'
-#' @name moduleset-ship
-#'
-NULL
-
-#' @title EpiModel Module Set for Corporate Office Model
-#'
-#' @description This set of functions is associated with the EpiModel study of
-#'              COVID in corporate office environments.
-#'
-#' @param x An \code{EpiModel} object of class `netest`.
-#' @param param An \code{EpiModel} object of class `param.net`.
-#' @param init An \code{EpiModel} object of class `init.net`.
-#' @param control An \code{EpiModel} object of class `control.net`.
-#' @param s Simulation number, used for restarting dependent simulations.
-#' @param dat Master list object of network models.
-#' @param at Current time step.
-#'
-#' @name moduleset-corporate
+#' @name moduleset-vaxDecisions
 #'
 NULL
