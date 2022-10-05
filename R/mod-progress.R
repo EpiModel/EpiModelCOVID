@@ -11,6 +11,8 @@ progress_covid <- function(dat, at) {
   hospit <- get_attr(dat, "hospit")
   age <- get_attr(dat, "age")
   vax <- get_attr(dat, "vax")
+  isolate <- get_attr(dat, "isolate")
+  isoTime <- get_attr(dat, "isoTime")
 
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
@@ -23,6 +25,7 @@ progress_covid <- function(dat, at) {
   ich.rate <- get_param(dat, "ich.rate")
   icr.rate <- get_param(dat, "icr.rate")
   hr.rate <- get_param(dat, "hr.rate")
+  iso.prob <- get_param(dat, "iso.prob")
 
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
@@ -92,6 +95,13 @@ progress_covid <- function(dat, at) {
       num.new.IptoIc <- length(ids.new.Ic)
       status[ids.new.Ic] <- "ic"
       statusTime[ids.new.Ic] <- at
+      vec.new.iso <- which(rbinom(length(vec.new.Ic), 1, iso.prob) == 1)
+      if (length(vec.new.iso) > 0) {
+        ids.new.iso1 <- ids.Ip[vec.new.iso]
+        num.new.iso1 <- length(ids.new.iso1)
+        isolate[ids.new.iso1] <- 1 # isolation for mild infection
+        isoTime[ids.new.iso1] <- at
+      }
     }
   }
 
@@ -115,6 +125,12 @@ progress_covid <- function(dat, at) {
       ids.new.H <- ids.Ich[vec.new.H]
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
+      vec.new.iso.H <- which(status == "h" & statusTime == at & isolate == 1)
+      if (length(vec.new.iso.H) > 0) {
+        ids.new.iso2 <- ids.Ip[vec.new.iso.H]
+        num.new.iso2 <- length(ids.new.iso2)
+        isolate[ids.new.iso2] <- 2 # isolation for severe infection
+      }
     }
   }
 
