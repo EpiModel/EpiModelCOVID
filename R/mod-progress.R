@@ -127,10 +127,9 @@ progress_covid <- function(dat, at) {
       ids.new.H <- ids.Ich[vec.new.H]
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
-      vec.new.iso.H <- which(status == "h" & statusTime == at & isolate == 1)
-      if (length(vec.new.iso.H) > 0) {
-        ids.new.iso2 <- ids.Ip[vec.new.iso.H]
-        num.new.iso2 <- length(ids.new.iso2)
+      ids.new.iso2 <- which(status == "h" & statusTime == at & isolate == 1)
+      num.new.iso2 <- length(ids.new.iso2)
+      if (num.new.iso2 > 0) {
         isolate[ids.new.iso2] <- 2 # isolation for severe infection
       }
     }
@@ -161,32 +160,28 @@ progress_covid <- function(dat, at) {
       num.new.IctoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
-      vec.new.iso.end <- which(status == "r" & statusTime == at & isolate == 1 & (at - isoTime) > 5)
-      if (length(vec.new.iso.end) > 0) {
-        ids.new.iso.end <- ids.Ip[vec.new.iso.end]
-        num.new.iso.end <- length(ids.new.iso.end)
+      ids.new.iso.end <- which(status == "r" & statusTime == at & isolate == 1 & (at - isoTime) > 5)
+      num.new.iso.end <- length(ids.new.iso.end)
+      if (num.new.iso.end > 0) {
         isolate[ids.new.iso.end] <- NA # end isolation
         isoTime[ids.new.iso.end] <- NA
       }
     }
   }
 
-
   # Move mild isolation to masking among R
   num.new.iso.mask <- 0
-  vec.new.iso.mask <- which(active == 1 & status == "r" & isolate == 1 & (at - isoTime) > 5)
-  if (length(vec.new.iso.mask) > 0) {
-    ids.new.iso.mask <- ids.Ip[vec.new.iso.mask]
-    num.new.iso.mask <- length(ids.new.iso.mask)
+  ids.new.iso.mask <- which(active == 1 & status == "r" & isolate == 1 & (at - isoTime) > 5)
+  num.new.iso.mask <- length(ids.new.iso.mask)
+  if (num.new.iso.mask > 0) {
     isolate[ids.new.iso.mask] <- 3 # post-isolation masking
   }
 
   # End isolation pathway
   num.new.iso.end <- 0
-  vec.new.iso.end <- which(active == 1 & status == "r" & isolate %in% c(2,3) & (at - isoTime) > 10)
-  if (length(vec.new.iso.end) > 0) {
-    ids.new.iso.end <- ids.Ip[vec.new.iso.end]
-    num.new.iso.end <- length(ids.new.iso.end)
+  ids.new.iso.end <- which(active == 1 & status == "r" & isolate %in% c(2,3) & (at - isoTime) > 10)
+  num.new.iso.end <- length(ids.new.iso.end)
+  if (num.new.iso.end > 0) {
     isolate[ids.new.iso.end] <- NA # end isolation pathway
     isoTime[ids.new.iso.end] <- NA
   }
