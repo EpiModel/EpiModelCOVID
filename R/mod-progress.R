@@ -86,6 +86,7 @@ progress_covid <- function(dat, at) {
 
   # Ip to Ic: preclinical infectious move to clinical infectious
   num.new.IptoIc <- 0
+  num.new.iso1 <- 0
   ids.Ip <- which(active == 1 & status == "ip" & statusTime < at & clinical == 1)
   num.Ip <- length(ids.Ip)
   if (num.Ip > 0) {
@@ -117,6 +118,7 @@ progress_covid <- function(dat, at) {
   }
 
   # Ic to H: clinical infectious move to hospitalized
+  num.new.iso2 <- 0
   ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
   num.Ich <- length(ids.Ich)
   if (num.Ich > 0) {
@@ -159,14 +161,44 @@ progress_covid <- function(dat, at) {
       num.new.IctoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      vec.new.iso.end <- which(status == "r" & statusTime == at & isolate == 1 & (at - isoTime) > 5)
+      if (length(vec.new.iso.end) > 0) {
+        ids.new.iso.end <- ids.Ip[vec.new.iso.end]
+        num.new.iso.end <- length(ids.new.iso.end)
+        isolate[ids.new.iso.end] <- NA # end isolation
+        isoTime[ids.new.iso.end] <- NA
+      }
     }
   }
+
+
+  # Move mild isolation to masking among R
+  num.new.iso.mask <- 0
+  vec.new.iso.mask <- which(active == 1 & status == "r" & isolate == 1 & (at - isoTime) > 5)
+  if (length(vec.new.iso.mask) > 0) {
+    ids.new.iso.mask <- ids.Ip[vec.new.iso.mask]
+    num.new.iso.mask <- length(ids.new.iso.mask)
+    isolate[ids.new.iso.mask] <- 3 # post-isolation masking
+  }
+
+  # End isolation pathway
+  num.new.iso.end <- 0
+  vec.new.iso.end <- which(active == 1 & status == "r" & isolate %in% c(2,3) & (at - isoTime) > 10)
+  if (length(ids.iso.end) > 0) {
+    ids.new.iso.end <- ids.Ip[vec.new.iso.end]
+    num.new.iso.end <- length(ids.new.iso.end)
+    isolate[ids.new.iso.end] <- NA # end isolation pathway
+    isoTime[ids.new.iso.end] <- NA
+  }
+
 
   ## Save updated attributes
   dat <- set_attr(dat, "status", status)
   dat <- set_attr(dat, "statusTime", statusTime)
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "hospit", hospit)
+  dat <- set_attr(dat, "isolate", isolate)
+  dat <- set_attr(dat, "isoTime", isoTime)
 
   ## Save summary statistics
   dat <- set_epi(dat, "ea.flow", at, num.new.EtoA)
@@ -175,6 +207,10 @@ progress_covid <- function(dat, at) {
   dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
   dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
+  dat <- set_epi(dat, "iso1.flow", at, num.new.iso1)
+  dat <- set_epi(dat, "iso2.flow", at, num.new.iso2)
+  dat <- set_epi(dat, "isomask.flow", at, num.new.iso.mask)
+  dat <- set_epi(dat, "isoend.flow", at, num.new.iso.end)
 
   return(dat)
 }
