@@ -184,7 +184,7 @@ progress_covid <- function(dat, at) {
   # End isolation pathway
   num.new.iso.end <- 0
   vec.new.iso.end <- which(active == 1 & status == "r" & isolate %in% c(2,3) & (at - isoTime) > 10)
-  if (length(ids.iso.end) > 0) {
+  if (length(vec.new.iso.end) > 0) {
     ids.new.iso.end <- ids.Ip[vec.new.iso.end]
     num.new.iso.end <- length(ids.new.iso.end)
     isolate[ids.new.iso.end] <- NA # end isolation pathway
