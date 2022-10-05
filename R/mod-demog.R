@@ -209,6 +209,7 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   dat <- append_attr(dat, "vax2Time", NA, nNew)
   dat <- append_attr(dat, "vax3Time", NA, nNew)
   dat <- append_attr(dat, "isolate", NA, nNew)
+  dat <- append_attr(dat, "isoTime", NA, nNew)
 
   return(dat)
 }
