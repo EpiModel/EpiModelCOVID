@@ -98,7 +98,7 @@ progress_covid <- function(dat, at) {
       statusTime[ids.new.Ic] <- at
       vec.new.iso <- which(rbinom(length(vec.new.Ic), 1, iso.prob) == 1)
       if (length(vec.new.iso) > 0) {
-        ids.new.iso1 <- ids.Ip[vec.new.iso]
+        ids.new.iso1 <- ids.new.Ic[vec.new.iso]
         num.new.iso1 <- length(ids.new.iso1)
         isolate[ids.new.iso1] <- 1 # isolation for mild infection
         isoTime[ids.new.iso1] <- at
@@ -160,12 +160,6 @@ progress_covid <- function(dat, at) {
       num.new.IctoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
-      ids.new.iso.end <- which(status == "r" & statusTime == at & isolate == 1 & (at - isoTime) > 5)
-      num.new.iso.end <- length(ids.new.iso.end)
-      if (num.new.iso.end > 0) {
-        isolate[ids.new.iso.end] <- NA # end isolation
-        isoTime[ids.new.iso.end] <- NA
-      }
     }
   }
 
