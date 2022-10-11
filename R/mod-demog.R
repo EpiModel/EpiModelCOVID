@@ -4,7 +4,16 @@
 aging_covid <- function(dat, at) {
 
   age <- get_attr(dat, "age")
+  vaxType <- get_attr(dat, "vaxType")
+  
   age <- age + 1 / 365
+  
+  idsNewAdults <- which(age >= 18 & is.na(vaxType))
+  vax.willing.prob <- get_param(dat, "vax.willing.prob")
+  vaxType.new <- rbinom(length(idsNewAdults), 1, vax.willing.prob[1])
+  vaxType[idsNewAdults] <- vaxType.new
+  
+  dat <- set_attr(dat, "vaxType", vaxType)
   dat <- set_attr(dat, "age", age)
 
   return(dat)
@@ -89,7 +98,7 @@ arrival_covid_vax_decisions <- function(dat, at) {
 
 
 setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
-
+  
   dat <- append_core_attr(dat, at, nNew)
 
   arrival.age <- get_param(dat, "arrival.age")
@@ -99,6 +108,15 @@ setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
   age.breaks <- seq(0, 200, 10)
   attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
+  
+  vax.age.group <- rep(NA, length(newAges))
+  vax.age.group[newAges < 5] <- 1
+  vax.age.group[newAges >= 5 & newAges < 18] <- 2
+  vax.age.group[newAges >= 18 & newAges < 50] <- 3
+  vax.age.group[newAges >= 50 & newAges < 65] <- 4
+  vax.age.group[newAges >= 65] <- 5
+  
+  dat <- append_attr(dat, "vax.age.group", vax.age.group, nNew)
 
   # Disease status and related
   dat <- append_attr(dat, "status", "s", nNew)
@@ -116,6 +134,16 @@ setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
   dat <- append_attr(dat, "vax3Time", NA, nNew)
   dat <- append_attr(dat, "vax4Time", NA, nNew)
   dat <- append_attr(dat, "vaxSE", NA, nNew)
+  
+  ## Vaccine willingness vs. resistance
+  vax.willing.prob <- get_param(dat, "vax.willing.prob")
+  vaxType.new <- rep(NA, nNew)
+  idsnewAdults <- which(vax.age.group >= 3)
+  
+  vaxType.newAdults <- rbinom(length(idsnewAdults), 1, 
+                              vax.willing.prob[vax.age.group[idsnewAdults] - 2])
+  vaxType.new[idsnewAdults] <- vaxType.newAdults
+  dat <- append_attr(dat, "vaxType", vaxType.new, nNew)
 
   return(dat)
 }

@@ -71,6 +71,27 @@ init_status_covid_vax_decisions <- function(dat) {
   }
 
   dat <- set_attr(dat, "status", status)
+  
+  # Age group for vaccination processes
+  age <- get_attr(dat, "age")
+  
+  vax.age.group <- rep(NA, length(age))
+  vax.age.group[age < 5] <- 1
+  vax.age.group[age >= 5 & age < 18] <- 2
+  vax.age.group[age >= 18 & age < 50] <- 3
+  vax.age.group[age >= 50 & age < 65] <- 4
+  vax.age.group[age >= 65] <- 5
+  
+  dat <- set_attr(dat, "vax.age.group", vax.age.group)
+  
+  ## Vaccine willingness vs. resistance
+  vax.willing.prob <- get_param(dat, "vax.willing.prob")
+  vaxType <- rep(NA, num)
+  idsAdults <- which(vax.age.group >= 3)
+  vaxType.adults <- rbinom(length(idsAdults), 1, 
+                           vax.willing.prob[vax.age.group[idsAdults] - 2])
+  vaxType[idsAdults] <- vaxType.adults
+  dat <- set_attr(dat, "vaxType", vaxType)
 
   # Infection Time and related attributes
   idsInf <- which(status == "e")
