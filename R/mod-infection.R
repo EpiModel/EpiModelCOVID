@@ -255,6 +255,8 @@ infect_covid_corporate <- function(dat, at) {
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   vax <- get_attr(dat, "vax")
+  dxStatus <- get_attr(dat, "dxStatus")
+  isolate <- get_attr(dat, "isolate")
 
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
@@ -267,6 +269,9 @@ infect_covid_corporate <- function(dat, at) {
   act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
   vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
+  inf.prob.mask.rr <- get_param(dat, "inf.prob.mask.rr")
+  act.rate.iso.inter.time <- get_param(dat, "act.rate.iso.inter.time")
+  act.rate.iso.inter.rr <- get_param(dat, "act.rate.iso.inter.rr")
 
   nLayers <- length(dat$el)
   nInf <- rep(0, nLayers)
@@ -313,6 +318,7 @@ infect_covid_corporate <- function(dat, at) {
         }
 
         # Case isolation with diagnosed or symptomatic infection
+        del$dx <- dxStatus[del$inf]
         if (at >= act.rate.dx.inter.time) {
           del$actRate[del$dx == 2] <- del$actRate[del$dx == 2] *
                                       act.rate.dx.inter.rr
@@ -320,6 +326,19 @@ infect_covid_corporate <- function(dat, at) {
         if (at >= act.rate.sympt.inter.time) {
           del$actRate[del$stat == "ic"] <- del$actRate[del$stat == "ic"] *
                                            act.rate.sympt.inter.rr
+        }
+
+        # Case isolation for those in isolation process
+        del$iso <- ifelse(!is.na(isolate[del$inf]),isolate[del$inf],0)
+        if (at >= act.rate.iso.inter.time) {
+          del$actRate[del$iso %in% c(1,2)] <- del$actRate[del$iso %in% c(1,2)] *
+            act.rate.iso.inter.rr
+        }
+
+        # Masking for those in isolation process
+        if (at >= act.rate.iso.inter.time) {
+          del$transProb[del$iso %in% c(1,2,3)] <- del$transProb[del$iso %in% c(1,2,3)] *
+            inf.prob.mask.rr
         }
 
         del$finalProb <- 1 - (1 - del$transProb)^del$actRate
