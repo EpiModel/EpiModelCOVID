@@ -18,6 +18,7 @@ deaths_covid_ship <- function(dat, at) {
   ## Attributes ##
   active <- dat$attr$active
   age <- dat$attr$age
+  race <- dat$attr$race
   status <- dat$attr$status
 
   ## Parameters ##
@@ -31,7 +32,7 @@ deaths_covid_ship <- function(dat, at) {
   if (nElig > 0) {
 
     whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86)
-    death_rates_of_elig <- mort.rates[whole_ages_of_elig]
+    death_rates_of_elig <- mort.rates[whole_ages_of_elig, race]
 
     idsElig.inf <- which(status[idsElig] == "ic")
     death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] * mort.dis.mult
@@ -66,6 +67,7 @@ deaths_covid_corporate <- function(dat, at) {
   ## Attributes ##
   active <- get_attr(dat, "active")
   age <- get_attr(dat, "age")
+  race <- get_attr(dat, "race")
   status <- get_attr(dat, "status")
 
   ## Parameters ##
