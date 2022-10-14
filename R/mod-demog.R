@@ -81,7 +81,7 @@ deaths_covid_corporate <- function(dat, at) {
   if (nElig > 0) {
 
     whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86)
-    death_rates_of_elig <- mort.rates[whole_ages_of_elig]
+    death_rates_of_elig <- mort.rates[whole_ages_of_elig, race]
 
     idsElig.inf <- which(status[idsElig] == "h")
     death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] *
