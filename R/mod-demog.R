@@ -14,34 +14,33 @@ aging_covid <- function(dat, at) {
 #' @rdname moduleset-ship
 #' @export
 deaths_covid_ship <- function(dat, at) {
-
+  
   ## Attributes ##
   active <- dat$attr$active
   age <- dat$attr$age
-  race <- dat$attr$race
   status <- dat$attr$status
-
+  
   ## Parameters ##
   mort.rates <- dat$param$mort.rates
   mort.dis.mult <- dat$param$mort.dis.mult
-
+  
   idsElig <- which(active == 1)
   nElig <- length(idsElig)
   nDeaths <- nDeathsIC <- 0
-
+  
   if (nElig > 0) {
-
+    
     whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86)
-    death_rates_of_elig <- mort.rates[whole_ages_of_elig, race]
-
+    death_rates_of_elig <- mort.rates[whole_ages_of_elig]
+    
     idsElig.inf <- which(status[idsElig] == "ic")
     death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] * mort.dis.mult
-
+    
     vecDeaths <- which(rbinom(nElig, 1, death_rates_of_elig) == 1)
     idsDeaths <- idsElig[vecDeaths]
     nDeaths <- length(idsDeaths)
     nDeathsIC <- length(intersect(idsDeaths, idsElig.inf))
-
+    
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
@@ -51,11 +50,11 @@ deaths_covid_ship <- function(dat, at) {
       }
     }
   }
-
+  
   ## Summary statistics ##
   dat$epi$d.flow[at] <- nDeaths
   dat$epi$d.ic.flow[at] <- nDeathsIC
-
+  
   return(dat)
 }
 
@@ -71,7 +70,9 @@ deaths_covid_corporate <- function(dat, at) {
   status <- get_attr(dat, "status")
 
   ## Parameters ##
-  mort.rates <- get_param(dat, "mort.rates")
+  mort.rates.w <- get_param(dat, "mort.rates.w")
+  mort.rates.b <- get_param(dat, "mort.rates.b")
+  mort.rates.o <- get_param(dat, "mort.rates.o")
   mort.dis.mult <- get_param(dat, "mort.dis.mult")
 
   idsElig <- which(active == 1)
@@ -81,17 +82,30 @@ deaths_covid_corporate <- function(dat, at) {
   if (nElig > 0) {
 
     whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86)
-    death_rates_of_elig <- mort.rates[whole_ages_of_elig, race]
-
-    idsElig.inf <- which(status[idsElig] == "h")
-    death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] *
-                                        mort.dis.mult
-
-    vecDeaths <- which(rbinom(nElig, 1, death_rates_of_elig) == 1)
-    idsDeaths <- idsElig[vecDeaths]
-    nDeaths <- length(idsDeaths)
-    nDeathsH <- length(intersect(idsDeaths, idsElig.inf))
-
+    death_rates_of_elig_w <- mort.rates.w[whole_ages_of_elig]
+    death_rates_of_elig_b <- mort.rates.b[whole_ages_of_elig]
+    death_rates_of_elig_o <- mort.rates.o[whole_ages_of_elig]
+    
+    idsElig.inf.w <- which(status[idsElig] == "ic" & race == "white")
+    idsElig.inf.b <- which(status[idsElig] == "ic" & race == "black")
+    idsElig.inf.o <- which(status[idsElig] == "ic" & race == "other")
+    
+    death_rates_of_elig_w[idsElig.inf.w] <- death_rates_of_elig_w[idsElig.inf.w] * mort.dis.mult
+    death_rates_of_elig_b[idsElig.inf.b] <- death_rates_of_elig_b[idsElig.inf.b] * mort.dis.mult
+    death_rates_of_elig_o[idsElig.inf.o] <- death_rates_of_elig_o[idsElig.inf.o] * mort.dis.mult
+    
+    vecDeaths.w <- which(rbinom(nElig, 1, death_rates_of_elig_w) == 1)
+    vecDeaths.b <- which(rbinom(nElig, 1, death_rates_of_elig_b) == 1)
+    vecDeaths.o <- which(rbinom(nElig, 1, death_rates_of_elig_o) == 1)
+    
+    idsDeaths.w <- idsElig[vecDeaths.w]
+    idsDeaths.b <- idsElig[vecDeaths.b]
+    idsDeaths.o <- idsElig[vecDeaths.o]
+    idsDeaths <- c(idsDeaths.w, idsDeaths.b, idsDeaths.o)
+    
+    nDeaths <- length(idsDeaths.w) + length(idsDeaths.b) + length(idsDeaths.o)
+    nDeathsIC <- length(intersect(idsDeaths.w, idsElig.inf.w)) + length(intersect(idsDeaths.b, idsElig.inf.b)) + length(intersect(idsDeaths.o, idsElig.inf.o))
+    
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
