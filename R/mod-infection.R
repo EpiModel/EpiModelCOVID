@@ -37,10 +37,11 @@ infect_covid_vax_decisions <- function(dat, at) {
       ## Look up discordant edgelist ##
       del <- discord_edgelist(dat, at, network = layer,
                               infstat = c("a", "ic", "ip"))
-      del$dx <- dxStatus[del$inf]
 
       ## If any discordant pairs, proceed ##
       if (!(is.null(del))) {
+        
+        del$dx <- dxStatus[del$inf]
 
         ## Parameters ##
         inf.prob <- get_param(dat, "inf.prob")[layer]
