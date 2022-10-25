@@ -75,7 +75,13 @@ deaths_covid_corporate <- function(dat, at) {
   mort.rates.o <- get_param(dat, "mort.rates.o")
   mort.dis.mult <- get_param(dat, "mort.dis.mult")
 
-  idsElig <- which(active == 1)
+  idsElig_w <- which(active == 1 & race == "white")
+  idsElig_b <- which(active == 1 & race == "black")
+  idsElig_o <- which(active == 1 & race == "other")
+  idsElig <- c(idsElig_w, idsElig_b, idsElig_o)
+  nElig_w <- length(idsElig_w)
+  nElig_b <- length(idsElig_b)
+  nElig_o <- length(idsElig_o)
   nElig <- length(idsElig)
   nDeaths <- nDeathsH <- 0
 
@@ -86,21 +92,24 @@ deaths_covid_corporate <- function(dat, at) {
     death_rates_of_elig_b <- mort.rates.b[whole_ages_of_elig]
     death_rates_of_elig_o <- mort.rates.o[whole_ages_of_elig]
     
-    idsElig.inf.w <- which(status[idsElig] == "ic" & race == "white")
-    idsElig.inf.b <- which(status[idsElig] == "ic" & race == "black")
-    idsElig.inf.o <- which(status[idsElig] == "ic" & race == "other")
+    idsElig.inf.w <- which(status[idsElig_w] == "ic")
+    idsElig.inf.b <- which(status[idsElig_b] == "ic")
+    idsElig.inf.o <- which(status[idsElig_o] == "ic")
+    idsElig.inf <- c(idsElig.inf.w, idsElig.inf.b, idsElig.inf.o)
     
     death_rates_of_elig_w[idsElig.inf.w] <- death_rates_of_elig_w[idsElig.inf.w] * mort.dis.mult
     death_rates_of_elig_b[idsElig.inf.b] <- death_rates_of_elig_b[idsElig.inf.b] * mort.dis.mult
     death_rates_of_elig_o[idsElig.inf.o] <- death_rates_of_elig_o[idsElig.inf.o] * mort.dis.mult
+    death_rates_of_elig <- c(death_rates_of_elig_w, death_rates_of_elig_b, death_rates_of_elig_o)
     
-    vecDeaths.w <- which(rbinom(nElig, 1, death_rates_of_elig_w) == 1)
-    vecDeaths.b <- which(rbinom(nElig, 1, death_rates_of_elig_b) == 1)
-    vecDeaths.o <- which(rbinom(nElig, 1, death_rates_of_elig_o) == 1)
+    vecDeaths.w <- which(rbinom(nElig_w, 1, death_rates_of_elig_w) == 1)
+    vecDeaths.b <- which(rbinom(nElig_b, 1, death_rates_of_elig_b) == 1)
+    vecDeaths.o <- which(rbinom(nElig_o, 1, death_rates_of_elig_o) == 1)
+    vecDeaths <- c(vecDeaths.w, vecDeaths.b, vecDeaths.o)
     
-    idsDeaths.w <- idsElig[vecDeaths.w]
-    idsDeaths.b <- idsElig[vecDeaths.b]
-    idsDeaths.o <- idsElig[vecDeaths.o]
+    idsDeaths.w <- idsElig_w[vecDeaths.w]
+    idsDeaths.b <- idsElig_b[vecDeaths.b]
+    idsDeaths.o <- idsElig_o[vecDeaths.o]
     idsDeaths <- c(idsDeaths.w, idsDeaths.b, idsDeaths.o)
     
     nDeaths <- length(idsDeaths.w) + length(idsDeaths.b) + length(idsDeaths.o)
