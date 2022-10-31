@@ -220,7 +220,11 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   age.breaks <- seq(0, 200, 10)
   attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
-
+  
+  race_fact <- c("white", "black", "other")
+  attr_race <- sample(race_fact, nNew, prob = c(0.093, 0.897, 0.01), replace = TRUE)
+  dat <- append_attr(dat, "race", attr_race, nNew)
+  
   # Disease status and related
   dat <- append_attr(dat, "status", "s", nNew)
   dat <- append_attr(dat, "infTime", NA, nNew)
