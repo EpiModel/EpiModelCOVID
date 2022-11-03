@@ -87,10 +87,12 @@ deaths_covid_corporate <- function(dat, at) {
 
   if (nElig > 0) {
 
-    whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86)
-    death_rates_of_elig_w <- mort.rates.w[whole_ages_of_elig]
-    death_rates_of_elig_b <- mort.rates.b[whole_ages_of_elig]
-    death_rates_of_elig_o <- mort.rates.o[whole_ages_of_elig]
+    whole_ages_of_elig_w <- pmin(ceiling(age[idsElig_w]), 100)
+    whole_ages_of_elig_b <- pmin(ceiling(age[idsElig_b]), 100)
+    whole_ages_of_elig_o <- pmin(ceiling(age[idsElig_o]), 100)
+    death_rates_of_elig_w <- mort.rates.w[whole_ages_of_elig_w]
+    death_rates_of_elig_b <- mort.rates.b[whole_ages_of_elig_b]
+    death_rates_of_elig_o <- mort.rates.o[whole_ages_of_elig_o]
     
     idsElig.inf.w <- which(status[idsElig_w] == "ic")
     idsElig.inf.b <- which(status[idsElig_b] == "ic")
