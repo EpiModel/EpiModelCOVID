@@ -28,6 +28,10 @@ vax_covid_vax_decisions <- function(dat, at) {
   vax2.rate <- get_param(dat, "vax2.rate")
   vax3.rate <- get_param(dat, "vax3.rate")
   vax4.rate <- get_param(dat, "vax4.rate")
+  vax1.rate.half.life <- get_param(dat, "vax1.rate.half.life")
+  vax2.rate.half.life <- get_param(dat, "vax2.rate.half.life")
+  vax3.rate.half.life <- get_param(dat, "vax3.rate.half.life")
+  vax4.rate.half.life <- get_param(dat, "vax4.rate.half.life")
   
   se.prob <- get_param(dat, "se.prob")
   
@@ -35,85 +39,87 @@ vax_covid_vax_decisions <- function(dat, at) {
   se.nudge.prob <- get_param(dat, "se.nudge.prob")
   bt.nudge.prob <- get_param(dat, "bt.nudge.prob")
   
-  ## Update vaccination types (if roll-out has begun)
-  if (at > vax1.start[1]){
-    # 1. Resistant -> Willing
-    # 1a. Vax-naive (0 or 1 dose)
-    idsElig1a <- which(active == 1 & vaxType == 0 & vax %in% c(0,1) 
-                       & symptStartTime == at)
-    vaxType.new.1a <- rbinom(length(idsElig1a), 1, inf.nudge.prob)
-    vaxType[idsElig1a] <- vaxType.new.1a
-    
-    # 1b. 2 doses
-    idsElig1b <- which(active == 1 & vaxType == 0 & vax == 2 
-                       & symptStartTime == at 
-                       & at >= pmax(vax2Time + vax3.interval, 
-                                    vax3.start[vax.age.group]))
-    vaxType.new.1b <- rbinom(length(idsElig1b), 1, inf.nudge.prob)
-    vaxType[idsElig1b] <- vaxType.new.1b
-    
-    # 1c. 3 doses
-    idsElig1c <- which(active == 1 & vaxType == 0 & vax == 3 
-                       & symptStartTime == at 
-                       & at >= pmax(vax3Time + vax4.interval, 
-                                    vax4.start[vax.age.group]))
-    vaxType.new.1c <- rbinom(length(idsElig1c), 1, inf.nudge.prob)
-    vaxType[idsElig1c] <- vaxType.new.1c
-    
-    # 2. Willing -> Resistant
-    # 2a. 1 dose
-    idsElig2a <- which(active == 1 & vaxType == 1 & vax == 1 
-                       & vax1Time == (at - 1) & vaxSE == 1)
-    vaxType.new.2a <- rbinom(length(idsElig2a), 1, (1 - se.nudge.prob))
-    vaxType[idsElig2a] <- vaxType.new.2a
-    
-    # 2b. 2 doses
-    idsElig2b.1 <- which(active == 1 & vaxType == 1 & vax == 2 
-                         & vax2Time == (at - 1) & vaxSE == 1)
-    vaxType.new.2b.1 <- rbinom(length(idsElig2b.1), 1, (1 - se.nudge.prob))
-    vaxType[idsElig2b.1] <- vaxType.new.2b.1
-    
-    idsElig2b.2 <- which(active == 1 & vaxType == 1 & vax == 2 
-                         & symptStartTime == at 
-                         & at < pmax(vax2Time + vax3.interval, 
-                                     vax3.start[vax.age.group]))
-    vaxType.new.2b.2 <- rbinom(length(idsElig2b.2), 1, (1 - bt.nudge.prob))
-    vaxType[idsElig2b.2] <- vaxType.new.2b.2
-    
-    # 2c. 3 doses
-    idsElig2c.1 <- which(active == 1 & vaxType == 1 & vax == 3 
-                         & vax3Time == (at - 1) & vaxSE == 1)
-    vaxType.new.2c.1 <- rbinom(length(idsElig2c.1), 1, (1 - se.nudge.prob))
-    vaxType[idsElig2c.1] <- vaxType.new.2c.1
-    
-    idsElig2c.2 <- which(active == 1 & vaxType == 1 & vax == 3 
-                         & symptStartTime == at 
-                         & at < pmax(vax3Time + vax4.interval, 
-                                     vax4.start[vax.age.group]))
-    vaxType.new.2c.2 <- rbinom(length(idsElig2c.2), 1, (1 - bt.nudge.prob))
-    vaxType[idsElig2c.2] <- vaxType.new.2c.2
-    
-    # 2d. 4 doses
-    idsElig2d.1 <- which(active == 1 & vaxType == 1 & vax == 4
-                         & vax4Time == (at - 1) & vaxSE == 1)
-    vaxType.new.2d.1 <- rbinom(length(idsElig2d.1), 1, (1 - se.nudge.prob))
-    vaxType[idsElig2d.1] <- vaxType.new.2d.1
-    
-    idsElig2d.2 <- which(active == 1 & vaxType == 1 & vax == 4
-                         & symptStartTime == at)
-    vaxType.new.2d.2 <- rbinom(length(idsElig2d.2), 1, (1 - bt.nudge.prob))
-    vaxType[idsElig2d.2] <- vaxType.new.2d.2
-  }
+  # ## Update vaccination types (if roll-out has begun)
+  # if (at > vax1.start[1]){
+  #   # 1. Resistant -> Willing
+  #   # 1a. Vax-naive (0 or 1 dose)
+  #   idsElig1a <- which(active == 1 & vaxType == 0 & vax %in% c(0,1) 
+  #                      & symptStartTime == at)
+  #   vaxType.new.1a <- rbinom(length(idsElig1a), 1, inf.nudge.prob)
+  #   vaxType[idsElig1a] <- vaxType.new.1a
+  #   
+  #   # 1b. 2 doses
+  #   idsElig1b <- which(active == 1 & vaxType == 0 & vax == 2 
+  #                      & symptStartTime == at 
+  #                      & at >= pmax(vax2Time + vax3.interval, 
+  #                                   vax3.start[vax.age.group]))
+  #   vaxType.new.1b <- rbinom(length(idsElig1b), 1, inf.nudge.prob)
+  #   vaxType[idsElig1b] <- vaxType.new.1b
+  #   
+  #   # 1c. 3 doses
+  #   idsElig1c <- which(active == 1 & vaxType == 0 & vax == 3 
+  #                      & symptStartTime == at 
+  #                      & at >= pmax(vax3Time + vax4.interval, 
+  #                                   vax4.start[vax.age.group]))
+  #   vaxType.new.1c <- rbinom(length(idsElig1c), 1, inf.nudge.prob)
+  #   vaxType[idsElig1c] <- vaxType.new.1c
+  #   
+  #   # 2. Willing -> Resistant
+  #   # 2a. 1 dose
+  #   idsElig2a <- which(active == 1 & vaxType == 1 & vax == 1 
+  #                      & vax1Time == (at - 1) & vaxSE == 1)
+  #   vaxType.new.2a <- rbinom(length(idsElig2a), 1, (1 - se.nudge.prob))
+  #   vaxType[idsElig2a] <- vaxType.new.2a
+  #   
+  #   # 2b. 2 doses
+  #   idsElig2b.1 <- which(active == 1 & vaxType == 1 & vax == 2 
+  #                        & vax2Time == (at - 1) & vaxSE == 1)
+  #   vaxType.new.2b.1 <- rbinom(length(idsElig2b.1), 1, (1 - se.nudge.prob))
+  #   vaxType[idsElig2b.1] <- vaxType.new.2b.1
+  #   
+  #   idsElig2b.2 <- which(active == 1 & vaxType == 1 & vax == 2 
+  #                        & symptStartTime == at 
+  #                        & at < pmax(vax2Time + vax3.interval, 
+  #                                    vax3.start[vax.age.group]))
+  #   vaxType.new.2b.2 <- rbinom(length(idsElig2b.2), 1, (1 - bt.nudge.prob))
+  #   vaxType[idsElig2b.2] <- vaxType.new.2b.2
+  #   
+  #   # 2c. 3 doses
+  #   idsElig2c.1 <- which(active == 1 & vaxType == 1 & vax == 3 
+  #                        & vax3Time == (at - 1) & vaxSE == 1)
+  #   vaxType.new.2c.1 <- rbinom(length(idsElig2c.1), 1, (1 - se.nudge.prob))
+  #   vaxType[idsElig2c.1] <- vaxType.new.2c.1
+  #   
+  #   idsElig2c.2 <- which(active == 1 & vaxType == 1 & vax == 3 
+  #                        & symptStartTime == at 
+  #                        & at < pmax(vax3Time + vax4.interval, 
+  #                                    vax4.start[vax.age.group]))
+  #   vaxType.new.2c.2 <- rbinom(length(idsElig2c.2), 1, (1 - bt.nudge.prob))
+  #   vaxType[idsElig2c.2] <- vaxType.new.2c.2
+  #   
+  #   # 2d. 4 doses
+  #   idsElig2d.1 <- which(active == 1 & vaxType == 1 & vax == 4
+  #                        & vax4Time == (at - 1) & vaxSE == 1)
+  #   vaxType.new.2d.1 <- rbinom(length(idsElig2d.1), 1, (1 - se.nudge.prob))
+  #   vaxType[idsElig2d.1] <- vaxType.new.2d.1
+  #   
+  #   idsElig2d.2 <- which(active == 1 & vaxType == 1 & vax == 4
+  #                        & symptStartTime == at)
+  #   vaxType.new.2d.2 <- rbinom(length(idsElig2d.2), 1, (1 - bt.nudge.prob))
+  #   vaxType[idsElig2d.2] <- vaxType.new.2d.2
+  # }
   
   ## First vax
   nVax1 <- 0
   idsElig.vax1 <- which(active == 1 & !(status %in% c("ic", "h"))
                         & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 0
-                        & vaxType == 1 & at >= vax1.start[vax.age.group])
+                        & (vaxType == 1 | is.na(vaxType)) 
+                        & at >= vax1.start[vax.age.group])
   nElig.vax1 <- length(idsElig.vax1)
   if (nElig.vax1 > 0) {
     #set vax rate based on age
     vax1.rate.vec <- vax1.rate[vax.age.group[idsElig.vax1]]
+    vax1.rate.vec <- vax1.rate.vec / (2 ^ ((at - vax1.start[vax.age.group[idsElig.vax1]]) / vax1.rate.half.life[vax.age.group[idsElig.vax1]]))
     
     #roll for initial vaccination
     vecVax1 <- which(rbinom(nElig.vax1, 1, vax1.rate.vec) == 1)
@@ -136,11 +142,13 @@ vax_covid_vax_decisions <- function(dat, at) {
   nVax2 <- 0
   idsElig.vax2 <- which(active == 1 & !(status %in% c("ic", "h"))
                         & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 1
-                        & (at - vax1Time >= vax2.interval) & vaxType == 1)
+                        & (at - vax1Time >= vax2.interval) & 
+                          (vaxType == 1 | is.na(vaxType)))
   nElig.vax2 <- length(idsElig.vax2)
   if (nElig.vax2 > 0) {
     #set vax rate based on age
     vax2.rate.vec <- vax2.rate[vax.age.group[idsElig.vax2]]
+    vax2.rate.vec <- vax2.rate.vec / (2 ^ ((at - (vax1.start[vax.age.group[idsElig.vax2]] + vax2.interval)) / vax2.rate.half.life[vax.age.group[idsElig.vax2]]))
     
     #roll for second dose
     vecVax2 <- which(rbinom(nElig.vax2, 1, vax2.rate.vec) == 1)
@@ -162,12 +170,15 @@ vax_covid_vax_decisions <- function(dat, at) {
   nVax3 <- 0
   idsElig.vax3 <- which(active == 1 & !(status %in% c("ic", "h"))
                         & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 2
-                        & (at - vax2Time >= vax3.interval) & vaxType == 1 
+                        & (at - vax2Time >= vax3.interval) 
+                        & (vaxType == 1 | is.na(vaxType))
                         & at >= vax3.start[vax.age.group])
   nElig.vax3 <- length(idsElig.vax3)
   if (nElig.vax3 > 0) {
     #set vax rate based on age
     vax3.rate.vec <- vax3.rate[vax.age.group[idsElig.vax3]]
+    vax3.rate.vec <- vax3.rate.vec / (2 ^ ((at - vax3.start[vax.age.group[idsElig.vax3]]) / vax3.rate.half.life[vax.age.group[idsElig.vax3]]))
+    
     
     #roll for 3rd dose
     vecVax3 <- which(rbinom(nElig.vax3, 1, vax3.rate.vec) == 1)
@@ -190,12 +201,14 @@ vax_covid_vax_decisions <- function(dat, at) {
   nVax4 <- 0
   idsElig.vax4 <- which(active == 1 & !(status %in% c("ic", "h"))
                         & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 3
-                        & (at - vax3Time >= vax4.interval) & vaxType == 1 
+                        & (at - vax3Time >= vax4.interval) 
+                        & (vaxType == 1 | is.na(vaxType))
                         & at >= vax4.start[vax.age.group])
   nElig.vax4 <- length(idsElig.vax4)
   if (nElig.vax4 > 0) {
     #set vax rate based on age
     vax4.rate.vec <- vax4.rate[vax.age.group[idsElig.vax4]]
+    vax4.rate.vec <- vax4.rate.vec / (2 ^ ((at - vax4.start[vax.age.group[idsElig.vax4]]) / vax4.rate.half.life[vax.age.group[idsElig.vax4]]))
     
     #roll for fourth dose
     vecVax4 <- which(rbinom(nElig.vax4, 1, vax4.rate.vec) == 1)
@@ -230,23 +243,23 @@ vax_covid_vax_decisions <- function(dat, at) {
   dat <- set_epi(dat, "nVax4", at, nVax4)
   
   ## Summary stats -- vaccine coverage ##
-  # dat <- set_epi(dat, "cov_vax1_0to4", at, length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)))
-  # dat <- set_epi(dat, "cov_vax1_5to17", at, length(which(vax.age.group == 2 & vax >= 1)) / length(which(vax.age.group == 2)))
-  # dat <- set_epi(dat, "cov_vax1_18to64", at, length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 1)) / length(which(vax.age.group == 3 | vax.age.group == 4)))
-  # dat <- set_epi(dat, "cov_vax1_65p", at, length(which(vax.age.group == 5 & vax >= 1)) / length(which(vax.age.group == 5)))
-  # 
-  # dat <- set_epi(dat, "cov_vax2_0to4", at, length(which(vax.age.group == 1 & vax >= 2)) / length(which(vax.age.group == 1)))
-  # dat <- set_epi(dat, "cov_vax2_5to17", at, length(which(vax.age.group == 2 & vax >= 2)) / length(which(vax.age.group == 2)))
-  # dat <- set_epi(dat, "cov_vax2_18to64", at, length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 2)) / length(which(vax.age.group == 3 | vax.age.group == 4)))
-  # dat <- set_epi(dat, "cov_vax2_65p", at, length(which(vax.age.group == 5 & vax >= 2)) / length(which(vax.age.group == 5)))
-  # 
-  # dat <- set_epi(dat, "cov_vax3_5to17", at, length(which(vax.age.group == 2 & vax >= 3)) / length(which(vax.age.group == 2)))
-  # dat <- set_epi(dat, "cov_vax3_18to49", at, length(which(vax.age.group == 3 & vax >= 3)) / length(which(vax.age.group == 3)))
-  # dat <- set_epi(dat, "cov_vax3_50to64", at, length(which(vax.age.group == 4 & vax >= 3)) / length(which(vax.age.group == 4)))
-  # dat <- set_epi(dat, "cov_vax3_65p", at, length(which(vax.age.group == 5 & vax >= 3)) / length(which(vax.age.group == 5)))
-  # 
-  # dat <- set_epi(dat, "cov_vax4_50to64", at, length(which(vax.age.group == 4 & vax >= 4)) / length(which(vax.age.group == 4)))
-  # dat <- set_epi(dat, "cov_vax4_65p", at, length(which(vax.age.group == 5 & vax >= 4)) / length(which(vax.age.group == 5)))
-  # 
+  dat <- set_epi(dat, "cov_vax1_0to4", at, length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)))
+  dat <- set_epi(dat, "cov_vax1_5to17", at, length(which(vax.age.group == 2 & vax >= 1)) / length(which(vax.age.group == 2)))
+  dat <- set_epi(dat, "cov_vax1_18to64", at, length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 1)) / length(which(vax.age.group == 3 | vax.age.group == 4)))
+  dat <- set_epi(dat, "cov_vax1_65p", at, length(which(vax.age.group == 5 & vax >= 1)) / length(which(vax.age.group == 5)))
+
+  dat <- set_epi(dat, "cov_vax2_0to4", at, length(which(vax.age.group == 1 & vax >= 2)) / length(which(vax.age.group == 1)))
+  dat <- set_epi(dat, "cov_vax2_5to17", at, length(which(vax.age.group == 2 & vax >= 2)) / length(which(vax.age.group == 2)))
+  dat <- set_epi(dat, "cov_vax2_18to64", at, length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 2)) / length(which(vax.age.group == 3 | vax.age.group == 4)))
+  dat <- set_epi(dat, "cov_vax2_65p", at, length(which(vax.age.group == 5 & vax >= 2)) / length(which(vax.age.group == 5)))
+
+  dat <- set_epi(dat, "cov_vax3_5to17", at, length(which(vax.age.group == 2 & vax >= 3)) / length(which(vax.age.group == 2)))
+  dat <- set_epi(dat, "cov_vax3_18to49", at, length(which(vax.age.group == 3 & vax >= 3)) / length(which(vax.age.group == 3)))
+  dat <- set_epi(dat, "cov_vax3_50to64", at, length(which(vax.age.group == 4 & vax >= 3)) / length(which(vax.age.group == 4)))
+  dat <- set_epi(dat, "cov_vax3_65p", at, length(which(vax.age.group == 5 & vax >= 3)) / length(which(vax.age.group == 5)))
+
+  dat <- set_epi(dat, "cov_vax4_50to64", at, length(which(vax.age.group == 4 & vax >= 4)) / length(which(vax.age.group == 4)))
+  dat <- set_epi(dat, "cov_vax4_65p", at, length(which(vax.age.group == 5 & vax >= 4)) / length(which(vax.age.group == 5)))
+
   return(dat)
 }

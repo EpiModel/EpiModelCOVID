@@ -5,15 +5,25 @@ aging_covid <- function(dat, at) {
 
   age <- get_attr(dat, "age")
   vaxType <- get_attr(dat, "vaxType")
+  vax.age.group <- get_attr(dat, "vax.age.group")
   
+  #Update age
   age <- age + 1 / 365
   
+  #Update vax.age.group
+  vax.age.group[which(age >= 5 & age < 18)] <- 2
+  vax.age.group[which(age >= 18 & age < 50)] <- 3
+  vax.age.group[which(age >= 50 & age < 65)] <- 4
+  vax.age.group[which(age >= 65)] <- 5
+  
+  #Assign vaxType to nodes who just turned 18
   idsNewAdults <- which(age >= 18 & is.na(vaxType))
   vax.willing.prob <- get_param(dat, "vax.willing.prob")
   vaxType.new <- rbinom(length(idsNewAdults), 1, vax.willing.prob[1])
   vaxType[idsNewAdults] <- vaxType.new
   
   dat <- set_attr(dat, "vaxType", vaxType)
+  dat <- set_attr(dat, "vax.age.group", vax.age.group)
   dat <- set_attr(dat, "age", age)
 
   return(dat)

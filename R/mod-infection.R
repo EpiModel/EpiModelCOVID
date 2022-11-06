@@ -76,7 +76,6 @@ infect_covid_vax_decisions <- function(dat, at) {
                                           inf.prob.a.rr
 
         # Case isolation with diagnosed or symptomatic infection
-        if (any(is.na(del$actRate[del$dx == 2]))) {browser()}
         if (at >= act.rate.dx.inter.time) {
           del$actRate[del$dx == 2] <- del$actRate[del$dx == 2] *
                                       act.rate.dx.inter.rr
