@@ -8,7 +8,7 @@ init_covid_vax_decisions <- function(x, param, init, control, s) {
   ## Network Setup ##
   # Initial network simulations
   dat[["nw"]] <- list()
-  for (i in 1:3) {
+  for (i in 1:length(x)) {
     dat[["nw"]][[i]] <- simulate(
       x[[i]][["formula"]],
       coef = x[[i]][["coef.form.crude"]],

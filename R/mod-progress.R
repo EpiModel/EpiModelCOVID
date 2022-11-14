@@ -66,7 +66,7 @@ progress_covid_vax_decisions <- function(dat, at) {
     latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, sinceVax4, na.rm = TRUE)
     latest.vax[is.na(latest.vax)] <- 0
     
-    prop.clin.vec <- prop.clin.vec * (2 ^ (latest.vax / half.life))
+    prop.clin.vec <- pmin(prop.clin.vec * (2 ^ (latest.vax / half.life)), prop.clinical[age.group])
     
     #assign pathway
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
@@ -155,7 +155,7 @@ progress_covid_vax_decisions <- function(dat, at) {
     latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, sinceVax4, na.rm = TRUE)
     latest.vax[is.na(latest.vax)] <- 0
     
-    prop.hosp.vec <- prop.hosp.vec * (2 ^ (latest.vax / half.life))
+    prop.hosp.vec <- pmin(prop.hosp.vec * (2 ^ (latest.vax / half.life)), prop.hospit[age.group])
     
     #Set pathway
     if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")

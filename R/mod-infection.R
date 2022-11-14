@@ -40,7 +40,6 @@ infect_covid_vax_decisions <- function(dat, at) {
 
       ## If any discordant pairs, proceed ##
       if (!(is.null(del))) {
-        
         del$dx <- dxStatus[del$inf]
 
         ## Parameters ##
@@ -68,12 +67,11 @@ infect_covid_vax_decisions <- function(dat, at) {
         latest.vax[is.na(latest.vax)] <- 0
         
         del$latest.vax <- latest.vax
-        del$transProb <- del$transProb * (2 ^ (del$latest.vax / half.life))
+        del$transProb <- pmin(del$transProb * (2 ^ (del$latest.vax / half.life)), inf.prob)
 
         # Asymptomatic infection
         del$stat <- status[del$inf]
-        del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *
-                                          inf.prob.a.rr
+        del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] * inf.prob.a.rr
 
         # Case isolation with diagnosed or symptomatic infection
         if (at >= act.rate.dx.inter.time) {
