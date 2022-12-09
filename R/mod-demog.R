@@ -214,6 +214,8 @@ arrival_covid_corporate <- function(dat, at) {
 setNewAttr_covid_corporate <- function(dat, at, nNew) {
 
   dat <- append_core_attr(dat, at, nNew)
+  
+  newIds <- which(dat$attr$entrTime == at)
 
   arrival.age <- get_param(dat, "arrival.age")
   newAges <- rep(arrival.age, nNew)
@@ -232,9 +234,19 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   dat <- append_attr(dat, "infTime", NA, nNew)
 
   dat <- append_attr(dat, "statusTime", 0, nNew)
+  dat <- append_attr(dat, "statusTime.Ic", NA, nNew)
   dat <- append_attr(dat, "clinical", NA, nNew)
   dat <- append_attr(dat, "hospit", NA, nNew)
   dat <- append_attr(dat, "dxStatus", NA, nNew)
+  dat <- append_attr(dat, "dxTime", NA, nNew)
+  dat <- append_attr(dat, "eligible.case", NA, nNew)
+  dat <- append_attr(dat, "eligible.cc", NA, nNew)
+  dat <- append_attr(dat, "symendTime", NA, nNew)
+  dat <- append_attr(dat, "traced.cc", NA, nNew)
+  dat <- append_attr(dat, "quar", NA, nNew)
+  dat <- append_attr(dat, "tracedTime", NA, nNew)
+  dat <- append_attr(dat, "quarEnd", NA, nNew)
+  dat <- append_attr(dat, "iso.end", NA, nNew)
   dat <- append_attr(dat, "vax", 0, nNew)
   dat <- append_attr(dat, "vax1Time", NA, nNew)
   dat <- append_attr(dat, "vax2Time", NA, nNew)

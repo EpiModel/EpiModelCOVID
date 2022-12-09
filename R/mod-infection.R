@@ -254,10 +254,19 @@ infect_covid_corporate <- function(dat, at) {
   ## Attributes ##
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
+  infTime <- get_attr(dat, "infTime")
+  statusTime <- get_attr(dat, "statusTime")
+  quar <- get_attr(dat, "quar")
+  tracedTime <- get_attr(dat, "tracedTime")
+  quarEnd <- get_attr(dat, "quarEnd")
+  transmissions <- dat$attr$transmissions
+  age.grp <- get_attr(dat, "age.grp")
   vax <- get_attr(dat, "vax")
 
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
+  nActive <- sum(active == 1)
+  nElig <- length(idsInf)
 
   ## Common Parameters ##
   inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr")
@@ -265,6 +274,8 @@ infect_covid_corporate <- function(dat, at) {
   act.rate.dx.inter.time <- get_param(dat, "act.rate.dx.inter.time")
   act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr")
   act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
+  act.rate.quar.inter.rr <- get_param(dat, "act.rate.quar.inter.rr")
+  act.rate.quar.inter.time <- get_param(dat, "act.rate.quar.inter.time")
   vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
 
@@ -315,13 +326,28 @@ infect_covid_corporate <- function(dat, at) {
         # Case isolation with diagnosed or symptomatic infection
         if (at >= act.rate.dx.inter.time) {
           del$actRate[del$dx == 2] <- del$actRate[del$dx == 2] *
-                                      act.rate.dx.inter.rr
+            act.rate.dx.inter.rr
         }
         if (at >= act.rate.sympt.inter.time) {
-          del$actRate[del$stat == "ic"] <- del$actRate[del$stat == "ic"] *
-                                           act.rate.sympt.inter.rr
+          del$actRate[del$stat %in% c("ic", "h")] <- del$actRate[del$stat %in% c("ic", "h")] *
+            act.rate.sympt.inter.rr
         }
-
+        
+        # Contact quarantine with tracing
+        del$quar <- quar[del$sus]
+        del$tracedTime <- tracedTime[del$sus]
+        del$quarEnd <- quarEnd[del$sus]
+        
+        
+        if (at >= act.rate.quar.inter.time) {
+          del$actRate[del$quar == 1 & !is.na(del$quar) & 
+                        at >= del$tracedTime & at <= del$quarEnd] <- del$actRate[del$quar == 1 & 
+                                                                                   !is.na(del$quar) &
+                                                                                   at >= del$tracedTime & 
+                                                                                   at <= del$quarEnd] *
+            act.rate.quar.inter.rr
+        }
+        
         del$finalProb <- 1 - (1 - del$transProb)^del$actRate
 
         # Stochastic transmission process

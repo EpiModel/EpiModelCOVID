@@ -106,6 +106,7 @@ init_covid_corporate <- function(x, param, init, control, s) {
   ## Master Data List Setup ##
   dat <- create_dat_object(param, init, control)
 
+  dat$stats$nwstats <- list()
   ## Network Setup ##
   # Initial network simulations
   dat[["nw"]] <- list()
@@ -176,20 +177,40 @@ init_status_covid_corporate <- function(dat) {
   # Infection Time and related attributes
   idsInf <- which(status == "e")
   infTime <- rep(NA, num)
+  eligible.case <- rep(NA, num)
+  traced.cc <- rep(NA, num)
+  quar <- rep(NA, num)
   clinical <- rep(NA, num)
+  eligible.cc <- rep(NA, num)
   hospit <- rep(NA, num)
+  symendTime <- rep(NA, num)
+  statusTime.Ic <- rep(NA, num)
   statusTime <- rep(NA, num)
   statusTime[idsInf] <- 1
   dxStatus <- rep(0, num)
+  dxTime <- rep(NA, num)
+  iso.end <- rep(NA, num)
+  tracedTime <- rep(NA, num)
+  quarEnd <- rep(NA, num)
   vax <- rep(0, num)
   vax1Time <- rep(NA, num)
   vax2Time <- rep(NA, num)
 
   dat <- set_attr(dat, "statusTime", statusTime)
+  dat <- set_attr(dat, "statusTime.Ic", statusTime.Ic)
+  dat <- set_attr(dat, "symendTime", symendTime)
   dat <- set_attr(dat, "infTime", infTime)
   dat <- set_attr(dat, "clinical", clinical)
+  dat <- set_attr(dat, "eligible.case", eligible.case)
+  dat <- set_attr(dat, "eligible.cc", eligible.cc)
+  dat <- set_attr(dat, "traced.cc", traced.cc)
+  dat <- set_attr(dat, "quar", quar)
   dat <- set_attr(dat, "hospit", hospit)
   dat <- set_attr(dat, "dxStatus", dxStatus)
+  dat <- set_attr(dat, "dxTime", dxTime)
+  dat <- set_attr(dat, "iso.end", iso.end)
+  dat <- set_attr(dat, "tracedTime", tracedTime)
+  dat <- set_attr(dat, "quarEnd", quarEnd)
   dat <- set_attr(dat, "vax", vax)
   dat <- set_attr(dat, "vax1Time", vax1Time)
   dat <- set_attr(dat, "vax2Time", vax2Time)

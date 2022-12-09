@@ -5,6 +5,7 @@ dx_covid <- function(dat, at) {
 
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
+  dxTime <- get_attr(dat, "dxTime")
   dxStatus <- get_attr(dat, "dxStatus")
 
   dx.rate.sympt <- get_param(dat, "dx.rate.sympt")
@@ -42,6 +43,7 @@ dx_covid <- function(dat, at) {
       idsDx.sympt.neg <- idsDx.sympt[which(vecDx.sympt.pos == 0)]
       dxStatus[idsDx.sympt.pos] <- 2
       dxStatus[idsDx.sympt.neg] <- 1
+      dxTime[idsDx.sympt.pos] <- at
     }
   }
 
@@ -60,11 +62,13 @@ dx_covid <- function(dat, at) {
       dxStatus[idsDx.other.neg] <- 1
       dxStatus[idsDx.other.pos.false] <- 1
       dxStatus[idsDx.other.pos.true] <- 2
+      dxTime[idsDx.other.pos.true] <- at
     }
   }
 
   ## Replace attr
   dat <- set_attr(dat, "dxStatus", dxStatus)
+  dat <- set_attr(dat, "dxTime", dxTime)
 
   ## Summary statistics ##
   dat <- set_epi(dat, "nDx", at, length(idsDx.sympt) + length(idsDx.other))

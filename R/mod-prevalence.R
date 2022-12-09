@@ -53,8 +53,11 @@ prevalence_covid_corporate <- function(dat, at) {
 
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
+  dxStatus <- get_attr(dat, "dxStatus")
   vax <- get_attr(dat, "vax")
 
+  nsteps <- get_control(dat, "nsteps")
+  
   # Initialize Outputs
   var.names <- c("num", "s.num", "e.num", "a.num", "ip.num", "ic.num", "r.num",
                  "h.num", "v1.num", "v2.num")

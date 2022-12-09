@@ -7,6 +7,8 @@ progress_covid <- function(dat, at) {
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   statusTime <- get_attr(dat, "statusTime")
+  statusTime.Ic <- get_attr(dat, "statusTime.Ic")
+  symendTime <- get_attr(dat, "symendTime")
   clinical <- get_attr(dat, "clinical")
   hospit <- get_attr(dat, "hospit")
   age <- get_attr(dat, "age")
@@ -105,7 +107,7 @@ progress_covid <- function(dat, at) {
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
     hospit[ids.newIc] <- vec.new.hospit
   }
-
+  
   # Ic to H: clinical infectious move to hospitalized
   ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
   num.Ich <- length(ids.Ich)
@@ -117,7 +119,7 @@ progress_covid <- function(dat, at) {
       statusTime[ids.new.H] <- at
     }
   }
-
+  
   # H to R: hospitalized move to recovered
   num.new.HtoR <- 0
   ids.H <- which(active == 1 & status == "h" & statusTime < at & hospit == 1)
@@ -131,7 +133,7 @@ progress_covid <- function(dat, at) {
       statusTime[ids.new.R] <- at
     }
   }
-
+  
   # Ic to R: clinical infectious move to recovered
   num.new.IctoR <- 0
   ids.Icr <- which(active == 1 & status == "ic" & statusTime < at & hospit == 0)
@@ -149,6 +151,8 @@ progress_covid <- function(dat, at) {
   ## Save updated attributes
   dat <- set_attr(dat, "status", status)
   dat <- set_attr(dat, "statusTime", statusTime)
+  dat <- set_attr(dat, "statusTime.Ic", statusTime.Ic)
+  dat <- set_attr(dat, "symendTime", symendTime)
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "hospit", hospit)
 

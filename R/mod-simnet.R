@@ -79,6 +79,7 @@ resim_nets_covid_ship <- function(dat, at) {
 resim_nets_covid_corporate <- function(dat, at) {
 
   # controls
+  tergmLite.track.duration <- get_control(dat, "tergmLite.track.duration")
   set.control.tergm <- get_control(dat, "set.control.tergm")
   set.control.ergm <- get_control(dat, "set.control.ergm")
   save.nwstats <- get_control(dat, "save.nwstats")
