@@ -21,7 +21,8 @@ vax_covid <- function(dat, at) {
     idsElig.vax1 <- which(active == 1 & status == "s" & vax == 0)
     nElig.vax1 <- length(idsElig.vax1)
     if (nElig.vax1 > 0) {
-      age.group <- pmin((floor(age[idsElig.vax1] / 10)) + 1, 8)
+      age.breaks <- c(17,20,30,40,50,60,85)
+      age.group <- as.numeric(cut(age[idsElig.vax1], age.breaks, labels = FALSE, right = FALSE))
       vax1.rate.vec <- vax1.rate[age.group]
       vecVax <- which(rbinom(nElig.vax1, 1, vax1.rate.vec) == 1)
       idsVax <- idsElig.vax1[vecVax]
