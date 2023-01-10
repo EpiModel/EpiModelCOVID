@@ -281,6 +281,7 @@ infect_covid_corporate <- function(dat, at) {
 
   nLayers <- length(dat$el)
   nInf <- rep(0, nLayers)
+  nAge <- rep(0, 9)
 
   if (length(idsInf) > 0) {
     for (layer in seq_len(nLayers)) {
@@ -298,7 +299,9 @@ infect_covid_corporate <- function(dat, at) {
         inf.prob.inter.time <- get_param(dat, "inf.prob.inter.time")[layer]
         act.rate.inter.rr <- get_param(dat, "act.rate.inter.rr")[layer]
         act.rate.inter.time <- get_param(dat, "act.rate.inter.time")[layer]
-
+        # act.rate.quar.inter.rr <- get_param(dat, "act.rate.quar.inter.rr")[layer]
+        # act.rate.quar.inter.time <- get_param(dat, "act.rate.quar.inter.time")[layer]
+        
         # Set parameters on discordant edgelist data frame
         del$transProb <- inf.prob
 
@@ -338,13 +341,12 @@ infect_covid_corporate <- function(dat, at) {
         del$tracedTime <- tracedTime[del$sus]
         del$quarEnd <- quarEnd[del$sus]
         
-        
         if (at >= act.rate.quar.inter.time) {
           del$actRate[del$quar == 1 & !is.na(del$quar) & 
-                        at >= del$tracedTime & at <= del$quarEnd] <- del$actRate[del$quar == 1 & 
-                                                                                   !is.na(del$quar) &
-                                                                                   at >= del$tracedTime & 
-                                                                                   at <= del$quarEnd] *
+                      at >= del$tracedTime & at <= del$quarEnd] <- del$actRate[del$quar == 1 & 
+                                                                                 !is.na(del$quar) &
+                                                                                 at >= del$tracedTime & 
+                                                                                 at <= del$quarEnd] *
             act.rate.quar.inter.rr
         }
         
@@ -359,7 +361,7 @@ infect_covid_corporate <- function(dat, at) {
         # Look up new ids if any transmissions occurred
         idsNewInf <- unique(del$sus)
         nInf[layer] <- length(idsNewInf)
-
+        
         # Set new attributes for those newly infected
         if (nInf[layer] > 0) {
           dat <- set_attr(dat, "status", "e", idsNewInf)
@@ -372,6 +374,6 @@ infect_covid_corporate <- function(dat, at) {
 
   ## Summary statistics for incidence
   dat$epi$se.flow[at] <- sum(nInf)
-
+  
   return(dat)
 }
