@@ -1,7 +1,7 @@
-#' @rdname moduleset-contacttrace
+#' @rdname moduleset-common
 #' @export
-
-intervention_covid_corporate <- function(dat, at) {
+#'
+conttacttrace_covid <- function(dat, at) {
 
   ## Attributes ##
   active <- get_attr(dat, "active")
@@ -36,7 +36,7 @@ intervention_covid_corporate <- function(dat, at) {
   inter.start.time <- get_param(dat, "inter.start.time")
 
   nLayers_CT <- length(dat$el)
-  
+
   if (nEligCI > 0) {
     for (layer in seq_len(nLayers_CT)) {
     # if (nEligCI > 0 & at > 50) browser()
