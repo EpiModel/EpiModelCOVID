@@ -1,7 +1,8 @@
+
 #' @rdname moduleset-common
 #' @export
 #'
-conttacttrace_covid <- function(dat, at) {
+contact_trace_covid <- function(dat, at) {
 
   ## Attributes ##
   active <- get_attr(dat, "active")

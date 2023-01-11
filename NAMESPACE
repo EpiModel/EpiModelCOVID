@@ -2,7 +2,7 @@
 
 export(aging_covid)
 export(arrival_covid_corporate)
-export(conttacttrace_covid)
+export(contact_trace_covid)
 export(deaths_covid_corporate)
 export(deaths_covid_ship)
 export(dx_covid)

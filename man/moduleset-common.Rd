@@ -5,7 +5,7 @@
 \alias{moduleset-common}
 \alias{aging_covid}
 \alias{dx_covid}
-\alias{conttacttrace_covid}
+\alias{contact_trace_covid}
 \alias{progress_covid}
 \alias{vax_covid}
 \title{EpiModel Common Module Set Across COVID Models}
@@ -14,7 +14,7 @@ aging_covid(dat, at)
 
 dx_covid(dat, at)
 
-conttacttrace_covid(dat, at)
+contact_trace_covid(dat, at)
 
 progress_covid(dat, at)
 
