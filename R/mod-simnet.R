@@ -33,19 +33,22 @@ resim_nets_covid_vax_decisions <- function(dat, at) {
         dynamic = TRUE
       )
     } else {
+      modified_controls <- set.control.tergm
+      modified_controls$MCMC.prop.args <- list(discordance_fraction = 0)
       dat[["nw"]][[i]] <- simulate(
         basis = nwL,
         object = nwparam[["formation"]],
         coef = nwparam[["coef.form"]],
         constraints = nwparam[["constraints"]],
         monitor = nwstats.formulas[[i]],
-        control = set.control.tergm,
+        control = modified_controls,
         time.start = at - 1,
         time.slices = 1,
         time.offset = 1,
         dynamic = TRUE,
         output = "final"
       )
+      rm(modified_controls)
     }
 
     dat[["el"]][[i]] <- as.edgelist(dat[["nw"]][[i]])
