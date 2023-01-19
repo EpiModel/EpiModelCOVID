@@ -1,7 +1,6 @@
 
 #' @rdname moduleset-common
 #' @export
-#'
 contact_trace_covid <- function(dat, at) {
 
   ## Attributes ##
@@ -36,9 +35,12 @@ contact_trace_covid <- function(dat, at) {
   baseline.lag <- get_param(dat, "baseline.lag")
   intervention <- get_param(dat, "intervention")
   inter.start.time <- get_param(dat, "inter.start.time")
-
-    if (nEligCI > 0) {
+  
+  if (nEligCI > 0) {
+      
       # if (nEligCI > 0 & at > 50) browser()
+      
+      ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
       
       ## Look up discordant edgelist ##
@@ -46,64 +48,64 @@ contact_trace_covid <- function(dat, at) {
       del_ct$index <- get_posit_ids(dat, del_ct$index)
       del_ct$partner <- get_posit_ids(dat, del_ct$partner)
    
-    ## If any discordant pairs, proceed ##
-    if (!(is.null(del_ct))) {
+      ## If any discordant pairs, proceed ##
+      if (!(is.null(del_ct))) {
 
-      # Set parameters on discordant edgelist data frame
-      del_ct$dxTime <- dxTime[del_ct$index]
-      del_ct$statusTime.Ic <- statusTime.Ic[del_ct$index]
-      del_ct$symendTime <- symendTime[del_ct$index]
-      del_ct$status <- status[del_ct$index]
+        # Set parameters on discordant edgelist data frame
+        del_ct$dxTime <- dxTime[del_ct$index]
+        del_ct$statusTime.Ic <- statusTime.Ic[del_ct$index]
+        del_ct$symendTime <- symendTime[del_ct$index]
+        del_ct$status <- status[del_ct$index]
 
-      del_ct$traced.cc <- traced.cc[del_ct$partner]
-      del_ct$tracedTime <- tracedTime[del_ct$partner]
-      del_ct$quar <- quar[del_ct$partner]
-      del_ct$quarEnd <- quarEnd[del_ct$partner]
+        del_ct$traced.cc <- traced.cc[del_ct$partner]
+        del_ct$tracedTime <- tracedTime[del_ct$partner]
+        del_ct$quar <- quar[del_ct$partner]
+        del_ct$quarEnd <- quarEnd[del_ct$partner]
 
-      # Assign new isolation end attribute to discordant edgelist data frame
-      # initialize iso.end column
-      del_ct$iso.end <- 0
-      del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
-      if (any(del_ct$status == 'ic')) {
-        del_ct$iso.end[del_ct$status == 'ic'] <- pmax((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
+        # Assign new isolation end attribute to discordant edgelist data frame
+        # initialize iso.end column
+        del_ct$iso.end <- 0
+        del_ct$iso.end[del_ct$status %in% c('a', 'ip')] <- del_ct$dxTime[del_ct$status %in% c('a', 'ip')] + 10
+        if (any(del_ct$status == 'ic')) {
+          del_ct$iso.end[del_ct$status == 'ic'] <- pmax((del_ct$statusTime.Ic[del_ct$status == 'ic'] + 10),
                                                       del_ct$symendTime[del_ct$status == 'ic'],
                                                       na.rm = TRUE)
-      }
-      # comparing 10 days after symptom onset to symptom resolution to find max
+        }
+        # comparing 10 days after symptom onset to symptom resolution to find max
 
 
-      # Filter now for only contacts that have NOT been traced and for traced contacts
-      #   FINISHED with their quarantine
-      # Filter discordant edgelist for eligible contacts, assign new attribute for eligibility
+        # Filter now for only contacts that have NOT been traced and for traced contacts
+        #   FINISHED with their quarantine
+        # Filter discordant edgelist for eligible contacts, assign new attribute for eligibility
 
-      del_ct_traced <- del_ct[which(del_ct$traced.cc == 1), ,
-                              drop = FALSE]
-      del_ct <- del_ct[which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc)), ,
-                       drop = FALSE]
-      del_ct$eligible.cc <- 0
-      del_ct$eligible.cc[del_ct$status %in% c("a", "ip") &
-                           (del_ct$stop >= (del_ct$dxTime - 2) | is.na(del_ct$stop)) &
-                           (del_ct$start <= del_ct$iso.end |
-                              del_ct$stop >= (del_ct$dxTime - 2))] <- 1
-      del_ct$eligible.cc[del_ct$status == "ic" &
-                           (del_ct$stop >= (del_ct$statusTime.Ic - 2) | is.na(del_ct$stop)) &
-                           (del_ct$start <= del_ct$iso.end |
-                              del_ct$stop >= (del_ct$statusTime.Ic - 2))] <- 1
+        del_ct_traced <- del_ct[which(del_ct$traced.cc == 1), ,
+                         drop = FALSE]
+        del_ct <- del_ct[which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc)), ,
+                         drop = FALSE]
+        del_ct$eligible.cc <- 0
+        del_ct$eligible.cc[del_ct$status %in% c("a", "ip") &
+                             (del_ct$stop >= (del_ct$dxTime - 2) | is.na(del_ct$stop)) &
+                             (del_ct$start <= del_ct$iso.end |
+                                 del_ct$stop >= (del_ct$dxTime - 2))] <- 1
+        del_ct$eligible.cc[del_ct$status == "ic" &
+                             (del_ct$stop >= (del_ct$statusTime.Ic - 2) | is.na(del_ct$stop)) &
+                             (del_ct$start <= del_ct$iso.end |
+                                 del_ct$stop >= (del_ct$statusTime.Ic - 2))] <- 1
 
-      # Keep only eligible close contacts
-      del_ct <- del_ct[which(del_ct$eligible.cc == 1), , drop = FALSE]
-      nEligCT <- length(unique(del_ct$partner))
+        # Keep only eligible close contacts
+        del_ct <- del_ct[which(del_ct$eligible.cc == 1), , drop = FALSE]
+        nEligCT <- length(unique(del_ct$partner))
 
-      ## Intervention 1: Varying fraction of traced contacts
-      # Sample pool of eligible close contacts
+        ## Intervention 1: Varying fraction of traced contacts
+        # Sample pool of eligible close contacts
 
-      if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
-        # Only sample group that has not already been traced
-        ids.not.traced <- which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
-        num.not.traced <- length(ids.not.traced)
-        if (num.not.traced > 0) {
-          vec.traced.status <- rbinom(num.not.traced, 1, prop.traced.1)
-          del_ct$traced.cc[ids.not.traced] <- vec.traced.status
+        if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
+          # Only sample group that has not already been traced
+          ids.not.traced <- which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
+          num.not.traced <- length(ids.not.traced)
+          if (num.not.traced > 0) {
+            vec.traced.status <- rbinom(num.not.traced, 1, prop.traced.1)
+            del_ct$traced.cc[ids.not.traced] <- vec.traced.status
         }
 
         # Apply contact tracing attributes to close contacts
@@ -196,32 +198,33 @@ contact_trace_covid <- function(dat, at) {
 
         ids.finished.quar <- del_ct_traced$partner[del_ct_traced$quarEnd < at]
       }
+    }
 
 
       # if (length(ids.quar) < 1) browser()
 
       # Save updated attributes
-      dat <- set_attr(dat, "eligible.case", eligible.case)
-      dat <- set_attr(dat, "traced.cc", NA, ids.finished.quar)
-      dat <- set_attr(dat, "traced.cc", 0, cc.not.traced)
-      dat <- set_attr(dat, "traced.cc", 1, ids.traced)
-      dat <- set_attr(dat, "quar", NA, ids.quar.disc)
-      dat <- set_attr(dat, "quar", NA, ids.finished.quar)
-      dat <- set_attr(dat, "quar", 0, ids.not.quar)
-      dat <- set_attr(dat, "quar", 1, ids.quar)
-      dat <- set_attr(dat, "tracedTime", at + baseline.lag, ids.traced)
-      dat <- set_attr(dat, "tracedTime", NA, ids.finished.quar)
-      dat <- set_attr(dat, "quarEnd", at + baseline.lag + 14, ids.traced)
-      dat <- set_attr(dat, "quarEnd", NA, ids.finished.quar)
+        dat <- set_attr(dat, "eligible.case", eligible.case)
+        dat <- set_attr(dat, "traced.cc", NA, ids.finished.quar)
+        dat <- set_attr(dat, "traced.cc", 0, cc.not.traced)
+        dat <- set_attr(dat, "traced.cc", 1, ids.traced)
+        dat <- set_attr(dat, "quar", NA, ids.quar.disc)
+        dat <- set_attr(dat, "quar", NA, ids.finished.quar)
+        dat <- set_attr(dat, "quar", 0, ids.not.quar)
+        dat <- set_attr(dat, "quar", 1, ids.quar)
+        dat <- set_attr(dat, "tracedTime", at + baseline.lag, ids.traced)
+        dat <- set_attr(dat, "tracedTime", NA, ids.finished.quar)
+        dat <- set_attr(dat, "quarEnd", at + baseline.lag + 14, ids.traced)
+        dat <- set_attr(dat, "quarEnd", NA, ids.finished.quar)
 
       ## Summary statistics
-      dat <- set_epi(dat, "nQuar", at, nQuar) # number actually quarantining
-      dat <- set_epi(dat, "nTraced", at, nTraced) # number of contacts traced
-      dat <- set_epi(dat, "nElig.CC", at, nEligCT) # number of contacts eligible for tracing
+        dat <- set_epi(dat, "nQuar", at, nQuar) # number actually quarantining
+        dat <- set_epi(dat, "nTraced", at, nTraced) # number of contacts traced
+        dat <- set_epi(dat, "nElig.CC", at, nEligCT) # number of contacts eligible for tracing
 
       }
     
-  }
+  
   return(dat)
 
 }

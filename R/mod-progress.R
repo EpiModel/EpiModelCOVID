@@ -95,6 +95,7 @@ progress_covid <- function(dat, at) {
       num.new.IptoIc <- length(ids.new.Ic)
       status[ids.new.Ic] <- "ic"
       statusTime[ids.new.Ic] <- at
+      statusTime.Ic[ids.new.Ic] <- at
     }
   }
 
