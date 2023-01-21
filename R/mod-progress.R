@@ -120,6 +120,7 @@ progress_covid <- function(dat, at) {
       ids.new.H <- ids.Ich[vec.new.H]
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
+      symendTime[ids.new.H] <- at
     }
   }
   
@@ -134,6 +135,7 @@ progress_covid <- function(dat, at) {
       num.new.HtoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      symendTime[ids.new.R] <- at
     }
   }
   
@@ -148,6 +150,7 @@ progress_covid <- function(dat, at) {
       num.new.IctoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      symendTime[ids.new.R] <- at
     }
   }
 

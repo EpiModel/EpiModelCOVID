@@ -332,7 +332,7 @@ infect_covid_corporate <- function(dat, at) {
             act.rate.dx.inter.rr
         }
         if (at >= act.rate.sympt.inter.time) {
-          del$actRate[del$stat %in% c("ic", "h")] <- del$actRate[del$stat %in% c("ic", "h")] *
+          del$actRate[del$stat == "ic"] <- del$actRate[del$stat == "ic"] *
             act.rate.sympt.inter.rr
         }
         
