@@ -134,6 +134,13 @@ resim_nets_covid_corporate <- function(dat, at) {
     dat[["el"]][[i]] <- as.edgelist(dat[["nw"]][[i]])
   }
 
+  if (get_control(dat, "cumulative.edgelist")) {
+    for (n_network in seq_along(dat$nwparam)) {
+      dat <- update_cumulative_edgelist(dat, n_network,
+                                        get_control(dat, "truncate.el.cuml"))
+    }
+  }
+
   if (save.nwstats) {
     dat <- update_nwstats(dat)
   }
