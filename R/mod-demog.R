@@ -70,11 +70,14 @@ deaths_covid_corporate <- function(dat, at) {
   status <- get_attr(dat, "status")
 
   ## Parameters ##
+  jail.exit.rate <- get_param(dat, "jail.exit.rate")
   mort.rates.w <- get_param(dat, "mort.rates.w")
   mort.rates.b <- get_param(dat, "mort.rates.b")
   mort.rates.o <- get_param(dat, "mort.rates.o")
   mort.dis.mult <- get_param(dat, "mort.dis.mult")
 
+  idsElig_exit <- which(active == 1)
+  nElig_exit <- length(idsElig_exit)
   idsElig_w <- which(active == 1 & race == "white")
   idsElig_b <- which(active == 1 & race == "black")
   idsElig_o <- which(active == 1 & race == "other")
@@ -94,9 +97,9 @@ deaths_covid_corporate <- function(dat, at) {
     death_rates_of_elig_b <- mort.rates.b[whole_ages_of_elig_b]
     death_rates_of_elig_o <- mort.rates.o[whole_ages_of_elig_o]
     
-    idsElig.inf.w <- which(status[idsElig_w] == "ic")
-    idsElig.inf.b <- which(status[idsElig_b] == "ic")
-    idsElig.inf.o <- which(status[idsElig_o] == "ic")
+    idsElig.inf.w <- which(status[idsElig_w] == "h")
+    idsElig.inf.b <- which(status[idsElig_b] == "h")
+    idsElig.inf.o <- which(status[idsElig_o] == "h")
     idsElig.inf <- c(idsElig.inf.w, idsElig.inf.b, idsElig.inf.o)
     
     death_rates_of_elig_w[idsElig.inf.w] <- death_rates_of_elig_w[idsElig.inf.w] * mort.dis.mult
@@ -109,16 +112,20 @@ deaths_covid_corporate <- function(dat, at) {
     vecDeaths.o <- which(rbinom(nElig_o, 1, death_rates_of_elig_o) == 1)
     vecDeaths <- c(vecDeaths.w, vecDeaths.b, vecDeaths.o)
     
-    idsDeaths.w <- idsElig_w[vecDeaths.w]
-    idsDeaths.b <- idsElig_b[vecDeaths.b]
-    idsDeaths.o <- idsElig_o[vecDeaths.o]
-    idsDeaths <- c(idsDeaths.w, idsDeaths.b, idsDeaths.o)
+    idsDeaths <- idsElig[vecDeaths]
     
-    nDeaths <- length(idsDeaths.w) + length(idsDeaths.b) + length(idsDeaths.o)
-    nDeathsIC <- length(intersect(idsDeaths.w, idsElig.inf.w)) + length(intersect(idsDeaths.b, idsElig.inf.b)) + length(intersect(idsDeaths.o, idsElig.inf.o))
+    vecExit <- which(rbinom(nElig_exit, 1, jail.exit.rate) == 1)
+    idsExits <- idsElig_exit[vecExit]
     
-    if (nDeaths > 0) {
+    nExits <- length(idsExits)
+    nDeaths <- length(idsDeaths)
+    nDeathsH <- length(intersect(idsDeaths, idsElig.inf))
+    
+    nInactive <- nDeaths + nExits
+    
+    if (nInactive > 0) {
       dat$attr$active[idsDeaths] <- 0
+      dat$attr$active[idsExits] <- 0
       inactive <- which(dat$attr$active == 0)
       dat$attr <- deleteAttr(dat$attr, inactive)
       for (i in seq_along(dat$el)) {
@@ -130,6 +137,8 @@ deaths_covid_corporate <- function(dat, at) {
   ## Summary statistics ##
   dat <- set_epi(dat, "d.flow", at, nDeaths)
   dat <- set_epi(dat, "d.h.flow", at, nDeathsH)
+  dat <- set_epi(dat, "exit.flow", at, nExits)
+  dat <- set_epi(dat, "inact.flow", at, nInactive)
 
   return(dat)
 }
@@ -216,13 +225,14 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   dat <- append_core_attr(dat, at, nNew)
   
   newIds <- which(dat$attr$entrTime == at)
-
-  arrival.age <- get_param(dat, "arrival.age")
-  newAges <- rep(arrival.age, nNew)
-  dat <- append_attr(dat, "age", newAges, nNew)
+  
+  ages.list <- c(dat$attr$age)
+  prob.age <- proportions(dat$attr$age)
+  arrival.ages <- sample(ages.list, nNew, prob = prob.age, replace = TRUE)
+  dat <- append_attr(dat, "age", arrival.ages, nNew)
 
   age.breaks <- c(17,20,30,40,50,60,85)
-  attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
+  attr_age.grp <- cut(arrival.ages, age.breaks, labels = FALSE, right = FALSE)
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
   
   race_fact <- c("white", "black", "other")
