@@ -115,7 +115,7 @@ setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
   newAges <- rep(arrival.age, nNew)
   dat <- append_attr(dat, "age", newAges, nNew)
 
-  age.breaks <- seq(0, 200, 10)
+  age.breaks <- c(0, 18, 65, 200)
   attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
   
