@@ -95,6 +95,8 @@ contact_trace_covid <- function(dat, at) {
         # Keep only eligible close contacts
         del_ct <- del_ct[which(del_ct$eligible.cc == 1), , drop = FALSE]
         nEligCT <- length(unique(del_ct$partner))
+        nIndex <- length(unique(del_ct$index))
+        avg.partners <- nEligCT/nIndex
 
         ## Intervention 1: Varying fraction of traced contacts
         # Sample pool of eligible close contacts
@@ -221,6 +223,7 @@ contact_trace_covid <- function(dat, at) {
         dat <- set_epi(dat, "nQuar", at, nQuar) # number actually quarantining
         dat <- set_epi(dat, "nTraced", at, nTraced) # number of contacts traced
         dat <- set_epi(dat, "nElig.CC", at, nEligCT) # number of contacts eligible for tracing
+        dat <- set_epi(dat, "avg.partners", at, avg.partners)
 
       }
     

@@ -278,6 +278,7 @@ infect_covid_corporate <- function(dat, at) {
   act.rate.quar.inter.time <- get_param(dat, "act.rate.quar.inter.time")
   vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
+  com.inf.rate <- get_param(dat, "com.inf.rate")
 
   nLayers <- length(dat$el)
   nInf <- rep(0, nLayers)
@@ -371,9 +372,21 @@ infect_covid_corporate <- function(dat, at) {
       }
     }
   }
-
+  
+  idsSus <- which(active == 1 & status %in% "s")
+  idsInffromstaff <- which(rbinom(idsSus, 1, com.inf.rate) == 1)
+  nInffromstaff <- length(idsInffromstaff)
+  
+  dat <- set_attr(dat, "status", "e", idsInffromstaff)
+  dat <- set_attr(dat, "infTime", at, idsInffromstaff)
+  dat <- set_attr(dat, "statusTime", at, idsInffromstaff)
+  
   ## Summary statistics for incidence
-  dat$epi$se.flow[at] <- sum(nInf)
+  
+  dat$epi$se.flow[at] <- sum(nInf) + nInffromstaff
+  dat$epi$se.flow.staff[at] <- nInffromstaff
+  dat$epi$se.flow.cell[at] <- nInf[1]
+  dat$epi$se.flow.block[at] <- nInf[2]
   
   return(dat)
 }
