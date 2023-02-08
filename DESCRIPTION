@@ -10,21 +10,15 @@ Description: Provides extension functionality for the EpiModel package to simula
 License: GPL-3
 Depends:
     R (>= 4.0.0),
-    EpiModel (>= 2.3.1),
-    network (>= 1.17.2),
-    tergm (>= 4.1-2446)
+    EpiModel (>= 2.3.2),
+    network (>= 1.18.0),
+    tergm (>= 4.1.1)
 Imports:
-    ergm (>= 4.2-6964)
+    ergm (>= 4.3.1)
 Suggests:
     testthat (>= 3.0.0)
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Encoding: UTF-8
 Config/testthat/edition: 3
 Remotes:
-   github::statnet/EpiModel@main,
-   github::statnet/statnet@master,
-   github::statnet/statnet.common@master,
-   github::statnet/network@master,
-   github::statnet/networkDynamic@master,
-   github::statnet/ergm@master,
-   github::statnet/tergm@master
+   github::statnet/EpiModel@main
