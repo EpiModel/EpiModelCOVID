@@ -172,7 +172,12 @@ init_status_covid_corporate <- function(dat) {
     status[sample(which(active == 1), size = e.num)] <- "e"
   }
 
+  vax.options <- c(0, 3)
+  prob.vax <- c(0.5, 0.5)
+  vax.stat <- sample(vax.options, num, prob = prob.vax, replace = TRUE)
+  
   dat <- set_attr(dat, "status", status)
+  dat <- set_attr(dat, "vax", vax.stat)
 
   # Infection Time and related attributes
   idsInf <- which(status == "e")
@@ -192,9 +197,7 @@ init_status_covid_corporate <- function(dat) {
   iso.end <- rep(NA, num)
   tracedTime <- rep(NA, num)
   quarEnd <- rep(NA, num)
-  vax <- rep(0, num)
-  vax1Time <- rep(NA, num)
-  vax2Time <- rep(NA, num)
+  vaxTime <- rep(NA, num)
 
   dat <- set_attr(dat, "statusTime", statusTime)
   dat <- set_attr(dat, "statusTime.Ic", statusTime.Ic)
@@ -211,9 +214,7 @@ init_status_covid_corporate <- function(dat) {
   dat <- set_attr(dat, "iso.end", iso.end)
   dat <- set_attr(dat, "tracedTime", tracedTime)
   dat <- set_attr(dat, "quarEnd", quarEnd)
-  dat <- set_attr(dat, "vax", vax)
-  dat <- set_attr(dat, "vax1Time", vax1Time)
-  dat <- set_attr(dat, "vax2Time", vax2Time)
+  dat <- set_attr(dat, "vaxTime", vaxTime)
 
   return(dat)
 }

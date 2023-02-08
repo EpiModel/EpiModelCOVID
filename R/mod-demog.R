@@ -247,13 +247,13 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   newIdsInf <- which(arrival.status == "e")
   nNewInf <- length(newIdsInf)
   
-  # vax.list <- c(0, 1, 2)
-  # prob.vax <- c(0.5, 0.25, 0.25)
-  # vax.status <- sample(vax.list, nNew, prob = prob.vax, replace = TRUE)
-  # dat <- append_attr(dat, "vax", vax.status, nNew)
+  vax.list <- c(0, 3)
+  prob.vax <- c(0.5, 0.5)
+  vax.status <- sample(vax.list, nNew, prob = prob.vax, replace = TRUE)
+  dat <- append_attr(dat, "vax", vax.status, nNew)
   
-  # newIdsVax1 <- which(vax.status == 1)
-  # newIdsVax2 <- which(vax.status == 2)
+  newIdsVax <- which(vax.status == 3)
+  nNewVax <- length(newIdsVax)
   
   # Disease status and related
   dat <- append_attr(dat, "infTime", NA, nNew)
@@ -271,21 +271,15 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   dat <- append_attr(dat, "tracedTime", NA, nNew)
   dat <- append_attr(dat, "quarEnd", NA, nNew)
   dat <- append_attr(dat, "iso.end", NA, nNew)
-  dat <- append_attr(dat, "vax", 0, nNew)
-  dat <- append_attr(dat, "vax1Time", NA, nNew)
-  dat <- append_attr(dat, "vax2Time", NA, nNew)
+  dat <- append_attr(dat, "vaxTime", NA, nNew)
 
   # set attributes for infected individuals brought into the jail
   dat <- set_attr(dat, "infTime", at, newIdsInf)
   dat <- set_attr(dat, "statusTime", at, newIdsInf)
   
-  #Summary characteristic for infected individuals brought into the jail
+  # Summary characteristic for infected individuals brought into the jail
   dat <- set_epi(dat, "se.flow.incarcerated", at, nNewInf)
-  
-  # dat <- set_attr(dat, "vax1Time", -21, newIdsVax1)
-  # dat <- set_attr(dat, "vax2Time", NA, newIdsVax1)
-  # dat <- set_attr(dat, "vax1Time", -35, newIdsVax2)
-  # dat <- set_attr(dat, "vax2Time", -14, newIdsVax2)
+  dat <- set_epi(dat, "new.Vax", at, nNewVax)
   
   return(dat)
 }

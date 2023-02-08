@@ -1,83 +1,71 @@
 
 #' @rdname moduleset-common
 #' @export
+
+# USING J&J VACCINE AS A REFERENCE
+
 vax_covid <- function(dat, at) {
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   age <- get_attr(dat, "age")
   vax <- get_attr(dat, "vax")
-  vax1Time <- get_attr(dat, "vax1Time")
-  vax2Time <- get_attr(dat, "vax2Time")
+  vaxTime <- get_attr(dat, "vaxTime")
 
   vax.start <- get_param(dat, "vax.start")
-  vax1.rate <- get_param(dat, "vax1.rate")
-  vax2.interval <- get_param(dat, "vax2.interval")
-  vax1.immune <- get_param(dat, "vax1.immune")
-  vax2.immune <- get_param(dat, "vax2.immune")
+  vax.rate <- get_param(dat, "vax.rate")
+  vax.partial.immune <- get_param(dat, "vax.partial.immune")
+  vax.full.immune <- get_param(dat, "vax.full.immune")
 
   ## First vax
   nVax <- 0
   if (at >= vax.start) {
-    idsElig.vax1 <- which(active == 1 & status == "s" & vax == 0)
-    nElig.vax1 <- length(idsElig.vax1)
-    if (nElig.vax1 > 0) {
+    idsElig.vax <- which(active == 1 & status == "s" & vax == 0)
+    nElig.vax <- length(idsElig.vax)
+    if (nElig.vax > 0) {
       age.breaks <- c(17,20,30,40,50,60,85)
-      age.group <- as.numeric(cut(age[idsElig.vax1], age.breaks, labels = FALSE, right = FALSE))
-      vax1.rate.vec <- vax1.rate[age.group]
-      vecVax <- which(rbinom(nElig.vax1, 1, vax1.rate.vec) == 1)
-      idsVax <- idsElig.vax1[vecVax]
+      age.group <- as.numeric(cut(age[idsElig.vax], age.breaks, labels = FALSE, right = FALSE))
+      vax.rate.vec <- vax.rate[age.group]
+      vecVax <- which(rbinom(nElig.vax, 1, vax.rate.vec) == 1)
+      idsVax <- idsElig.vax[vecVax]
       nVax <- length(idsVax)
       if (nVax > 0) {
         vax[idsVax] <- 1
-        vax1Time[idsVax] <- at
+        vaxTime[idsVax] <- at
       }
     }
   }
 
-  idsVax1.gt65 <- which(active == 1 & vax == 1 & vax1Time == at & age >= 65)
-  nidsVax1.gt65 <- length(idsVax1.gt65)
+  idsVax.gt65 <- which(active == 1 & vax == 1 & vaxTime == at & age >= 65)
+  nidsVax.gt65 <- length(idsVax.gt65)
 
-  idsVax1.15to65 <- which(active == 1 & vax == 1 & vax1Time == at & age < 65 &
-                        age >= 15)
-  nidsVax1.15to65 <- length(idsVax1.15to65)
+  idsVax.17to65 <- which(active == 1 & vax == 1 & vaxTime == at & age < 65 &
+                        age >= 17)
+  nidsVax.17to65 <- length(idsVax.17to65)
 
-  idsVax1.lt15 <- which(active == 1 & vax == 1 & vax1Time == at & age < 15)
-  nidsVax1.lt15 <- length(idsVax1.lt15)
-
-  # Partial Immunity after first shot
-  idsvaximmunePartial <- which(active == 1 & vax == 1 & at - vax1Time >= vax1.immune)
+  # Partial Immunity after Single Dose
+  idsvaximmunePartial <- which(active == 1 & vax == 1 & at - vaxTime >= vax.partial.immune)
   nvaximmunePartial <- length(idsvaximmunePartial)
   if (nvaximmunePartial > 0) {
     vax[idsvaximmunePartial] <- 2
   }
 
-  ## Second vax
-  idsvaxFull <- which(active == 1 & vax == 2 & (at - vax1Time >= vax2.interval))
-  nvaxFull <- length(idsvaxFull)
-  if (nvaxFull > 0) {
-    vax[idsvaxFull] <- 3
-    vax2Time[idsvaxFull] <- at
-  }
-
-  # Partial Immunity after first shot
-  idsvaximmuneFull <- which(active == 1 & vax == 3 & at - vax2Time >= vax2.immune)
+  # Full Immunity after Single Dose
+  idsvaximmuneFull <- which(active == 1 & vax == 2 & at - vaxTime >= vax.full.immune)
   nvaximmuneFull <- length(idsvaximmuneFull)
   if (nvaximmuneFull > 0) {
-    vax[idsvaximmuneFull] <- 4
+    vax[idsvaximmuneFull] <- 3
   }
-
+    
   ## Replace attr
   dat <- set_attr(dat, "vax", vax)
-  dat <- set_attr(dat, "vax1Time", vax1Time)
-  dat <- set_attr(dat, "vax2Time", vax2Time)
+  dat <- set_attr(dat, "vaxTime", vaxTime)
 
   ## Summary statistics ##
-  dat <- set_epi(dat, "nVax1", at, nVax)
-  dat <- set_epi(dat, "nVax2", at, nvaxFull)
+  dat <- set_epi(dat, "nVax", at, nVax)
   dat <- set_epi(dat, "nVaxImmunePart", at, nvaximmunePartial)
-  dat <- set_epi(dat, "nVax1gt65", at, nidsVax1.gt65)
-  dat <- set_epi(dat, "nVax115to65", at, nidsVax1.15to65)
-  dat <- set_epi(dat, "nVax1lt15", at, nidsVax1.lt15)
+  dat <- set_epi(dat, "nVaxImmuneFull", at, nvaximmuneFull)
+  dat <- set_epi(dat, "nVaxgt65", at, nidsVax.gt65)
+  dat <- set_epi(dat, "nVax17to65", at, nidsVax.17to65)
 
   return(dat)
 }

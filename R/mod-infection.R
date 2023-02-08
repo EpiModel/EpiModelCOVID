@@ -276,8 +276,8 @@ infect_covid_corporate <- function(dat, at) {
   act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
   act.rate.quar.inter.rr <- get_param(dat, "act.rate.quar.inter.rr")
   act.rate.quar.inter.time <- get_param(dat, "act.rate.quar.inter.time")
-  vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
-  vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
+  vax.rr.infect.partial <- get_param(dat, "vax.rr.infect.partial")
+  vax.rr.infect.full <- get_param(dat, "vax.rr.infect.full")
   com.inf.rate <- get_param(dat, "com.inf.rate")
 
   nLayers <- length(dat$el)
@@ -308,10 +308,10 @@ infect_covid_corporate <- function(dat, at) {
 
         # Vaccination
         del$vaxSus <- vax[del$sus]
-        del$transProb[del$vaxSus %in% 2:3] <- del$transProb[del$vaxSus %in% 2:3] *
-                                          vax1.rr.infect
-        del$transProb[del$vaxSus == 4] <- del$transProb[del$vaxSus == 4] *
-                                          vax2.rr.infect
+        del$transProb[del$vaxSus == 2] <- del$transProb[del$vaxSus == 2] *
+                                          vax.rr.infect.partial
+        del$transProb[del$vaxSus == 3] <- del$transProb[del$vaxSus == 3] *
+                                          vax.rr.infect.full
 
         # Asymptomatic infection
         del$stat <- status[del$inf]

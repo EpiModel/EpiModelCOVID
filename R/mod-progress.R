@@ -33,7 +33,7 @@ progress_covid <- function(dat, at) {
     age.breaks <- c(17,20,30,40,50,60,85)
     age.group <- as.numeric(cut(age[ids.newInf], age.breaks, labels = FALSE, right = FALSE))
     prop.clin.vec <- prop.clinical[age.group]
-    prop.clin.vec[vax[ids.newInf] == 4] <- prop.clin.vec[vax[ids.newInf] == 4] *
+    prop.clin.vec[vax[ids.newInf] == 3] <- prop.clin.vec[vax[ids.newInf] == 3] *
                                            vax.rr.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clin.vec)
