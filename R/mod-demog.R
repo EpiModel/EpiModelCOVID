@@ -10,58 +10,9 @@ aging_covid <- function(dat, at) {
   return(dat)
 }
 
-
-#' @rdname moduleset-ship
+#' @rdname moduleset-netjail
 #' @export
-deaths_covid_ship <- function(dat, at) {
-  
-  ## Attributes ##
-  active <- dat$attr$active
-  age <- dat$attr$age
-  status <- dat$attr$status
-  
-  ## Parameters ##
-  mort.rates <- dat$param$mort.rates
-  mort.dis.mult <- dat$param$mort.dis.mult
-  
-  idsElig <- which(active == 1)
-  nElig <- length(idsElig)
-  nDeaths <- nDeathsIC <- 0
-  
-  if (nElig > 0) {
-    
-    whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86)
-    death_rates_of_elig <- mort.rates[whole_ages_of_elig]
-    
-    idsElig.inf <- which(status[idsElig] == "ic")
-    death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] * mort.dis.mult
-    
-    vecDeaths <- which(rbinom(nElig, 1, death_rates_of_elig) == 1)
-    idsDeaths <- idsElig[vecDeaths]
-    nDeaths <- length(idsDeaths)
-    nDeathsIC <- length(intersect(idsDeaths, idsElig.inf))
-    
-    if (nDeaths > 0) {
-      dat$attr$active[idsDeaths] <- 0
-      inactive <- which(dat$attr$active == 0)
-      dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in seq_along(dat$el)) {
-        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
-      }
-    }
-  }
-  
-  ## Summary statistics ##
-  dat$epi$d.flow[at] <- nDeaths
-  dat$epi$d.ic.flow[at] <- nDeathsIC
-  
-  return(dat)
-}
-
-
-#' @rdname moduleset-corporate
-#' @export
-deaths_covid_corporate <- function(dat, at) {
+deaths_covid_netjail <- function(dat, at) {
 
   ## Attributes ##
   active <- get_attr(dat, "active")
@@ -70,14 +21,11 @@ deaths_covid_corporate <- function(dat, at) {
   status <- get_attr(dat, "status")
 
   ## Parameters ##
-  jail.exit.rate <- get_param(dat, "jail.exit.rate")
   mort.rates.w <- get_param(dat, "mort.rates.w")
   mort.rates.b <- get_param(dat, "mort.rates.b")
   mort.rates.o <- get_param(dat, "mort.rates.o")
   mort.dis.mult <- get_param(dat, "mort.dis.mult")
 
-  idsElig_exit <- which(active == 1)
-  nElig_exit <- length(idsElig_exit)
   idsElig_w <- which(active == 1 & race == "white")
   idsElig_b <- which(active == 1 & race == "black")
   idsElig_o <- which(active == 1 & race == "other")
@@ -87,6 +35,7 @@ deaths_covid_corporate <- function(dat, at) {
   nElig_o <- length(idsElig_o)
   nElig <- length(idsElig)
   nDeaths <- nDeathsH <- 0
+  nExits <- 0
 
   if (nElig > 0) {
 
@@ -114,18 +63,11 @@ deaths_covid_corporate <- function(dat, at) {
     
     idsDeaths <- idsElig[vecDeaths]
     
-    vecExit <- which(rbinom(nElig_exit, 1, jail.exit.rate) == 1)
-    idsExits <- idsElig_exit[vecExit]
-    
-    nExits <- length(idsExits)
     nDeaths <- length(idsDeaths)
     nDeathsH <- length(intersect(idsDeaths, idsElig.inf))
     
-    nInactive <- nDeaths + nExits
-    
-    if (nInactive > 0) {
+    if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
-      dat$attr$active[idsExits] <- 0
       inactive <- which(dat$attr$active == 0)
       dat$attr <- deleteAttr(dat$attr, inactive)
       for (i in seq_along(dat$el)) {
@@ -137,16 +79,14 @@ deaths_covid_corporate <- function(dat, at) {
   ## Summary statistics ##
   dat <- set_epi(dat, "d.flow", at, nDeaths)
   dat <- set_epi(dat, "d.h.flow", at, nDeathsH)
-  dat <- set_epi(dat, "exit.flow", at, nExits)
-  dat <- set_epi(dat, "inact.flow", at, nInactive)
 
   return(dat)
 }
 
 
-#' @rdname moduleset-ship
+#' @rdname moduleset-netjail
 #' @export
-offload_covid_ship <- function(dat, at) {
+covid_release_netjail <- function(dat, at) {
 
   ## Attributes ##
   active <- dat$attr$active
@@ -155,23 +95,15 @@ offload_covid_ship <- function(dat, at) {
   type <- dat$attr$type
 
   ## Parameters ##
-  exit.rate.pass <- dat$param$exit.rate.pass
-  exit.rate.crew <- dat$param$exit.rate.crew
+  jail.exit.rate <- get_param(dat, "jail.exit.rate")
 
-  exit.elig.status <- dat$param$exit.elig.status
-  require.dx <- dat$param$exit.require.dx
-
-  idsElig <- which(active == 1 & status %in% exit.elig.status)
-  if (require.dx == TRUE) {
-    idsElig <- intersect(idsElig, which(dxStatus == 2))
-  }
-  nElig <- length(idsElig)
+  idsElig_exit <- which(active == 1)
+  nElig_exit <- length(idsElig_exit)
   nExits <- 0
 
-  if (nElig > 0) {
-    exit.rates <- ifelse(type[idsElig] == "p", exit.rate.pass, exit.rate.crew)
-    vecExits <- which(rbinom(nElig, 1, exit.rates) == 1)
-    idsExits <- idsElig[vecExits]
+  if (nElig_exit > 0) {
+    vecExits <- which(rbinom(nElig_exit, 1, jail.exit.rate) == 1)
+    idsExits <- idsElig_exit[vecExits]
     nExits <- length(idsExits)
 
     if (nExits > 0) {
@@ -190,9 +122,9 @@ offload_covid_ship <- function(dat, at) {
   return(dat)
 }
 
-#' @rdname moduleset-corporate
+#' @rdname moduleset-netjail
 #' @export
-arrival_covid_corporate <- function(dat, at) {
+arrival_covid_netjail <- function(dat, at) {
 
   # Parameters
   a.rate   <- get_param(dat, "a.rate")
@@ -203,7 +135,7 @@ arrival_covid_corporate <- function(dat, at) {
 
   ## Update Attr
   if (nNew > 0) {
-    dat <- setNewAttr_covid_corporate(dat, at, nNew)
+    dat <- setNewAttr_covid_netjail(dat, at, nNew)
   }
 
   # Update Networks
@@ -220,7 +152,7 @@ arrival_covid_corporate <- function(dat, at) {
 }
 
 
-setNewAttr_covid_corporate <- function(dat, at, nNew) {
+setNewAttr_covid_netjail <- function(dat, at, nNew) {
 
   dat <- append_core_attr(dat, at, nNew)
   
