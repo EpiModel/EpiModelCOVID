@@ -44,6 +44,7 @@ progress_covid_vax_decisions <- function(dat, at) {
   
   # Reset "hospitalization nearing capacity" flag
   hosp.flag <- 0
+  old.hosp.prev <- sum(status == "h")
 
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
@@ -169,16 +170,14 @@ progress_covid_vax_decisions <- function(dat, at) {
   }
 
   # Ic to H: clinical infectious move to hospitalized
+  num.new.IctoH <- 0
   ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
   num.Ich <- length(ids.Ich)
   if (num.Ich > 0) {
     vec.new.H <- which(rbinom(num.Ich, 1, ich.rate) == 1)
     if (length(vec.new.H) > 0) {
-      if (sum(active == 1 & status == "h") / sum(active == 1) < hosp.th & 
-          (sum(active == 1 & status == "h") + length(vec.new.H)) / sum(active == 1) >= hosp.th) {
-        hosp.flag == 1
-      }
       ids.new.H <- ids.Ich[vec.new.H]
+      num.new.IctoH <- length(ids.new.H)
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
     }
@@ -227,7 +226,11 @@ progress_covid_vax_decisions <- function(dat, at) {
     }
   }
 
-  ## Save updated hospital capacity flag
+  ## Update and save updated hospital capacity flag
+  if (old.hosp.prev / sum(active == 1) < hosp.th & 
+      sum(active == 1 & status == "h") / sum(active == 1) >= hosp.th) {
+    hosp.flag <- 1
+  }
   dat <- set_param(dat, "hosp.flag", hosp.flag)
   
   ## Save updated attributes
@@ -244,8 +247,10 @@ progress_covid_vax_decisions <- function(dat, at) {
   dat <- set_epi(dat, "eip.flow", at, num.new.EtoIp)
   dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
   dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
+  dat <- set_epi(dat, "ich.flow", at, num.new.IctoH)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
   dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
+  dat <- set_epi(dat, "hosp.flag", at, hosp.flag)
 
   return(dat)
 }
