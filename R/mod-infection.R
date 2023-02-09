@@ -124,6 +124,8 @@ infect_covid_vax_decisions <- function(dat, at) {
 
   ## Summary statistics for incidence
   dat$epi$se.flow[at] <- sum(nInf)
+  dat$epi$se.flow.l1[at] <- nInf[1]
+  dat$epi$se.flow.l2[at] <- nInf[2]
 
   return(dat)
 }
