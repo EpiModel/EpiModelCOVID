@@ -96,12 +96,13 @@ covid_release_netjail <- function(dat, at) {
 
   ## Parameters ##
   jail.exit.rate <- get_param(dat, "jail.exit.rate")
+  decarc <- get_param(dat, "decarc")
 
   idsElig_exit <- which(active == 1)
   nElig_exit <- length(idsElig_exit)
   nExits <- 0
 
-  if (nElig_exit > 2600) {
+  if (nElig_exit > 2600 & decarc == 1) {
     vecExits <- which(rbinom(nElig_exit, 1, jail.exit.rate * 2) == 1)
     idsExits <- idsElig_exit[vecExits]
     nExits <- length(idsExits)
@@ -118,13 +119,30 @@ covid_release_netjail <- function(dat, at) {
     }
   }
   
-  if (nElig_exit > 0 & nElig_exit <= 2600) {
+  if (nElig_exit > 0 & nElig_exit <= 2600 & decarc == 1) {
     vecExits <- which(rbinom(nElig_exit, 1, jail.exit.rate) == 1)
     idsExits <- idsElig_exit[vecExits]
     nExits <- length(idsExits)
     vecExitsVax <- which(vax[idsExits] == 3)
     nExitsVax <- length(vecExitsVax)
   
+    if (nExits > 0) {
+      active[idsExits] <- 0
+      inactive <- which(active == 0)
+      dat$attr <- deleteAttr(dat$attr, inactive)
+      for (i in seq_along(dat$el)) {
+        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
+      }
+    }
+  }
+  
+  if (nElig_exit > 0 & decarc == 0) {
+    vecExits <- which(rbinom(nElig_exit, 1, jail.exit.rate) == 1)
+    idsExits <- idsElig_exit[vecExits]
+    nExits <- length(idsExits)
+    vecExitsVax <- which(vax[idsExits] == 3)
+    nExitsVax <- length(vecExitsVax)
+    
     if (nExits > 0) {
       active[idsExits] <- 0
       inactive <- which(active == 0)
@@ -146,22 +164,12 @@ covid_release_netjail <- function(dat, at) {
 #' @export
 arrival_covid_netjail <- function(dat, at) {
 
-  ## Attributes ##
-  active <- get_attr(dat, "active")
-  
   # Parameters
   a.rate   <- get_param(dat, "a.rate")
-
-  idsActive <- which(active == 1)
-  nActive <- length(idsActive)
   
-  if (nActive > 3000) {
-    nNew <- 0
-  }
   ## Process
-  if (nActive <= 3000) {
-    nNew <- rpois(1, a.rate * nActive)
-  }
+  num <- dat$epi$num[1]
+  nNew <- rpois(1, a.rate * num)
 
   ## Update Attr
   if (nNew > 0) {
