@@ -42,7 +42,7 @@ vax_covid_vax_decisions <- function(dat, at) {
   hosp.flag <- get_param(dat, "hosp.flag")
 
   ## Update vaccination types (if roll-out has begun)
-  if (at > vax1.start[1]){
+  if (at > min(vax1.start)){
     
     # 1. Resistant -> Willing
     if (hosp.flag == 1) {
