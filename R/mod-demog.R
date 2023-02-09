@@ -2,13 +2,17 @@
 #' @rdname moduleset-common
 #' @export
 aging_covid <- function(dat, at) {
-
+  
   age <- get_attr(dat, "age")
   vaxType <- get_attr(dat, "vaxType")
   vax.age.group <- get_attr(dat, "vax.age.group")
   
   #Update age
   age <- age + 1 / 365
+  
+  #Update age.grp
+  age.breaks <- c(0, 18, 65, 200)
+  age.grp <- cut(age, age.breaks, labels = FALSE, right = FALSE)
   
   #Update vax.age.group
   vax.age.group[which(age >= 5 & age < 18)] <- 2
@@ -25,7 +29,7 @@ aging_covid <- function(dat, at) {
   dat <- set_attr(dat, "vaxType", vaxType)
   dat <- set_attr(dat, "vax.age.group", vax.age.group)
   dat <- set_attr(dat, "age", age)
-
+  dat <- set_attr(dat, "age.grp", age.grp)
   return(dat)
 }
 
@@ -110,14 +114,13 @@ arrival_covid_vax_decisions <- function(dat, at) {
 setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
   
   dat <- append_core_attr(dat, at, nNew)
-
+  
+  # Age + Household and related
   arrival.age <- get_param(dat, "arrival.age")
   newAges <- rep(arrival.age, nNew)
-  dat <- append_attr(dat, "age", newAges, nNew)
 
   age.breaks <- c(0, 18, 65, 200)
   attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
-  dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
   
   vax.age.group <- rep(NA, length(newAges))
   vax.age.group[newAges < 5] <- 1
@@ -126,7 +129,20 @@ setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
   vax.age.group[newAges >= 50 & newAges < 65] <- 4
   vax.age.group[newAges >= 65] <- 5
   
+  age.grp <- get_attr(dat, "age.grp")
+  household <- get_attr(dat, "household")
+  
+  newHH <- rep(NA, length(newAges))
+  for (i in seq_along(unique(attr_age.grp))) {
+    newHH[attr_age.grp == unique(attr_age.grp)[i]] <- 
+      sample(household[which(age.grp == unique(attr_age.grp)[i])], 
+             sum(attr_age.grp == unique(attr_age.grp)[i]), replace = TRUE)
+  }
+  
+  dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
+  dat <- append_attr(dat, "age", newAges, nNew)
   dat <- append_attr(dat, "vax.age.group", vax.age.group, nNew)
+  dat <- append_attr(dat, "household", newHH, nNew)
 
   # Disease status and related
   dat <- append_attr(dat, "status", "s", nNew)
