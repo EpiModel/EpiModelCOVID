@@ -29,9 +29,9 @@ prevalence_covid_netjail <- function(dat, at) {
   dat <- set_epi(dat, "ic.num", at, sum(active == 1 & status == "ic"))
   dat <- set_epi(dat, "r.num", at, sum(active == 1 & status == "r"))
   dat <- set_epi(dat, "h.num", at, sum(active == 1 & status == "h"))
-  dat <- set_epi(dat, "v.num.incomplete", at, sum(active == 1 & status == "s" & vax == 1))
-  dat <- set_epi(dat, "v.num.partial", at, sum(active == 1 & status == "s" & vax == 2))
-  dat <- set_epi(dat, "v.num.immune", at, sum(active == 1 & status == "s" & vax == 3))
+  dat <- set_epi(dat, "v.num.incomplete", at, sum(active == 1 & vax == 1))
+  dat <- set_epi(dat, "v.num.partial", at, sum(active == 1 & vax == 2))
+  dat <- set_epi(dat, "v.num.immune", at, sum(active == 1 & vax == 3))
 
   return(dat)
 }
