@@ -89,10 +89,10 @@ deaths_covid_netjail <- function(dat, at) {
 covid_release_netjail <- function(dat, at) {
 
   ## Attributes ##
-  active <- dat$attr$active
-  status <- dat$attr$status
-  dxStatus <- dat$attr$dxStatus
-  type <- dat$attr$type
+  active <- get_attr(dat, "active")
+  age <- get_attr(dat, "age")
+  status <- get_attr(dat, "status")
+  vax <- get_attr(dat, "vax")
 
   ## Parameters ##
   jail.exit.rate <- get_param(dat, "jail.exit.rate")
@@ -105,6 +105,8 @@ covid_release_netjail <- function(dat, at) {
     vecExits <- which(rbinom(nElig_exit, 1, jail.exit.rate) == 1)
     idsExits <- idsElig_exit[vecExits]
     nExits <- length(idsExits)
+    vecExitsVax <- which(vax[idsExits] == 3)
+    nExitsVax <- length(vecExitsVax)
 
     if (nExits > 0) {
       active[idsExits] <- 0
@@ -117,7 +119,8 @@ covid_release_netjail <- function(dat, at) {
   }
 
   ## Summary statistics ##
-  dat$epi$exit.flow[at] <- nExits
+  dat <- set_epi(dat, "n.Exit.flow", at, nExits)
+  dat <- set_epi(dat, "n.Exit.flow.Vax", at, nExitsVax)
 
   return(dat)
 }
