@@ -40,6 +40,9 @@ init_covid_vax_decisions <- function(x, param, init, control, s) {
 
   # Convert to tergmLite method
   dat <- init_tergmLite(dat)
+  
+  #Add household network edgelist
+  dat$el[[length(x) + 1]] <- as.matrix(dat$param$hh.pairs)
 
   ## Infection Status and Time Modules
   dat <- init_status_covid_vax_decisions(dat)

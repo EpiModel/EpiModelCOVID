@@ -1,7 +1,7 @@
 #' @rdname moduleset-vaxDecisions
 #' @export
 resim_nets_covid_vax_decisions <- function(dat, at) {
-
+ 
   # controls
   set.control.tergm <- get_control(dat, "set.control.tergm")
   set.control.ergm <- get_control(dat, "set.control.ergm")
@@ -11,8 +11,8 @@ resim_nets_covid_vax_decisions <- function(dat, at) {
   ## Edges correction
   dat <- edges_correct_covid(dat, at)
 
-  # Network Resimulation
-  for (i in seq_along(dat[["el"]])) {
+  # Network Resimulation - excluding household network
+  for (i in seq_len(length(dat[["el"]]) - 1)) {
     nwparam <- get_nwparam(dat, network = i)
     isTERGM <- nwparam[["isTERGM"]]
 

@@ -84,12 +84,12 @@ deaths_covid_vax_decisions <- function(dat, at) {
 #' @rdname moduleset-vaxDecisions
 #' @export
 arrival_covid_vax_decisions <- function(dat, at) {
-
+  
   # Parameters
   a.rate   <- get_param(dat, "a.rate")
 
   ## Process
-  num <- dat$epi$num[1]
+  num <- dat$epi$num[at - 1]
   nNew <- rpois(1, a.rate * num)
 
   ## Update Attr
@@ -115,7 +115,7 @@ setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
   
   dat <- append_core_attr(dat, at, nNew)
   
-  # Age + Household and related
+  # Age related
   arrival.age <- get_param(dat, "arrival.age")
   newAges <- rep(arrival.age, nNew)
 
@@ -129,6 +129,7 @@ setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
   vax.age.group[newAges >= 50 & newAges < 65] <- 4
   vax.age.group[newAges >= 65] <- 5
   
+  # Assign new nodes to households
   age.grp <- get_attr(dat, "age.grp")
   household <- get_attr(dat, "household")
   
@@ -139,6 +140,12 @@ setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
              sum(attr_age.grp == unique(attr_age.grp)[i]), replace = TRUE)
   }
   
+  # Update household edgelist
+  heads <- cbind((length(household) + 1):(length(household) + nNew), newHH)
+  tails <- cbind(which(household %in% newHH), household[which(household %in% newHH)])
+  new.edges <- merge(heads, tails, by.x = 2, by.y = 2)[, 2:3]
+  dat$el[[2]] <- rbind(dat$el[[2]], new.edges)
+    
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
   dat <- append_attr(dat, "age", newAges, nNew)
   dat <- append_attr(dat, "vax.age.group", vax.age.group, nNew)
