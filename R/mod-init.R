@@ -43,6 +43,7 @@ init_covid_vax_decisions <- function(x, param, init, control, s) {
   
   #Add household network edgelist
   dat$el[[length(x) + 1]] <- as.matrix(dat$param$hh.pairs)
+  attr(dat$el[[length(x) + 1]], 'n') <- num
 
   ## Infection Status and Time Modules
   dat <- init_status_covid_vax_decisions(dat)

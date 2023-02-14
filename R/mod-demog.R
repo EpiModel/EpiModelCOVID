@@ -144,7 +144,9 @@ setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
   heads <- cbind((length(household) + 1):(length(household) + nNew), newHH)
   tails <- cbind(which(household %in% newHH), household[which(household %in% newHH)])
   new.edges <- merge(heads, tails, by.x = 2, by.y = 2)[, 2:3]
-  dat$el[[2]] <- rbind(dat$el[[2]], new.edges)
+  new.edgelist <- as.matrix(rbind(dat$el[[2]], setNames(new.edges, c(".head", ".tail"))))
+  attr(new.edgelist, 'n') <- attr(dat$el[[2]], 'n')
+  dat$el[[2]] <- new.edgelist
     
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
   dat <- append_attr(dat, "age", newAges, nNew)
