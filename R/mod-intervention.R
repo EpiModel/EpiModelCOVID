@@ -95,17 +95,22 @@ contact_trace_covid <- function(dat, at) {
         # Keep only eligible close contacts
         del_ct <- del_ct[which(del_ct$eligible.cc == 1), , drop = FALSE]
         nEligCT <- length(unique(del_ct$partner))
+        
+        del_ct_cell <- del_ct[which(del_ct$network == 1), , drop = FALSE]
+        nEligCT.cell <- length(unique(del_ct_cell$partner)) 
+        
         nIndex <- length(unique(del_ct$index))
-        avg.partners <- nEligCT/nIndex
+        avg.partners.cell <- nEligCT.cell/nIndex
+        avg.partners.all <- nEligCT/nIndex
 
-        ## Intervention 1: Varying fraction of traced contacts
-        # Sample pool of eligible close contacts
+      ## Intervention 1: Tracing contacts at the cell level (tracing greater proportion of contacts)
+      # Sample pool of eligible close contacts
 
-        if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
-          # Only sample group that has not already been traced
-          ids.not.traced <- which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
-          num.not.traced <- length(ids.not.traced)
-          if (num.not.traced > 0) {
+      if (nEligCT.cell > 0 & intervention == 1 & at >= inter.start.time) {
+        # Only sample group that has not already been traced
+        ids.not.traced <- which(del_ct$network == 1 & del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
+        num.not.traced <- length(ids.not.traced)
+        if (num.not.traced > 0) {
             vec.traced.status <- rbinom(num.not.traced, 1, prop.traced.1)
             del_ct$traced.cc[ids.not.traced] <- vec.traced.status
         }
@@ -125,7 +130,7 @@ contact_trace_covid <- function(dat, at) {
         }
       }
 
-      ## Intervention 2: Varying time to index case/close contact interview
+      ## Intervention 2: Tracing contacts at both the cell and block levels (tracing fewer proportion of contacts)
       # Sample pool of eligible close contacts
       if (nEligCT > 0 & intervention == 2 & at >= inter.start.time) {
         # Only sample group that has not already been traced
@@ -141,7 +146,7 @@ contact_trace_covid <- function(dat, at) {
         # cc.missing.quar <- del_ct$partner[ids.missing.quar]
         num.missing.quar <- length(ids.missing.quar)
         if (num.missing.quar > 0) {
-          del_ct$tracedTime[ids.missing.quar] <- at + time.lag
+          del_ct$tracedTime[ids.missing.quar] <- at + baseline.lag + time.lag
           del_ct$quarEnd[ids.missing.quar] <- del_ct$tracedTime[ids.missing.quar] + 14
 
           # Selecting sample of individuals to actually complete quarantine
@@ -223,7 +228,8 @@ contact_trace_covid <- function(dat, at) {
         dat <- set_epi(dat, "nQuar", at, nQuar) # number actually quarantining
         dat <- set_epi(dat, "nTraced", at, nTraced) # number of contacts traced
         dat <- set_epi(dat, "nElig.CC", at, nEligCT) # number of contacts eligible for tracing
-        dat <- set_epi(dat, "avg.partners", at, avg.partners)
+        dat <- set_epi(dat, "avg.partners.cell", at, avg.partners.cell)
+        dat <- set_epi(dat, "avg.partners.all", at, avg.partners.all)
 
       }
     
