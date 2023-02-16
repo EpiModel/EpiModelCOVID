@@ -99,16 +99,25 @@ contact_trace_covid <- function(dat, at) {
         del_ct_cell <- del_ct[which(del_ct$network == 1), , drop = FALSE]
         nEligCT.cell <- length(unique(del_ct_cell$partner)) 
         
+        del_ct_block <- del_ct[which(del_ct$network == 2), , drop = FALSE]
+        nEligCT.block <- length(unique(del_ct_block$partner)) 
+        
         nIndex <- length(unique(del_ct$index))
-        avg.partners.cell <- nEligCT.cell/nIndex
         avg.partners.all <- nEligCT/nIndex
+        
+        nIndex.cell <- length(unique(del_ct_cell$index))
+        avg.partners.cell <- nEligCT.cell/nIndex.cell
 
       ## Intervention 1: Tracing contacts at the cell level (tracing greater proportion of contacts & quarantining 100% of close contacts)
       # Sample pool of eligible close contacts
 
       if (nEligCT.cell > 0 & intervention == 1 & at >= inter.start.time) {
+        
+        del_ct <- del_ct_cell
+        nEligCT <- nEligCT.cell
+        
         # Only sample group that has not already been traced
-        ids.not.traced <- which(del_ct$network == 1 & del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
+        ids.not.traced <- which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
         num.not.traced <- length(ids.not.traced)
         if (num.not.traced > 0) {
             vec.traced.status <- rbinom(num.not.traced, 1, prop.traced.1)
@@ -228,6 +237,8 @@ contact_trace_covid <- function(dat, at) {
         dat <- set_epi(dat, "nQuar", at, nQuar) # number actually quarantining
         dat <- set_epi(dat, "nTraced", at, nTraced) # number of contacts traced
         dat <- set_epi(dat, "nElig.CC", at, nEligCT) # number of contacts eligible for tracing
+        dat <- set_epi(dat, "nElig.CC.cell", at, nEligCT.cell)
+        dat <- set_epi(dat, "nElig.CC.block", at, nEligCT.block)
         dat <- set_epi(dat, "avg.partners.cell", at, avg.partners.cell)
         dat <- set_epi(dat, "avg.partners.all", at, avg.partners.all)
 
