@@ -103,7 +103,7 @@ contact_trace_covid <- function(dat, at) {
         avg.partners.cell <- nEligCT.cell/nIndex
         avg.partners.all <- nEligCT/nIndex
 
-      ## Intervention 1: Tracing contacts at the cell level (tracing greater proportion of contacts)
+      ## Intervention 1: Tracing contacts at the cell level (tracing greater proportion of contacts & quarantining 100% of close contacts)
       # Sample pool of eligible close contacts
 
       if (nEligCT.cell > 0 & intervention == 1 & at >= inter.start.time) {
@@ -125,12 +125,12 @@ contact_trace_covid <- function(dat, at) {
           del_ct$quarEnd[ids.missing.quar] <- del_ct$tracedTime[ids.missing.quar] + 14
 
           # Selecting sample of individuals to actually complete quarantine
-          vec.quar.status <- rbinom(num.missing.quar, 1, 0.8)
+          vec.quar.status <- rbinom(num.missing.quar, 1, 1)
           del_ct$quar[ids.missing.quar] <- vec.quar.status
         }
       }
 
-      ## Intervention 2: Tracing contacts at both the cell and block levels (tracing fewer proportion of contacts)
+      ## Intervention 2: Tracing contacts at both the cell and block levels (tracing fewer proportion of contacts & quarantining 50% of close contacts)
       # Sample pool of eligible close contacts
       if (nEligCT > 0 & intervention == 2 & at >= inter.start.time) {
         # Only sample group that has not already been traced
@@ -150,7 +150,7 @@ contact_trace_covid <- function(dat, at) {
           del_ct$quarEnd[ids.missing.quar] <- del_ct$tracedTime[ids.missing.quar] + 14
 
           # Selecting sample of individuals to actually complete quarantine
-          vec.quar.status <- rbinom(num.missing.quar, 1, 0.8)
+          vec.quar.status <- rbinom(num.missing.quar, 1, 0.5)
           del_ct$quar[ids.missing.quar] <- vec.quar.status
         }
       }
