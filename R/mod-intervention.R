@@ -228,10 +228,7 @@ contact_trace_covid <- function(dat, at) {
         dat <- set_epi(dat, "nQuar", at, nQuar) # number actually quarantining
         dat <- set_epi(dat, "nTraced", at, nTraced) # number of contacts traced
         dat <- set_epi(dat, "nElig.CC", at, nEligCT) # number of contacts eligible for tracing
-        dat <- set_epi(dat, "nElig.CC.cell", at, nEligCT.cell)
-        dat <- set_epi(dat, "nElig.CC.block", at, nEligCT.block)
-        dat <- set_epi(dat, "avg.partners.cell", at, avg.partners.cell)
-        dat <- set_epi(dat, "avg.partners.all", at, avg.partners.all)
+        dat <- set_epi(dat, "avg.partners", at, avg.partners)
 
       }
     
