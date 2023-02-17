@@ -44,11 +44,15 @@ contact_trace_covid <- function(dat, at) {
       if (intervention == 1) {
         ## Look up discordant edgelist ##
         del_ct <- get_partners(dat, idsEligCI, only.active.nodes = TRUE, networks = 1)
+        del_ct$index <- get_posit_ids(dat, del_ct$index)
+        del_ct$partner <- get_posit_ids(dat, del_ct$partner)
       }
       
       if (intervention == 2) {
         ## Look up discordant edgelist ##
         del_ct <- get_partners(dat, idsEligCI, only.active.nodes = TRUE)
+        del_ct$index <- get_posit_ids(dat, del_ct$index)
+        del_ct$partner <- get_posit_ids(dat, del_ct$partner)
       }
    
       ## If any discordant pairs, proceed ##
