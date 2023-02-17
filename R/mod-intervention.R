@@ -36,17 +36,20 @@ contact_trace_covid <- function(dat, at) {
   intervention <- get_param(dat, "intervention")
   inter.start.time <- get_param(dat, "inter.start.time")
   
-  if (nEligCI > 0) {
-      
-      # if (nEligCI > 0 & at > 50) browser()
+  if (nEligCI > 0 & at >= inter.start.time) {
       
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
       
-      ## Look up discordant edgelist ##
-      del_ct <- get_partners(dat, idsEligCI, only.active.nodes = TRUE)
-      del_ct$index <- get_posit_ids(dat, del_ct$index)
-      del_ct$partner <- get_posit_ids(dat, del_ct$partner)
+      if (intervention == 1) {
+        ## Look up discordant edgelist ##
+        del_ct <- get_partners(dat, idsEligCI, only.active.nodes = TRUE, networks = 1)
+      }
+      
+      if (intervention == 2) {
+        ## Look up discordant edgelist ##
+        del_ct <- get_partners(dat, idsEligCI, only.active.nodes = TRUE)
+      }
    
       ## If any discordant pairs, proceed ##
       if (!(is.null(del_ct))) {
@@ -96,25 +99,13 @@ contact_trace_covid <- function(dat, at) {
         del_ct <- del_ct[which(del_ct$eligible.cc == 1), , drop = FALSE]
         nEligCT <- length(unique(del_ct$partner))
         
-        del_ct_cell <- del_ct[which(del_ct$network == 1), , drop = FALSE]
-        nEligCT.cell <- length(unique(del_ct_cell$partner)) 
-        
-        del_ct_block <- del_ct[which(del_ct$network == 2), , drop = FALSE]
-        nEligCT.block <- length(unique(del_ct_block$partner)) 
-        
         nIndex <- length(unique(del_ct$index))
-        avg.partners.all <- nEligCT/nIndex
-        
-        nIndex.cell <- length(unique(del_ct_cell$index))
-        avg.partners.cell <- nEligCT.cell/nIndex.cell
+        avg.partners <- nEligCT/nIndex
 
       ## Intervention 1: Tracing contacts at the cell level (tracing greater proportion of contacts & quarantining 100% of close contacts)
       # Sample pool of eligible close contacts
 
-      if (nEligCT.cell > 0 & intervention == 1 & at >= inter.start.time) {
-        
-        del_ct <- del_ct_cell
-        nEligCT <- nEligCT.cell
+      if (nEligCT > 0 & intervention == 1 & at >= inter.start.time) {
         
         # Only sample group that has not already been traced
         ids.not.traced <- which(del_ct$traced.cc == 0 | is.na(del_ct$traced.cc))
