@@ -53,8 +53,8 @@ infect_covid_netjail <- function(dat, at) {
         inf.prob.inter.time <- get_param(dat, "inf.prob.inter.time")[layer]
         act.rate.inter.rr <- get_param(dat, "act.rate.inter.rr")[layer]
         act.rate.inter.time <- get_param(dat, "act.rate.inter.time")[layer]
-        # act.rate.quar.inter.rr <- get_param(dat, "act.rate.quar.inter.rr")[layer]
-        # act.rate.quar.inter.time <- get_param(dat, "act.rate.quar.inter.time")[layer]
+        act.rate.quar.inter.rr <- get_param(dat, "act.rate.quar.inter.rr")[layer]
+        act.rate.quar.inter.time <- get_param(dat, "act.rate.quar.inter.time")[layer]
         
         # Set parameters on discordant edgelist data frame
         del$transProb <- inf.prob
