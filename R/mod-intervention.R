@@ -42,7 +42,7 @@ contact_trace_covid <- function(dat, at) {
       eligible.case[idsEligCI] <- 1
       
       if (intervention == 0) {
-        del_ct <- NULL
+        del_ct <- data.frame()
       }
       
       if (intervention == 1) {
