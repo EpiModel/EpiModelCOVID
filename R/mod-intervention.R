@@ -41,6 +41,10 @@ contact_trace_covid <- function(dat, at) {
       ## Assign eligible case attribute for tracking later on ##
       eligible.case[idsEligCI] <- 1
       
+      if (intervention == 0) {
+        del_ct <- NULL
+      }
+      
       if (intervention == 1) {
         ## Look up discordant edgelist ##
         del_ct <- get_partners(dat, idsEligCI, only.active.nodes = TRUE, networks = 1)
