@@ -21,5 +21,3 @@ Suggests:
 RoxygenNote: 7.2.3
 Encoding: UTF-8
 Config/testthat/edition: 3
-Remotes:
-   github::statnet/EpiModel@main
