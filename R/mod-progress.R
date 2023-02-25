@@ -36,6 +36,7 @@ progress_covid <- function(dat, at) {
   ich.rate <- get_param(dat, "ich.rate")
   icr.rate <- get_param(dat, "icr.rate")
   hr.rate <- get_param(dat, "hr.rate")
+  rs.rate <- get_param(dat, "rs.rate")
   iso.prob <- get_param(dat, "iso.prob")
 
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
@@ -214,6 +215,21 @@ progress_covid <- function(dat, at) {
     }
   }
 
+  #R to S: become susceptible again after infection
+  num.new.RtoS <- 0
+  ids.RS <- which(active == 1 & status == "r" & statusTime < at)
+  num.RS <- length(ids.RS)
+  if (num.RS > 0) {
+    vec.new.RS <- which(rbinom(num.RS, 1, rs.rate) == 1)
+    if (length(vec.new.RS) > 0) {
+      ids.new.RS <- ids.RS[vec.new.RS]
+      num.new.RtoS <- length(ids.new.RS)
+      status[ids.new.RS] <- "s"
+      statusTime[ids.new.RS] <- at
+      dxStatus[ids.new.RS] <- NA
+    }
+  }
+
   # Move mild isolation to masking among R
   num.new.iso.mask <- 0
   ids.new.iso.mask <- which(active == 1 & status == "r" & isolate == 1 & (at - isoTime) > 5)
@@ -247,6 +263,7 @@ progress_covid <- function(dat, at) {
   dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
   dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
+  dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
   dat <- set_epi(dat, "iso1.flow", at, num.new.iso1)
   dat <- set_epi(dat, "iso2.flow", at, num.new.iso2)
   dat <- set_epi(dat, "isomask.flow", at, num.new.iso.mask)
