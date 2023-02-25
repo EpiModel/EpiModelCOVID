@@ -13,11 +13,22 @@ progress_covid <- function(dat, at) {
   vax <- get_attr(dat, "vax")
   isolate <- get_attr(dat, "isolate")
   isoTime <- get_attr(dat, "isoTime")
+  vax1Time <- get_attr(dat, "vax1Time")
+  vax2Time <- get_attr(dat, "vax2Time")
+  vax3Time <- get_attr(dat, "vax3Time")
+  dxStatus <- get_attr(dat, "dxStatus")
 
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
   vax.rr.clinical <- get_param(dat, "vax.rr.clinical")
+  vax1.immune <- get_param(dat, "vax1.immune")
+  vax2.immune <- get_param(dat, "vax2.immune")
+  vax3.immune <- get_param(dat, "vax3.immune")
+  half.life <- get_param(dat, "half.life")
   prop.hospit <- get_param(dat, "prop.hospit")
+  vax1.rr.hosp <- get_param(dat, "vax1.rr.hosp")
+  vax2.rr.hosp <- get_param(dat, "vax2.rr.hosp")
+  vax3.rr.hosp <- get_param(dat, "vax3.rr.hosp")
   ea.rate <- get_param(dat, "ea.rate")
   ar.rate <- get_param(dat, "ar.rate")
   eip.rate <- get_param(dat, "eip.rate")
@@ -33,9 +44,26 @@ progress_covid <- function(dat, at) {
   if (num.newInf > 0) {
     age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 8)
     prop.clin.vec <- prop.clinical[age.group]
+
+    # Vaccination reducing risk of developing clinical disease
     prop.clin.vec[vax[ids.newInf] == 4] <- prop.clin.vec[vax[ids.newInf] == 4] *
                                            vax.rr.clinical
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
+
+    # Waning vaccine provided protection
+    sinceVax1 <- ifelse((at - vax1Time[ids.newInf] - vax1.immune) >= 0,
+                        at - vax1Time[ids.newInf] - vax1.immune, 0)
+    sinceVax2 <- ifelse((at - vax2Time[ids.newInf] - vax2.immune) >= 0,
+                        at - vax2Time[ids.newInf] - vax2.immune, 0)
+    sinceVax3 <- ifelse((at - vax3Time[ids.newInf] - vax3.immune) >= 0,
+                        at - vax3Time[ids.newInf] - vax3.immune, 0)
+    latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
+    latest.vax[is.na(latest.vax)] <- 0
+
+    latest.vax.newInf <- latest.vax
+    prop.clin.vec <- prop.clin.vec *
+      (2 ^ (latest.vax.newInf / half.life))
+
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clin.vec)
     clinical[ids.newInf] <- vec.new.clinical
   }
@@ -113,6 +141,29 @@ progress_covid <- function(dat, at) {
     age.group <- pmin((floor(age[ids.newIc] / 10)) + 1, 8)
     prop.hosp.vec <- prop.hospit[age.group]
     if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
+
+    # Vaccination reducing risk of hospitalization
+    prop.hosp.vec[vax[ids.newIc] %in% 2:3] <- prop.hosp.vec[vax[ids.newIc] %in% 2:3] *
+      vax1.rr.hosp
+    prop.hosp.vec[vax[ids.newIc] %in% 4:5] <- prop.hosp.vec[vax[ids.newIc] %in% 4:5] *
+      vax2.rr.hosp
+    prop.hosp.vec[vax[ids.newIc] == 6] <- prop.hosp.vec[vax[ids.newIc] == 6] *
+      vax3.rr.hosp
+
+    # Waning vaccine provided protection
+    sinceVax1 <- ifelse((at - vax1Time[ids.newIc] - vax1.immune) >= 0,
+                        at - vax1Time[ids.newIc] - vax1.immune, 0)
+    sinceVax2 <- ifelse((at - vax2Time[ids.newIc] - vax2.immune) >= 0,
+                        at - vax2Time[ids.newIc] - vax2.immune, 0)
+    sinceVax3 <- ifelse((at - vax3Time[ids.newIc] - vax3.immune) >= 0,
+                        at - vax3Time[ids.newIc] - vax3.immune, 0)
+    latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, na.rm = TRUE)
+    latest.vax[is.na(latest.vax)] <- 0
+
+    latest.vax.newIc <- latest.vax
+    prop.hosp.vec <- prop.hosp.vec *
+      (2 ^ (latest.vax.newIc / half.life))
+
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
     hospit[ids.newIc] <- vec.new.hospit
   }
