@@ -51,7 +51,16 @@ dx_covid <- function(dat, at) {
       isolate[idsDx.sympt.neg] <- NA
       isoTime[idsDx.sympt.neg] <- NA
       num.sympt.neg <- length(idsDx.sympt.neg)
-      # symptomatic (ic) who test positive should already be in isolation pathway
+      # start isolation pathway for positive tests not already isolating
+      num.new.dx.sympt.iso <- 0
+      ids.new.dx.sympt.not.iso <- intersect(idsDx.sympt.pos, which(is.na(isolate)))
+      vec.dx.sympt.iso <- which(rbinom(length(ids.new.dx.sympt.not.iso), 1, iso.prob) == 1)
+      if (length(vec.dx.sympt.iso) > 0) {
+        ids.new.dx.sympt.iso <- ids.new.dx.sympt.not.iso[vec.dx.sympt.iso]
+        num.new.dx.sympt.iso <- length(ids.new.dx.sympt.iso)
+        isolate[ids.new.dx.sympt.iso] <- 1
+        isoTime[ids.new.dx.sympt.iso] <- at
+      }
     }
   }
 
