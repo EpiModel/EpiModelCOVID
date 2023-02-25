@@ -61,11 +61,10 @@ dx_covid <- function(dat, at) {
     idsDx.other <- idsElig.other[vecDx.other]
     nDx.other <- length(idsDx.other)
     if (nDx.other > 0) {
-      idsDx.other.neg <- intersect(idsDx.other, which(status == "s"))
-      # should all of these be considered equally likely to test positive
-      # as each other and as ic?? pcr.sens applies equally to all
+      idsDx.other.neg <- intersect(idsDx.other, which(status == "s", "e", "r"))
+      # this should include a and ip - see if data to warrant differential pcr sens
       idsDx.other.pos.all <- intersect(idsDx.other,
-                                       which(status %in% c("e", "a", "ip", "r")))
+                                       which(status %in% c("a", "ip")))
       vecDx.other.pos <- rbinom(length(idsDx.other.pos.all), 1, pcr.sens)
       idsDx.other.pos.true <- idsDx.other.pos.all[which(vecDx.other.pos == 1)]
       idsDx.other.pos.false <- idsDx.other.pos.all[which(vecDx.other.pos == 0)]
