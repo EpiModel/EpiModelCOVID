@@ -31,6 +31,7 @@ contact_trace_covid <- function(dat, at) {
   ## Common Parameters ##
   prop.traced.1 <- get_param(dat, "prop.traced.1")
   prop.traced.2 <- get_param(dat, "prop.traced.2")
+  prop.quar <- get_param(dat, "prop.quar")
   time.lag <- get_param(dat, "time.lag")
   baseline.lag <- get_param(dat, "baseline.lag")
   intervention <- get_param(dat, "intervention")
@@ -129,7 +130,7 @@ contact_trace_covid <- function(dat, at) {
           del_ct$quarEnd[ids.missing.quar] <- del_ct$tracedTime[ids.missing.quar] + 14
 
           # Selecting sample of individuals to actually complete quarantine
-          vec.quar.status <- rbinom(num.missing.quar, 1, 1)
+          vec.quar.status <- rbinom(num.missing.quar, 1, prop.quar)
           del_ct$quar[ids.missing.quar] <- vec.quar.status
         }
       }
@@ -154,7 +155,7 @@ contact_trace_covid <- function(dat, at) {
           del_ct$quarEnd[ids.missing.quar] <- del_ct$tracedTime[ids.missing.quar] + 14
 
           # Selecting sample of individuals to actually complete quarantine
-          vec.quar.status <- rbinom(num.missing.quar, 1, 0.5)
+          vec.quar.status <- rbinom(num.missing.quar, 1, prop.quar)
           del_ct$quar[ids.missing.quar] <- vec.quar.status
         }
       }
