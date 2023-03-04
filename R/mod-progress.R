@@ -40,12 +40,8 @@ progress_covid_vax_decisions <- function(dat, at) {
   rs.rate <- get_param(dat, "rs.rate")
   half.life <- get_param(dat, "half.life")
   hosp.th <- get_param(dat, "hosp.th")
-  hosp.flag <- get_param(dat, "hosp.flag")
   
-  # Reset "hospitalization nearing capacity" flag
-  hosp.flag <- 0
-  old.hosp.prev <- sum(status == "h")
-
+  
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
   num.newInf <- length(ids.newInf)
@@ -225,13 +221,6 @@ progress_covid_vax_decisions <- function(dat, at) {
       dxStatus[ids.new.RS] <- 0
     }
   }
-
-  ## Update and save updated hospital capacity flag
-  if (old.hosp.prev / sum(active == 1) < hosp.th & 
-      sum(active == 1 & status == "h") / sum(active == 1) >= hosp.th) {
-    hosp.flag <- 1
-  }
-  dat <- set_param(dat, "hosp.flag", hosp.flag)
   
   ## Save updated attributes
   dat <- set_attr(dat, "status", status)
@@ -250,7 +239,6 @@ progress_covid_vax_decisions <- function(dat, at) {
   dat <- set_epi(dat, "ich.flow", at, num.new.IctoH)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
   dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
-  dat <- set_epi(dat, "hosp.flag", at, hosp.flag)
 
   return(dat)
 }
