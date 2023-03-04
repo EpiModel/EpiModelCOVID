@@ -29,6 +29,11 @@ prevalence_covid_vax_decisions <- function(dat, at) {
   dat <- set_epi(dat, "v2.num", at, sum(active == 1 & vax == 2))
   dat <- set_epi(dat, "v3.num", at, sum(active == 1 & vax == 3))
   dat <- set_epi(dat, "v4.num", at, sum(active == 1 & vax == 4))
-
+  
+  if (at >= 7) {
+    h.num <- get_epi(dat, "h.num")
+    dat <- set_epi(dat, "h.7avg.num", at, sum(h.num[(at - 6): at]) / 7)
+  }
+  
   return(dat)
 }
