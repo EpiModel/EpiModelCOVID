@@ -14,6 +14,7 @@
 #' @aliases EpiModelCOVID
 #'
 #' @import EpiModel ergm network tergm
+#' @importFrom networkLite networkLite
 #' @importFrom stats rbinom simulate rpois
 #' @importFrom utils tail
 #'
