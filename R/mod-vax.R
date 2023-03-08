@@ -56,7 +56,6 @@ vax_covid_vax_decisions <- function(dat, at) {
     if (h.7avg.num.prev / sum(active == 1) < hosp.th &
         h.7avg.num.curr / sum(active == 1) >= hosp.th) {
       hosp.flag <- 1
-      browser()
     }
     
     # 1. Resistant -> Willing
