@@ -47,6 +47,11 @@ deaths_covid_ship <- function(dat, at) {
       dat$attr <- deleteAttr(dat$attr, inactive)
       for (i in seq_along(dat$el)) {
         dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
+        dat$net_attr[[i]][["n"]] <- dat$net_attr[[i]][["n"]] - length(inactive)
+        if (get_network_control(dat, i, "tergmLite.track.duration") == TRUE) {
+          dat$net_attr[[i]][["lasttoggle"]] <-
+            delete_vertices(dat$net_attr[[i]][["lasttoggle"]], inactive)
+        }
       }
     }
   }
@@ -96,6 +101,11 @@ deaths_covid_corporate <- function(dat, at) {
       dat$attr <- deleteAttr(dat$attr, inactive)
       for (i in seq_along(dat$el)) {
         dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
+        dat$net_attr[[i]][["n"]] <- dat$net_attr[[i]][["n"]] - length(inactive)
+        if (get_network_control(dat, i, "tergmLite.track.duration") == TRUE) {
+          dat$net_attr[[i]][["lasttoggle"]] <-
+            delete_vertices(dat$net_attr[[i]][["lasttoggle"]], inactive)
+        }
       }
     }
   }
@@ -144,6 +154,11 @@ offload_covid_ship <- function(dat, at) {
       dat$attr <- deleteAttr(dat$attr, inactive)
       for (i in seq_along(dat$el)) {
         dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
+        dat$net_attr[[i]][["n"]] <- dat$net_attr[[i]][["n"]] - length(inactive)
+        if (get_network_control(dat, i, "tergmLite.track.duration") == TRUE) {
+          dat$net_attr[[i]][["lasttoggle"]] <-
+            delete_vertices(dat$net_attr[[i]][["lasttoggle"]], inactive)
+        }
       }
     }
   }
@@ -174,6 +189,7 @@ arrival_covid_corporate <- function(dat, at) {
   if (nNew > 0) {
     for (i in seq_along(dat$el)) {
       dat$el[[i]] <- add_vertices(dat$el[[i]], nNew)
+      dat$net_attr[[i]][["n"]] <- dat$net_attr[[i]][["n"]] + nNew
     }
   }
 
