@@ -15,6 +15,7 @@
 #'
 #' @import EpiModel ergm network tergm
 #' @importFrom networkLite networkLite
+#' @importFrom statnet.common NVL
 #' @importFrom stats rbinom simulate rpois
 #' @importFrom utils tail
 #'
