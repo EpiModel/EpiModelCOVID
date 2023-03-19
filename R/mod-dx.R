@@ -6,6 +6,7 @@ dx_covid <- function(dat, at) {
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   dxStatus <- get_attr(dat, "dxStatus")
+  dxTime <- get_attr(dat, "dxTime")
   isolate <- get_attr(dat, "isolate")
   isoTime <- get_attr(dat, "isoTime")
 
@@ -47,6 +48,8 @@ dx_covid <- function(dat, at) {
       idsDx.sympt.neg <- idsDx.sympt[which(vecDx.sympt.pos == 0)]
       dxStatus[idsDx.sympt.pos] <- 2
       dxStatus[idsDx.sympt.neg] <- 1
+      dxTime[idsDx.sympt.pos] <- at
+      dxTime[idsDx.sympt.neg] <- at
       # end isolation pathway for those who test negative
       isolate[idsDx.sympt.neg] <- NA
       isoTime[idsDx.sympt.neg] <- NA
@@ -80,6 +83,9 @@ dx_covid <- function(dat, at) {
       dxStatus[idsDx.other.neg] <- 1
       dxStatus[idsDx.other.pos.false] <- 1
       dxStatus[idsDx.other.pos.true] <- 2
+      dxTime[idsDx.other.neg] <- at
+      dxTime[idsDx.other.pos.false] <- at
+      dxTime[idsDx.other.pos.true] <- at
 
       # start isolation pathway for positive tests not already isolating
       num.new.dx.iso <- 0
@@ -105,6 +111,7 @@ dx_covid <- function(dat, at) {
 
   ## Replace attr
   dat <- set_attr(dat, "dxStatus", dxStatus)
+  dat <- set_attr(dat, "dxTime", dxTime)
   dat <- set_attr(dat, "isolate", isolate)
   dat <- set_attr(dat, "isoTime", isoTime)
 
