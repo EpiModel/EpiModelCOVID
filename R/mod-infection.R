@@ -326,7 +326,7 @@ infect_covid_corporate <- function(dat, at) {
 
         # Masking for those in isolation process
         if (at >= act.rate.iso.inter.time) {
-          del$transProb[del$iso %in% c(1,2,3)] <- del$transProb[del$iso %in% c(1,2,3)] *
+          del$transProb[del$iso %in% c(1,2,3,4)] <- del$transProb[del$iso %in% c(1,2,3,4)] *
             inf.prob.mask.rr
         }
 

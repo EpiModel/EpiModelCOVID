@@ -17,6 +17,7 @@ progress_covid <- function(dat, at) {
   vax2Time <- get_attr(dat, "vax2Time")
   vax3Time <- get_attr(dat, "vax3Time")
   dxStatus <- get_attr(dat, "dxStatus")
+  dxTime <- get_attr(dat, "dxTime")
 
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
@@ -38,6 +39,34 @@ progress_covid <- function(dat, at) {
   hr.rate <- get_param(dat, "hr.rate")
   rs.rate <- get_param(dat, "rs.rate")
   iso.prob <- get_param(dat, "iso.prob")
+  notif.prob <- get_param(dat, "notif.prob")
+
+  # Determine exposures to infected contacts for masking guidelines
+  num.elig.exp <- 0
+  num.new.notif.iso <- 0
+  ids.elig.exp <- which(active == 1 & status %in% c("s","a","e","ip","r") &
+                       is.na(isolate) & dxStatus %in% 0:1)
+  num.elig.exp <- length(ids.elig.exp)
+  if (num.elig.exp > 0) {
+    ids.exp <- get_partners(dat,ids.elig.exp, only.active.nodes = TRUE)
+    ids.dx <- which(active == 1 & dxStatus == 2 & dxTime <= at+10)
+    ids.exp.dx <- ids.exp$index[ids.exp$partner %in% ids.dx]
+    ids.exp.dx <- unique(ids.exp.dx)
+    if (length(ids.exp.dx) > 0) {
+      vec.new.notif <- which(rbinom(length(ids.exp.dx),1,notif.prob) == 1)
+      if (length(vec.new.notif) > 0) {
+        ids.new.notif <- ids.exp.dx[vec.new.notif]
+        vec.new.notif.iso <- which(rbinom(length(ids.new.notif), 1, iso.prob) == 1)
+        if (length(vec.new.notif.iso) > 0) {
+          ids.new.notif.iso <- ids.new.notif[vec.new.notif.iso]
+          num.new.notif.iso <- length(ids.new.notif.iso)
+          isolate[ids.new.notif.iso] <- 4 # masking due to exposure notification
+          isoTime[ids.new.notif.iso] <- at
+        }
+      }
+    }
+  }
+
 
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
@@ -240,7 +269,9 @@ progress_covid <- function(dat, at) {
 
   # End isolation pathway
   num.new.iso.end <- 0
-  ids.new.iso.end <- which(active == 1 & status == "r" & isolate %in% c(2,3) & (at - isoTime) > 10)
+  ids.new.iso.end <- which(active == 1 &
+                             ((status == "r" & isolate %in% c(2,3)) | isolate == 4) &
+                             (at - isoTime) > 10)
   num.new.iso.end <- length(ids.new.iso.end)
   if (num.new.iso.end > 0) {
     isolate[ids.new.iso.end] <- NA # end isolation pathway
