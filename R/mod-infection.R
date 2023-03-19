@@ -317,17 +317,6 @@ infect_covid_corporate <- function(dat, at) {
           del$actRate <- del$actRate * act.rate.inter.rr
         }
 
-        # Case isolation with diagnosed or symptomatic infection
-        del$dx <- dxStatus[del$inf]
-        if (at >= act.rate.dx.inter.time) {
-          del$actRate[del$dx == 2] <- del$actRate[del$dx == 2] *
-                                      act.rate.dx.inter.rr
-        }
-        if (at >= act.rate.sympt.inter.time) {
-          del$actRate[del$stat == "ic"] <- del$actRate[del$stat == "ic"] *
-                                           act.rate.sympt.inter.rr
-        }
-
         # Case isolation for those in isolation process
         del$iso <- ifelse(!is.na(isolate[del$inf]),isolate[del$inf],0)
         if (at >= act.rate.iso.inter.time) {
