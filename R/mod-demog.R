@@ -44,15 +44,7 @@ deaths_covid_ship <- function(dat, at) {
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
-      dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in seq_len(dat$num.nw)) {
-        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
-        dat$net_attr[[i]][["n"]] <- dat$net_attr[[i]][["n"]] - length(inactive)
-        if (get_network_control(dat, i, "tergmLite.track.duration") == TRUE) {
-          dat$net_attr[[i]][["lasttoggle"]] <-
-            delete_vertices(dat$net_attr[[i]][["lasttoggle"]], inactive)
-        }
-      }
+      dat <- depart_nodes(dat, inactive)
     }
   }
 
@@ -98,15 +90,7 @@ deaths_covid_corporate <- function(dat, at) {
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
-      dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in seq_len(dat$num.nw)) {
-        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
-        dat$net_attr[[i]][["n"]] <- dat$net_attr[[i]][["n"]] - length(inactive)
-        if (get_network_control(dat, i, "tergmLite.track.duration") == TRUE) {
-          dat$net_attr[[i]][["lasttoggle"]] <-
-            delete_vertices(dat$net_attr[[i]][["lasttoggle"]], inactive)
-        }
-      }
+      dat <- depart_nodes(dat, inactive)
     }
   }
 
@@ -151,15 +135,7 @@ offload_covid_ship <- function(dat, at) {
     if (nExits > 0) {
       active[idsExits] <- 0
       inactive <- which(active == 0)
-      dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in seq_len(dat$num.nw)) {
-        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
-        dat$net_attr[[i]][["n"]] <- dat$net_attr[[i]][["n"]] - length(inactive)
-        if (get_network_control(dat, i, "tergmLite.track.duration") == TRUE) {
-          dat$net_attr[[i]][["lasttoggle"]] <-
-            delete_vertices(dat$net_attr[[i]][["lasttoggle"]], inactive)
-        }
-      }
+      dat <- depart_nodes(dat, inactive)
     }
   }
 
