@@ -22,4 +22,4 @@ Suggests:
 RoxygenNote: 7.2.3
 Encoding: UTF-8
 Config/testthat/edition: 3
-Remotes: github::EpiModel/EpiModel@init_nets
+Remotes: github::EpiModel/EpiModel@depart_nodes
