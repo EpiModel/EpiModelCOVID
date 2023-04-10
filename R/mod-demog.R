@@ -162,12 +162,7 @@ arrival_covid_corporate <- function(dat, at) {
   }
 
   # Update Networks
-  if (nNew > 0) {
-    for (i in seq_len(dat$num.nw)) {
-      dat$el[[i]] <- add_vertices(dat$el[[i]], nNew)
-      dat$net_attr[[i]][["n"]] <- dat$net_attr[[i]][["n"]] + nNew
-    }
-  }
+  dat <- arrive_nodes(dat, nNew)
 
   ## Output
   dat <- set_epi(dat, "nNew", at, nNew)
