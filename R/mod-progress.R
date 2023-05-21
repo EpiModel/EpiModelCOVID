@@ -44,24 +44,45 @@ progress_covid <- function(dat, at) {
   # Determine exposures to infected contacts for masking guidelines
   num.elig.exp <- 0
   num.new.notif.iso <- 0
+  # pull ids for non-symtomatic, not diagnosed, not isolating
   ids.elig.exp <- which(active == 1 & status %in% c("s","a","e","ip","r") &
                        is.na(isolate) & dxStatus %in% 0:1)
   num.elig.exp <- length(ids.elig.exp)
   if (num.elig.exp > 0) {
+    # pull their partners and only keep those who have been diagnosed
+    # in the past 3 time steps
     ids.exp <- get_partners(dat,ids.elig.exp, only.active.nodes = TRUE)
-    ids.dx <- which(active == 1 & dxStatus == 2 & dxTime <= at+10)
-    ids.exp.dx <- ids.exp$index[ids.exp$partner %in% ids.dx]
-    ids.exp.dx <- unique(ids.exp.dx)
-    if (length(ids.exp.dx) > 0) {
-      vec.new.notif <- which(rbinom(length(ids.exp.dx),1,notif.prob) == 1)
+    ids.exp$index_posit_ids <- get_posit_ids(dat,ids.exp$index)
+    ids.exp$partner_posit_ids <- get_posit_ids(dat,ids.exp$partner)
+    ids.dx <- which(active == 1 & dxStatus == 2 & dxTime >= at-2)
+    ids.dx.time <- data.frame(partner_posit_ids = ids.dx,
+                              dxTime = dxTime[ids.dx])
+    ids.exp.dx <- merge(ids.dx.time,ids.exp,by = "partner_posit_ids")
+    # keep only contacts that occurred before the diagnosis, by network
+    ids.exp.dx2 <- subset(ids.exp.dx,
+                          (network == 1 & ids.exp.dx$dxTime == at-1) |
+                            (network == 2 & ids.exp.dx$dxTime >= at-3) |
+                            (network == 3 &
+                               ids.exp.dx$dxTime >= ids.exp.dx$stop &
+                               ids.exp.dx$dxTime <= ids.exp.dx$stop + 3))
+    ids.index <- ids.exp.dx2$index_posit_ids
+    ids.index <- unique(ids.index)
+    if (length(ids.index) > 0) {
+      vec.new.notif <- which(rbinom(length(ids.index),1,notif.prob) == 1)
       if (length(vec.new.notif) > 0) {
-        ids.new.notif <- ids.exp.dx[vec.new.notif]
+        ids.new.notif <- ids.index[vec.new.notif]
         vec.new.notif.iso <- which(rbinom(length(ids.new.notif), 1, iso.prob) == 1)
         if (length(vec.new.notif.iso) > 0) {
           ids.new.notif.iso <- ids.new.notif[vec.new.notif.iso]
           num.new.notif.iso <- length(ids.new.notif.iso)
+          partner.dx.time <- subset(ids.exp.dx2, ids.exp.dx2$index_posit_ids %in% ids.new.notif.iso)
+          partner.dx.time <- partner.dx.time[ave(partner.dx.time$dxTime,
+                                                 partner.dx.time$index_posit_ids,
+                                                 FUN = function(x) x == min(x)) == 1, ]
+          # need to keep one dxtime per index
+          # set exposure time based on network
           isolate[ids.new.notif.iso] <- 4 # masking due to exposure notification
-          isoTime[ids.new.notif.iso] <- at
+          isoTime[ids.new.notif.iso] <- partner.dx.time$dxTime # change to time of exposure
         }
       }
     }
