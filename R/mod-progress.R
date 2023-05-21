@@ -43,7 +43,7 @@ progress_covid <- function(dat, at) {
 
   # Determine exposures to infected contacts for masking guidelines
   num.elig.exp <- 0
-  num.new.notif.iso <- 0
+  num.new.iso4 <- 0
   # pull ids for non-symtomatic, not diagnosed, not isolating
   ids.elig.exp <- which(active == 1 & status %in% c("s","a","e","ip","r") &
                        is.na(isolate) & dxStatus %in% 0:1)
@@ -71,18 +71,18 @@ progress_covid <- function(dat, at) {
       vec.new.notif <- which(rbinom(length(ids.index),1,notif.prob) == 1)
       if (length(vec.new.notif) > 0) {
         ids.new.notif <- ids.index[vec.new.notif]
-        vec.new.notif.iso <- which(rbinom(length(ids.new.notif), 1, iso.prob) == 1)
-        if (length(vec.new.notif.iso) > 0) {
-          ids.new.notif.iso <- ids.new.notif[vec.new.notif.iso]
-          num.new.notif.iso <- length(ids.new.notif.iso)
-          partner.dx.time <- subset(ids.exp.dx2, ids.exp.dx2$index_posit_ids %in% ids.new.notif.iso)
+        vec.new.iso4 <- which(rbinom(length(ids.new.notif), 1, iso.prob) == 1)
+        if (length(vec.new.iso4) > 0) {
+          ids.new.iso4 <- ids.new.notif[vec.new.iso4]
+          num.new.iso4 <- length(ids.new.iso4)
+          partner.dx.time <- subset(ids.exp.dx2, ids.exp.dx2$index_posit_ids %in% ids.new.iso4)
           partner.dx.time <- partner.dx.time[ave(partner.dx.time$dxTime,
                                                  partner.dx.time$index_posit_ids,
                                                  FUN = function(x) x == min(x)) == 1, ]
           # need to keep one dxtime per index
           # set exposure time based on network
-          isolate[ids.new.notif.iso] <- 4 # masking due to exposure notification
-          isoTime[ids.new.notif.iso] <- partner.dx.time$dxTime # change to time of exposure
+          isolate[ids.new.iso4] <- 4 # masking due to exposure notification
+          isoTime[ids.new.iso4] <- partner.dx.time$dxTime # change to time of exposure
         }
       }
     }
@@ -281,11 +281,11 @@ progress_covid <- function(dat, at) {
   }
 
   # Move mild isolation to masking among R
-  num.new.iso.mask <- 0
-  ids.new.iso.mask <- which(active == 1 & status == "r" & isolate == 1 & (at - isoTime) > 5)
-  num.new.iso.mask <- length(ids.new.iso.mask)
-  if (num.new.iso.mask > 0) {
-    isolate[ids.new.iso.mask] <- 3 # post-isolation masking
+  num.new.iso3 <- 0
+  ids.new.iso3 <- which(active == 1 & status == "r" & isolate == 1 & (at - isoTime) > 5)
+  num.new.iso3 <- length(ids.new.iso3)
+  if (num.new.iso3 > 0) {
+    isolate[ids.new.iso3] <- 3 # post-isolation masking
   }
 
   # End isolation pathway
@@ -318,7 +318,8 @@ progress_covid <- function(dat, at) {
   dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
   dat <- set_epi(dat, "iso1.flow", at, num.new.iso1)
   dat <- set_epi(dat, "iso2.flow", at, num.new.iso2)
-  dat <- set_epi(dat, "isomask.flow", at, num.new.iso.mask)
+  dat <- set_epi(dat, "iso3.flow", at, num.new.iso3)
+  dat <- set_epi(dat, "iso4.flow", at, num.new.iso4)
   dat <- set_epi(dat, "isoend.flow", at, num.new.iso.end)
 
   return(dat)
