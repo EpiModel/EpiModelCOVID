@@ -27,17 +27,27 @@ dx_covid <- function(dat, at) {
   idsDx.sympt.pos <- idsDx.other.pos.true <- NULL
   idsDx.sympt.neg <- idsDx.other.pos.false <- NULL
 
-  idsElig.sympt <- which(active == 1 & dxStatus %in% 0:1 & status == "ic")
+  #symptomatic IDs not on isolation pathway (use symptomatic test rate)
+  idsElig.sympt <- which(active == 1 & dxStatus %in% 0:1 & status == "ic" &
+                           is.na(isolate))
+  #asymptomatic IDs not on isolation pathway (use symptomatic test rate)
   if (allow.rescreen == TRUE) {
     idsElig.other <- which(active == 1 & dxStatus %in% 0:1 &
-                             status %in% c("s", "e", "a", "ip", "r"))
+                             status %in% c("s", "e", "a", "ip", "r") &
+                             is.na(isolate))
   } else {
     idsElig.other <- which(active == 1 & dxStatus == 0 &
-                             status %in% c("s", "e", "a", "ip", "r"))
+                             status %in% c("s", "e", "a", "ip", "r") &
+                             is.na(isolate))
   }
+  #IDs on isolation pathway --> all test
+  # including those with positive dx so they can exit isolation if negative
+  idsElig.iso <- which(active == 1 &
+                         (isolate == 3 | (isolate == 4 & (at - isoTime) > 5)))
 
+  # Testing for symptomatic (not currently isolating)
   nElig.sympt <- length(idsElig.sympt)
-  num.sympt.neg <- 0
+  num.new.dx.sympt.iso <- 0
   if (nElig.sympt > 0) {
     vecDx.sympt <- which(rbinom(nElig.sympt, 1, dx.rate.sympt) == 1)
     idsDx.sympt <- idsElig.sympt[vecDx.sympt]
@@ -50,12 +60,8 @@ dx_covid <- function(dat, at) {
       dxStatus[idsDx.sympt.neg] <- 1
       dxTime[idsDx.sympt.pos] <- at
       dxTime[idsDx.sympt.neg] <- at
-      # end isolation pathway for those who test negative
-      isolate[idsDx.sympt.neg] <- NA
-      isoTime[idsDx.sympt.neg] <- NA
-      num.sympt.neg <- length(idsDx.sympt.neg)
+
       # start isolation pathway for positive tests not already isolating
-      num.new.dx.sympt.iso <- 0
       ids.new.dx.sympt.not.iso <- intersect(idsDx.sympt.pos, which(is.na(isolate)))
       vec.dx.sympt.iso <- which(rbinom(length(ids.new.dx.sympt.not.iso), 1, iso.prob) == 1)
       if (length(vec.dx.sympt.iso) > 0) {
@@ -67,14 +73,15 @@ dx_covid <- function(dat, at) {
     }
   }
 
+  # Testing for asymptomatic (not currently isolating)
   nElig.other <- length(idsElig.other)
+  num.new.dx.iso <- 0
   if (nElig.other > 0) {
     vecDx.other <- which(rbinom(nElig.other, 1, dx.rate.other) == 1)
     idsDx.other <- idsElig.other[vecDx.other]
     nDx.other <- length(idsDx.other)
     if (nDx.other > 0) {
       idsDx.other.neg <- intersect(idsDx.other, which(status == "s", "e", "r"))
-      # this should include a and ip - see if data to warrant differential pcr sens
       idsDx.other.pos.all <- intersect(idsDx.other,
                                        which(status %in% c("a", "ip")))
       vecDx.other.pos <- rbinom(length(idsDx.other.pos.all), 1, pcr.sens)
@@ -88,7 +95,6 @@ dx_covid <- function(dat, at) {
       dxTime[idsDx.other.pos.true] <- at
 
       # start isolation pathway for positive tests not already isolating
-      num.new.dx.iso <- 0
       ids.new.dx.not.iso <- intersect(idsDx.other.pos.true, which(is.na(isolate)))
       vec.dx.iso <- which(rbinom(length(ids.new.dx.not.iso), 1, iso.prob) == 1)
       if (length(vec.dx.iso) > 0) {
@@ -98,13 +104,36 @@ dx_covid <- function(dat, at) {
         isoTime[ids.new.dx.iso] <- at
       }
 
-      # end isolation pathway for false negatives who were isolating
-      num.new.dx.end.iso <- 0
-      ids.new.dx.end.iso <- intersect(c(idsDx.other.neg,idsDx.other.pos.false), which(!is.na(isolate)))
-      if (length(ids.new.dx.end.iso) > 0) {
-        num.new.dx.end.iso <- length(ids.new.dx.end.iso)
-        isolate[ids.new.dx.end.iso] <- NA
-        isoTime[ids.new.dx.end.iso] <- NA
+    }
+  }
+
+  # Testing for those on isolation pathway
+  nElig.iso <- length(idsElig.iso)
+  num.iso.end.iso <- 0
+  if (nElig.iso > 0) {
+    vecDx.iso <- which(rbinom(nElig.iso, 1, 1) == 1) #all test (for now)
+    idsDx.iso <- idsElig.iso[vecDx.iso]
+    nDx.iso <- length(idsDx.iso)
+    if (nDx.iso > 0) {
+      idsDx.iso.neg <- intersect(idsDx.iso, which(status == "s", "e", "r"))
+      idsDx.iso.pos.all <- intersect(idsDx.iso,
+                                       which(status %in% c("a", "ip", "ic")))
+      vecDx.iso.pos <- rbinom(length(idsDx.iso.pos.all), 1, pcr.sens)
+      idsDx.iso.pos.true <- idsDx.iso.pos.all[which(vecDx.iso.pos == 1)]
+      idsDx.iso.pos.false <- idsDx.iso.pos.all[which(vecDx.iso.pos == 0)]
+      dxStatus[idsDx.iso.neg] <- 1
+      dxStatus[idsDx.iso.pos.false] <- 1
+      dxStatus[idsDx.iso.pos.true] <- 2
+      dxTime[idsDx.iso.neg] <- at
+      dxTime[idsDx.iso.pos.false] <- at
+      dxTime[idsDx.iso.pos.true] <- at
+
+      # end isolation pathway for those who test negative
+      ids.iso.end.iso <- intersect(c(idsDx.iso.neg,idsDx.iso.pos.false), which(!is.na(isolate)))
+      if (length(ids.iso.end.iso) > 0) {
+        num.iso.end.iso <- length(ids.iso.end.iso)
+        isolate[ids.iso.end.iso] <- NA
+        isoTime[ids.iso.end.iso] <- NA
       }
     }
   }
@@ -122,9 +151,8 @@ dx_covid <- function(dat, at) {
   dat <- set_epi(dat, "nDx.pos.sympt", at, length(idsDx.sympt.pos))
   dat <- set_epi(dat, "nDx.pos.fn", at, length(idsDx.sympt.neg) +
                    length(idsDx.other.pos.false))
-  dat <- set_epi(dat, "nDx.new.iso", at, num.new.dx.iso)
-  dat <- set_epi(dat, "nDx.sympt.end.iso", at, num.sympt.neg)
-  dat <- set_epi(dat, "nDx.other.end.iso", at, num.new.dx.end.iso)
+  dat <- set_epi(dat, "nDx.new.iso", at, num.new.dx.sympt.iso + num.new.dx.iso)
+  dat <- set_epi(dat, "nDx.end.iso", at, num.iso.end.iso)
 
   return(dat)
 }
