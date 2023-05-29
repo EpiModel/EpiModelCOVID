@@ -6,6 +6,7 @@ aging_covid <- function(dat, at) {
   age <- get_attr(dat, "age")
   vaxType <- get_attr(dat, "vaxType")
   vax.age.group <- get_attr(dat, "vax.age.group")
+  willing.time <- get_attr(dat, "willing.time")
   
   #Update age
   age <- age + 1 / 365
@@ -25,11 +26,13 @@ aging_covid <- function(dat, at) {
   vax.willing.prob <- get_param(dat, "vax.willing.prob")
   vaxType.new <- rbinom(length(idsNewAdults), 1, vax.willing.prob[1])
   vaxType[idsNewAdults] <- vaxType.new
+  willing.time[idsNewAdults[which(vaxType.new == 1)]] <- at
   
   dat <- set_attr(dat, "vaxType", vaxType)
   dat <- set_attr(dat, "vax.age.group", vax.age.group)
   dat <- set_attr(dat, "age", age)
   dat <- set_attr(dat, "age.grp", age.grp)
+  dat <- set_attr(dat, "willing.time", willing.time)
   return(dat)
 }
 
@@ -173,12 +176,15 @@ setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
   ## Vaccine willingness vs. resistance
   vax.willing.prob <- get_param(dat, "vax.willing.prob")
   vaxType.new <- rep(NA, nNew)
+  willing.time.new <- rep(NA, nNew)
   idsnewAdults <- which(vax.age.group >= 3)
   
   vaxType.newAdults <- rbinom(length(idsnewAdults), 1, 
                               vax.willing.prob[vax.age.group[idsnewAdults] - 2])
   vaxType.new[idsnewAdults] <- vaxType.newAdults
+  willing.time.new[idsnewAdults[which(vaxType.newAdults == 1)]] <- at
   dat <- append_attr(dat, "vaxType", vaxType.new, nNew)
+  dat <- append_attr(dat, "willing.time", willing.time.new, nNew)
 
   return(dat)
 }
