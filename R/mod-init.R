@@ -91,14 +91,11 @@ init_status_covid_vax_decisions <- function(dat) {
   ## Vaccine willingness vs. resistance
   vax.willing.prob <- get_param(dat, "vax.willing.prob")
   vaxType <- rep(NA, num)
-  willing.time <- rep(NA, num)
   idsAdults <- which(vax.age.group >= 3)
   vaxType.adults <- rbinom(length(idsAdults), 1, 
                            vax.willing.prob[vax.age.group[idsAdults] - 2])
   vaxType[idsAdults] <- vaxType.adults
-  willing.time[which(vaxType == 1)] <- 1
   dat <- set_attr(dat, "vaxType", vaxType)
-  dat <- set_attr(dat, "willing.time", willing.time)
 
   # Infection Time and related attributes
   idsInf <- which(status == "e")
