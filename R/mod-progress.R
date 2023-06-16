@@ -26,6 +26,12 @@ progress_covid_vax_decisions <- function(dat, at) {
   vax3.rr.clinical <- get_param(dat, "vax3.rr.clinical")
   vax4.rr.clinical <- get_param(dat, "vax4.rr.clinical")
   prop.hospit <- get_param(dat, "prop.hospit")
+  hosp.boost.mult <- get_param(dat, "hosp.boost.mult")
+  hosp.boost.start <- get_param(dat, "hosp.boost.start")
+  hosp.boost.stop <- get_param(dat, "hosp.boost.stop")
+  hosp.supp.mult <- get_param(dat, "hosp.supp.mult")
+  hosp.supp.start <- get_param(dat, "hosp.supp.start")
+  hosp.supp.stop <- get_param(dat, "hosp.supp.stop")
   vax1.rr.hosp <- get_param(dat, "vax1.rr.hosp")
   vax2.rr.hosp <- get_param(dat, "vax2.rr.hosp")
   vax3.rr.hosp <- get_param(dat, "vax3.rr.hosp")
@@ -159,6 +165,14 @@ progress_covid_vax_decisions <- function(dat, at) {
     
     prop.hosp.vec <- pmin(prop.hosp.vec * (2 ^ (latest.vax / half.life)), prop.hospit[age.group])
     
+    if (at >= hosp.boost.start & at <= hosp.boost.stop) {
+      prop.hosp.vec <- prop.hosp.vec * hosp.boost.mult
+    }
+    
+    if (at >= hosp.supp.start & at <= hosp.supp.stop) {
+      prop.hosp.vec <- prop.hosp.vec * hosp.supp.mult
+    }
+    
     #Set pathway
     if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
@@ -219,6 +233,8 @@ progress_covid_vax_decisions <- function(dat, at) {
       status[ids.new.RS] <- "s"
       statusTime[ids.new.RS] <- at
       dxStatus[ids.new.RS] <- 0
+      hospit[ids.new.RS] <- NA
+      clinical[ids.new.RS] <- NA
     }
   }
   

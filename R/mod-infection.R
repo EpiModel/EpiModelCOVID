@@ -28,7 +28,8 @@ infect_covid_vax_decisions <- function(dat, at) {
   vax3.rr.infect <- get_param(dat, "vax3.rr.infect")
   vax4.rr.infect <- get_param(dat, "vax4.rr.infect")
   half.life <- get_param(dat, "half.life")
-  inf.diff <- get_param(dat, "inf.diff")
+  inf.add <- get_param(dat, "inf.add")
+  inf.sub <- get_param(dat, "inf.sub")
   inf.boost.start <- get_param(dat, "inf.boost.start")
   inf.boost.stop <- get_param(dat, "inf.boost.stop")
   inf.supp.start <- get_param(dat, "inf.supp.start")
@@ -54,13 +55,13 @@ infect_covid_vax_decisions <- function(dat, at) {
         # Update inf.prob to account for seasonal variation
         for (i in seq_along(inf.boost.start)) {
           if (at >= inf.boost.start[i] & at <= inf.boost.stop[i]){
-            inf.prob <- inf.prob + inf.diff
+            inf.prob <- inf.prob + inf.add[i]
           }
         }
         
         for (i in seq_along(inf.supp.start)) {
           if (at >= inf.supp.start[i] & at <= inf.supp.stop[i])
-            inf.prob <- inf.prob - inf.diff
+            inf.prob <- inf.prob - inf.sub[i]
         }
         
         # Set parameters on discordant edgelist data frame

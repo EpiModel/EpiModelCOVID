@@ -62,7 +62,8 @@ vax_covid_vax_decisions <- function(dat, at) {
     prev.hosp.flag <- get_epi(dat, "hosp.flag")
     
     if (h.7avg.num.prev / sum(active == 1) < hosp.th &
-        h.7avg.num.curr / sum(active == 1) >= hosp.th) {
+        h.7avg.num.curr / sum(active == 1) >= hosp.th &
+        at >= vax1.start[3]) {
       hosp.flag <- 1
     }
     
