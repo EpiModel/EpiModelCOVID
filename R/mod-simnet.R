@@ -91,7 +91,7 @@ resim_nets_covid_corporate <- function(dat, at) {
   dat <- edges_correct_covid(dat, at)
 
   # Network Resimulation
-  for (i in seq_along(dat[["el"]])) {
+  for (i in seq_len(length(dat[["el"]]) - 1)) {
     nwparam <- get_nwparam(dat, network = i)
     isTERGM <- nwparam[["isTERGM"]]
 

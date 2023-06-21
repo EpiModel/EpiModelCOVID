@@ -188,6 +188,7 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
 
   dat <- append_core_attr(dat, at, nNew)
 
+  # Age related
   arrival.age <- get_param(dat, "arrival.age")
   newAges <- rep(arrival.age, nNew)
   dat <- append_attr(dat, "age", newAges, nNew)
@@ -195,6 +196,27 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   age.breaks <- seq(0, 200, 10)
   attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
+
+  # Assign new nodes to households
+  age.grp <- get_attr(dat, "age.grp")
+  household <- get_attr(dat, "household")
+
+  newHH <- rep(NA, length(newAges))
+  for (i in seq_along(unique(attr_age.grp))) {
+    newHH[attr_age.grp == unique(attr_age.grp)[i]] <-
+      sample(household[which(age.grp == unique(attr_age.grp)[i])],
+             sum(attr_age.grp == unique(attr_age.grp)[i]), replace = TRUE)
+  }
+
+  # Update household edgelist
+  heads <- cbind((length(household) + 1):(length(household) + nNew), newHH)
+  tails <- cbind(which(household %in% newHH), household[which(household %in% newHH)])
+  new.edges <- merge(heads, tails, by.x = 2, by.y = 2)[, 2:3]
+  new.edgelist <- as.matrix(rbind(dat$el[[3]], setNames(new.edges, c(".head", ".tail"))))
+  attr(new.edgelist, 'n') <- attr(dat$el[[3]], 'n')
+  dat$el[[3]] <- new.edgelist
+
+  dat <- append_attr(dat, "household", newHH, nNew)
 
   # Disease status and related
   dat <- append_attr(dat, "status", "s", nNew)
@@ -211,6 +233,7 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   dat <- append_attr(dat, "vax3Time", NA, nNew)
   dat <- append_attr(dat, "isolate", NA, nNew)
   dat <- append_attr(dat, "isoTime", NA, nNew)
+  dat <- append_attr(dat, "non.office", 1, nNew)
 
   return(dat)
 }

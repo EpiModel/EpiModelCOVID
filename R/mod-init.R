@@ -109,7 +109,7 @@ init_covid_corporate <- function(x, param, init, control, s) {
   ## Network Setup ##
   # Initial network simulations
   dat[["nw"]] <- list()
-  for (i in 1:3) {
+  for (i in 1:2) {
     dat[["nw"]][[i]] <- simulate(
       x[[i]][["formula"]],
       coef = x[[i]][["coef.form.crude"]],
@@ -141,6 +141,10 @@ init_covid_corporate <- function(x, param, init, control, s) {
 
   # Convert to tergmLite method
   dat <- init_tergmLite(dat)
+
+  # Add household network edgelist
+  dat$el[[length(x) + 1]] <- as.matrix(dat$param$hh.pairs)
+  attr(dat$el[[length(x) + 1]], 'n') <- num
 
   ## Infection Status and Time Modules
   dat <- init_status_covid_corporate(dat)
