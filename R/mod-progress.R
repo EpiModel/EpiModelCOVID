@@ -18,6 +18,8 @@ progress_covid <- function(dat, at) {
   vax3Time <- get_attr(dat, "vax3Time")
   dxStatus <- get_attr(dat, "dxStatus")
   dxTime <- get_attr(dat, "dxTime")
+  household <- get_attr(dat, "household")
+  non.office <- get_attr(dat, "non.office")
 
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
@@ -41,50 +43,121 @@ progress_covid <- function(dat, at) {
   iso.prob <- get_param(dat, "iso.prob")
   notif.prob <- get_param(dat, "notif.prob")
 
+  # Number of networks, excluding households
+  nLayers <- length(dat$el) - 1
+
   # Determine exposures to infected contacts for masking guidelines
   num.elig.exp <- 0
   num.new.iso4 <- 0
-  # pull ids for non-symtomatic, not diagnosed, not isolating
+
+  # pull ids for non-symptomatic, not diagnosed, not isolating
   ids.elig.exp <- which(active == 1 & status %in% c("s","a","e","ip","r") &
                        is.na(isolate) & dxStatus %in% 0:1)
   num.elig.exp <- length(ids.elig.exp)
   if (num.elig.exp > 0) {
-    # pull their partners and only keep those who have been diagnosed
-    # in the past 3 time steps
+
+    # pull partners of ids identified above (only looks at work/community layers)
     ids.exp <- get_partners(dat,ids.elig.exp, only.active.nodes = TRUE)
     ids.exp$index_posit_ids <- get_posit_ids(dat,ids.exp$index)
     ids.exp$partner_posit_ids <- get_posit_ids(dat,ids.exp$partner)
+    ids.exp$hh.index <- household[ids.exp$index_posit_ids]
+
+    # identify people who have been diagnosed in the past 3 time steps
     ids.dx <- which(active == 1 & dxStatus == 2 & dxTime >= at-2)
     ids.dx.time <- data.frame(partner_posit_ids = ids.dx,
-                              dxTime = dxTime[ids.dx])
+                              dxTime = dxTime[ids.dx],
+                              hh.partner = household[ids.dx],
+                              non.office = non.office[ids.dx])
     ids.exp.dx <- merge(ids.dx.time,ids.exp,by = "partner_posit_ids")
+
+    # pull household members of those diagnosed in past 3 time steps
+    ids.exp.dx.hh <- data.frame(
+      partner_posit_ids = numeric(),
+      dxTime = numeric(),
+      hh.partner = numeric(),
+      non.office = numeric(),
+      index = numeric(),
+      partner = numeric(),
+      start = numeric(),
+      stop = numeric(),
+      network = numeric(),
+      index_posit_ids = numeric(),
+      hh.index = numeric()
+    )
+    for (i in ids.dx) {
+      l <- length(which(household==household[i]))
+      new_row <- list(
+        partner_posit_ids = rep(i,l),
+        dxTime = rep(dxTime[i],l),
+        hh.partner = rep(household[i],l),
+        non.office = rep(non.office[i],l),
+        index = get_unique_ids(dat,which(household==household[i])),
+        partner = rep(get_unique_ids(dat,i),l),
+        start = rep(1,l),
+        stop = rep(NA,l),
+        network = rep(3,l),
+        index_posit_ids = which(household==household[i]),
+        hh.index = household[which(household==household[i])]
+      )
+      ids.exp.dx.hh <- rbind(ids.exp.dx.hh,new_row)
+    }
+    ids.exp.dx.hh <- ids.exp.dx.hh[ids.exp.dx.hh$index_posit_ids %in% ids.exp$index_posit_ids,]
+
+    # add household edges
+    ids.exp.dx <- rbind(ids.exp.dx,ids.exp.dx.hh)
+
     # keep only contacts that occurred before the diagnosis, by network
     ids.exp.dx2 <- subset(ids.exp.dx,
-                          (network == 1 & ids.exp.dx$dxTime == at-1) |
-                            (network == 2 & ids.exp.dx$dxTime >= at-3) |
-                            (network == 3 &
+                          (network == 3 & ids.exp.dx$dxTime == at-1) |
+                            (network == 1 & ids.exp.dx$dxTime >= at-3) |
+                            (network == 2 &
                                ids.exp.dx$dxTime >= ids.exp.dx$stop &
                                ids.exp.dx$dxTime <= ids.exp.dx$stop + 3))
-    ids.index <- ids.exp.dx2$index_posit_ids
-    ids.index <- unique(ids.index)
-    if (length(ids.index) > 0) {
-      vec.new.notif <- which(rbinom(length(ids.index),1,notif.prob) == 1)
-      if (length(vec.new.notif) > 0) {
-        ids.new.notif <- ids.index[vec.new.notif]
-        vec.new.iso4 <- which(rbinom(length(ids.new.notif), 1, iso.prob) == 1)
-        if (length(vec.new.iso4) > 0) {
-          ids.new.iso4 <- ids.new.notif[vec.new.iso4]
-          num.new.iso4 <- length(ids.new.iso4)
-          partner.dx.time <- subset(ids.exp.dx2, ids.exp.dx2$index_posit_ids %in% ids.new.iso4)
-          partner.dx.time <- partner.dx.time[ave(partner.dx.time$dxTime,
-                                                 partner.dx.time$index_posit_ids,
-                                                 FUN = function(x) x == min(x)) == 1, ]
-          # need to keep one dxtime per index
-          # set exposure time based on network
-          isolate[ids.new.iso4] <- 4 # masking due to exposure notification
-          isoTime[ids.new.iso4] <- partner.dx.time$dxTime # change to time of exposure
+
+    if (length(unique(ids.exp.dx2$index_posit_ids)) > 0) {
+      # loop through networks
+      for (j in 1:3) {
+        ids.index <- unique(ids.exp.dx2$index_posit_ids[ids.exp.dx2$network == j])
+        # identify those who were notified of the exposure by their contact
+        vec.new.notif <- which(rbinom(length(ids.index),1,notif.prob[j]) == 1)
+
+        if (length(vec.new.notif) > 0) {
+          ids.new.notif <- ids.index[vec.new.notif]
+          # identify those who decide to follow isolation guidelines
+          vec.new.iso4 <- which(rbinom(length(ids.new.notif), 1, iso.prob) == 1)
+          if (length(vec.new.iso4) > 0) {
+            ids.new.iso4 <- ids.new.notif[vec.new.iso4]
+            num.new.iso4 <- num.new.iso4 + length(ids.new.iso4)
+            isolate[ids.new.iso4] <- 4 # masking due to exposure notification
+
+            partner.dx.time <- subset(ids.exp.dx2, ids.exp.dx2$index_posit_ids %in% ids.new.iso4)
+            if (j == 2) {
+              # for community contacts, start isolation at time of contact
+              partner.dx.time <- partner.dx.time[,c("start",
+                                                    "index_posit_ids")]
+              partner.dx.time <- partner.dx.time[ave(partner.dx.time$start,
+                                                     partner.dx.time$index_posit_ids,
+                                                     FUN = function(x) x == min(x)) == 1, ]
+              partner.dx.time <- unique(partner.dx.time)
+              if (length(ids.new.iso4) != length(partner.dx.time$start)) browser()
+              isoTime[ids.new.iso4] <- partner.dx.time$start
+            } else {
+              # for HH and office contacts, start isolation at time of diagnosis
+              # since contacts are 'permanent'
+              partner.dx.time <- partner.dx.time[,c("dxTime",
+                                                    "index_posit_ids")]
+              partner.dx.time <- partner.dx.time[ave(partner.dx.time$dxTime,
+                                                     partner.dx.time$index_posit_ids,
+                                                     FUN = function(x) x == min(x)) == 1, ]
+              partner.dx.time <- unique(partner.dx.time)
+              if (length(ids.new.iso4) != length(partner.dx.time$dxTime)) browser()
+              isoTime[ids.new.iso4] <- partner.dx.time$dxTime
+            }
+
+          }
         }
       }
+
     }
   }
 
