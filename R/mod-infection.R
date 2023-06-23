@@ -254,9 +254,14 @@ infect_covid_corporate <- function(dat, at) {
   ## Attributes ##
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
-  vax <- get_attr(dat, "vax")
   dxStatus <- get_attr(dat, "dxStatus")
   isolate <- get_attr(dat, "isolate")
+
+  vax <- get_attr(dat, "vax")
+  vax1Time <- get_attr(dat, "vax1Time")
+  vax2Time <- get_attr(dat, "vax2Time")
+  vax3Time <- get_attr(dat, "vax3Time")
+  vax4Time <- get_attr(dat, "vax4Time")
 
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
@@ -269,6 +274,9 @@ infect_covid_corporate <- function(dat, at) {
   act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
   vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
+  vax3.rr.infect <- get_param(dat, "vax3.rr.infect")
+  vax4.rr.infect <- get_param(dat, "vax4.rr.infect")
+  half.life <- get_param(dat, "half.life")
   inf.prob.mask.rr <- get_param(dat, "inf.prob.mask.rr")
   act.rate.iso.inter.time <- get_param(dat, "act.rate.iso.inter.time")
   act.rate.iso.inter.rr <- get_param(dat, "act.rate.iso.inter.rr")
@@ -298,10 +306,22 @@ infect_covid_corporate <- function(dat, at) {
 
         # Vaccination
         del$vaxSus <- vax[del$sus]
-        del$transProb[del$vaxSus %in% 2:3] <- del$transProb[del$vaxSus %in% 2:3] *
-                                          vax1.rr.infect
-        del$transProb[del$vaxSus == 4] <- del$transProb[del$vaxSus == 4] *
-                                          vax2.rr.infect
+        del$transProb[del$vaxSus == 1] <- del$transProb[del$vaxSus == 1] * vax1.rr.infect
+        del$transProb[del$vaxSus == 2] <- del$transProb[del$vaxSus == 2] * vax2.rr.infect
+        del$transProb[del$vaxSus == 3] <- del$transProb[del$vaxSus == 3] * vax3.rr.infect
+        del$transProb[del$vaxSus == 4] <- del$transProb[del$vaxSus == 4] * vax4.rr.infect
+
+        #Waning vaccine immunity
+        sinceVax1 <- at - vax1Time[del$sus]
+        sinceVax2 <- at - vax2Time[del$sus]
+        sinceVax3 <- at - vax3Time[del$sus]
+        sinceVax4 <- at - vax4Time[del$sus]
+
+        latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, sinceVax4, na.rm = TRUE)
+        latest.vax[is.na(latest.vax)] <- 0
+
+        del$latest.vax <- latest.vax
+        del$transProb <- pmin(del$transProb * (2 ^ (del$latest.vax / half.life)), inf.prob)
 
         # Asymptomatic infection
         del$stat <- status[del$inf]
@@ -354,6 +374,9 @@ infect_covid_corporate <- function(dat, at) {
 
   ## Summary statistics for incidence
   dat$epi$se.flow[at] <- sum(nInf)
+  dat$epi$se.flow.l1[at] <- nInf[1]
+  dat$epi$se.flow.l2[at] <- nInf[2]
+  dat$epi$se.flow.l3[at] <- nInf[3]
 
   return(dat)
 }

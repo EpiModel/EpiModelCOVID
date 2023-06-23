@@ -4,8 +4,24 @@
 aging_covid <- function(dat, at) {
 
   age <- get_attr(dat, "age")
+  vax.age.group <- get_attr(dat, "vax.age.group")
+
+  #Update age
   age <- age + 1 / 365
+
+  #Update age.grp
+  age.breaks <- seq(0, 200, 10)
+  age.grp <- cut(age, age.breaks, labels = FALSE, right = FALSE)
+
+  #Update vax.age.group
+  vax.age.group[which(age >= 5 & age < 18)] <- 2
+  vax.age.group[which(age >= 18 & age < 50)] <- 3
+  vax.age.group[which(age >= 50 & age < 65)] <- 4
+  vax.age.group[which(age >= 65)] <- 5
+
+  dat <- set_attr(dat, "vax.age.group", vax.age.group)
   dat <- set_attr(dat, "age", age)
+  dat <- set_attr(dat, "age.grp", age.grp)
 
   return(dat)
 }
@@ -197,6 +213,14 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
 
+  vax.age.group <- rep(NA, length(newAges))
+  vax.age.group[newAges < 5] <- 1
+  vax.age.group[newAges >= 5 & newAges < 18] <- 2
+  vax.age.group[newAges >= 18 & newAges < 50] <- 3
+  vax.age.group[newAges >= 50 & newAges < 65] <- 4
+  vax.age.group[newAges >= 65] <- 5
+  dat <- append_attr(dat, "vax.age.group", vax.age.group, nNew)
+
   # Assign new nodes to households
   age.grp <- get_attr(dat, "age.grp")
   household <- get_attr(dat, "household")
@@ -231,6 +255,7 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   dat <- append_attr(dat, "vax1Time", NA, nNew)
   dat <- append_attr(dat, "vax2Time", NA, nNew)
   dat <- append_attr(dat, "vax3Time", NA, nNew)
+  dat <- append_attr(dat, "vax4Time", NA, nNew)
   dat <- append_attr(dat, "isolate", NA, nNew)
   dat <- append_attr(dat, "isoTime", NA, nNew)
   dat <- append_attr(dat, "non.office", 1, nNew)
