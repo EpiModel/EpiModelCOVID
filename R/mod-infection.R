@@ -268,10 +268,6 @@ infect_covid_corporate <- function(dat, at) {
 
   ## Common Parameters ##
   inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr")
-  act.rate.dx.inter.rr <- get_param(dat, "act.rate.dx.inter.rr")
-  act.rate.dx.inter.time <- get_param(dat, "act.rate.dx.inter.time")
-  act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr")
-  act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
   vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
   vax3.rr.infect <- get_param(dat, "vax3.rr.infect")
