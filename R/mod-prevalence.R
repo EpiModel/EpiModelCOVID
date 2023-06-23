@@ -11,7 +11,7 @@ prevalence_covid_corporate <- function(dat, at) {
   # Initialize Outputs
   var.names <- c("num", "s.num", "e.num", "a.num", "ip.num", "ic.num", "r.num",
                  "h.num", "v1.num", "v2.num", "v3.num", "v4.num",
-                 "iso.num", "mask.num")
+                 "iso.mild.num","iso.sev.num", "mask.post.num","mask.exp.num")
   if (at == 1) {
     for (i in seq_along(var.names)) {
       dat <- add_epi(dat, var.names[i])
@@ -33,9 +33,10 @@ prevalence_covid_corporate <- function(dat, at) {
   dat <- set_epi(dat, "v3.num", at, sum(active == 1 & vax == 3))
   dat <- set_epi(dat, "v4.num", at, sum(active == 1 & vax == 4))
 
-  dat <- set_epi(dat, "iso.num", at, sum(active == 1 & isolate %in% c(1,2)))
-  dat <- set_epi(dat, "mask.num", at, sum(active == 1 & isolate %in% c(3,4)))
-
+  dat <- set_epi(dat, "iso.mild.num", at, sum(active == 1 & isolate == 1))
+  dat <- set_epi(dat, "iso.sev.num", at, sum(active == 1 & isolate == 2))
+  dat <- set_epi(dat, "mask.post.num", at, sum(active == 1 & isolate == 3))
+  dat <- set_epi(dat, "mask.exp.num", at, sum(active == 1 & isolate == 4))
 
   return(dat)
 }
