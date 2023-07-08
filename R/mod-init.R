@@ -83,7 +83,6 @@ init_covid_corporate <- function(x, param, init, control, s) {
   ## Get initial prevalence
   dat <- prevalence_covid_corporate(dat, at = 1)
 
-  class(dat) <- "dat"
   return(dat)
 }
 
