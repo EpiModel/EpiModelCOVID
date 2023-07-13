@@ -268,7 +268,7 @@ infect_covid_corporate <- function(dat, at) {
   vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
 
-  nLayers <- length(dat$el)
+  nLayers <- dat$num.nw
   nInf <- rep(0, nLayers)
 
   if (length(idsInf) > 0) {

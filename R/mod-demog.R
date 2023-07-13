@@ -44,10 +44,7 @@ deaths_covid_ship <- function(dat, at) {
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
-      dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in seq_along(dat$el)) {
-        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
-      }
+      dat <- depart_nodes(dat, inactive)
     }
   }
 
@@ -93,10 +90,7 @@ deaths_covid_corporate <- function(dat, at) {
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
-      dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in seq_along(dat$el)) {
-        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
-      }
+      dat <- depart_nodes(dat, inactive)
     }
   }
 
@@ -141,10 +135,7 @@ offload_covid_ship <- function(dat, at) {
     if (nExits > 0) {
       active[idsExits] <- 0
       inactive <- which(active == 0)
-      dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in seq_along(dat$el)) {
-        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
-      }
+      dat <- depart_nodes(dat, inactive)
     }
   }
 
@@ -171,11 +162,7 @@ arrival_covid_corporate <- function(dat, at) {
   }
 
   # Update Networks
-  if (nNew > 0) {
-    for (i in seq_along(dat$el)) {
-      dat$el[[i]] <- add_vertices(dat$el[[i]], nNew)
-    }
-  }
+  dat <- arrive_nodes(dat, nNew)
 
   ## Output
   dat <- set_epi(dat, "nNew", at, nNew)

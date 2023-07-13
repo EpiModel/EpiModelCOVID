@@ -18,7 +18,7 @@ progress_covid(dat, at)
 vax_covid(dat, at)
 }
 \arguments{
-\item{dat}{Master list object of network models.}
+\item{dat}{Main `netsim_dat` class data object of network models.}
 
 \item{at}{Current time step.}
 }
