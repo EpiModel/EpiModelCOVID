@@ -38,13 +38,13 @@ aging_covid <- function(dat, at) {
 deaths_covid_vax_decisions <- function(dat, at) {
 
   ## Attributes ##
-  active <- get_attr(dat, "active")
-  age <- get_attr(dat, "age")
-  status <- get_attr(dat, "status")
+  active <- dat$attr$active
+  age <- dat$attr$age
+  status <- dat$attr$status
 
   ## Parameters ##
-  mort.rates <- get_param(dat, "mort.rates")
-  mort.dis.mult <- get_param(dat, "mort.dis.mult")
+  mort.rates <- dat$param$mort.rates
+  mort.dis.mult <- dat$param$mort.dis.mult
 
   idsElig <- which(active == 1)
   nElig <- length(idsElig)
@@ -67,10 +67,7 @@ deaths_covid_vax_decisions <- function(dat, at) {
     if (nDeaths > 0) {
       dat$attr$active[idsDeaths] <- 0
       inactive <- which(dat$attr$active == 0)
-      dat$attr <- deleteAttr(dat$attr, inactive)
-      for (i in seq_along(dat$el)) {
-        dat$el[[i]] <- delete_vertices(dat$el[[i]], inactive)
-      }
+      dat <- depart_nodes(dat, inactive)
     }
   }
 
@@ -84,7 +81,7 @@ deaths_covid_vax_decisions <- function(dat, at) {
 #' @rdname moduleset-vaxDecisions
 #' @export
 arrival_covid_vax_decisions <- function(dat, at) {
-  
+
   # Parameters
   a.rate   <- get_param(dat, "a.rate")
 
@@ -98,11 +95,7 @@ arrival_covid_vax_decisions <- function(dat, at) {
   }
 
   # Update Networks
-  if (nNew > 0) {
-    for (i in seq_along(dat$el)) {
-      dat$el[[i]] <- add_vertices(dat$el[[i]], nNew)
-    }
-  }
+  dat <- arrive_nodes(dat, nNew)
 
   ## Output
   dat <- set_epi(dat, "nNew", at, nNew)

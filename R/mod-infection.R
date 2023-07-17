@@ -35,7 +35,7 @@ infect_covid_vax_decisions <- function(dat, at) {
   inf.supp.start <- get_param(dat, "inf.supp.start")
   inf.supp.stop <- get_param(dat, "inf.supp.stop")
 
-  nLayers <- length(dat$el)
+  nLayers <- dat$num.nw
   nInf <- rep(0, nLayers)
 
   if (length(idsInf) > 0) {
