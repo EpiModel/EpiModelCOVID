@@ -2,7 +2,7 @@
 #' @export
 init_covid_vax_decisions <- function(x, param, init, control, s) {
 
-  # Master Data List
+  # Main Data List Setup
   dat <- create_dat_object(param, init, control)
 
   dat <- init_nets(dat, x)
@@ -10,6 +10,13 @@ init_covid_vax_decisions <- function(x, param, init, control, s) {
   # simulate first time step
   dat <- sim_nets_t1(dat)
   dat <- summary_nets(dat, at = 1L)
+  
+  # Add household network edgelist
+  dat$num.nw <- dat$num.nw + 1
+  dat$el[[dat$num.nw]] <- as.matrix(dat$param$hh.pairs)
+  attr(dat$el[[dat$num.nw]], 'n') <- get_epi(dat, "sim.num", at = 1)
+  dat$net_attr[[dat$num.nw]] <- list(n = get_epi(dat, "sim.num", at = 1))
+  dat$control[["tergmLite.track.duration"]][[dat$num.nw]] <- FALSE
 
   ## Infection Status and Time Modules
   dat <- init_status_covid_vax_decisions(dat)

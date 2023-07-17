@@ -31,7 +31,7 @@ resim_nets_covid_vax_decisions(dat, at)
 vax_covid_vax_decisions(dat, at)
 }
 \arguments{
-\item{dat}{Master list object of network models.}
+\item{dat}{Main `netsim_dat` class data object of network models.}
 
 \item{at}{Current time step.}
 
