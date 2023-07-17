@@ -38,13 +38,13 @@ aging_covid <- function(dat, at) {
 deaths_covid_vax_decisions <- function(dat, at) {
 
   ## Attributes ##
-  active <- dat$attr$active
-  age <- dat$attr$age
-  status <- dat$attr$status
+  active <- get_attr(dat, "active")
+  age <- get_attr(dat, "age")
+  status <- get_attr(dat, "status")
 
   ## Parameters ##
-  mort.rates <- dat$param$mort.rates
-  mort.dis.mult <- dat$param$mort.dis.mult
+  mort.rates <- get_param(dat, "mort.rates")
+  mort.dis.mult <- get_param(dat, "mort.dis.mult")
 
   idsElig <- which(active == 1)
   nElig <- length(idsElig)
@@ -137,9 +137,9 @@ setNewAttr_covid_vax_decisions <- function(dat, at, nNew) {
   heads <- cbind((length(household) + 1):(length(household) + nNew), newHH)
   tails <- cbind(which(household %in% newHH), household[which(household %in% newHH)])
   new.edges <- merge(heads, tails, by.x = 2, by.y = 2)[, 2:3]
-  new.edgelist <- as.matrix(rbind(dat$el[[2]], setNames(new.edges, c(".head", ".tail"))))
-  attr(new.edgelist, 'n') <- attr(dat$el[[2]], 'n')
-  dat$el[[2]] <- new.edgelist
+  new.edgelist <- as.matrix(rbind(dat$el[[dat$num.nw]], setNames(new.edges, c(".head", ".tail"))))
+  attr(new.edgelist, 'n') <- attr(dat$el[[dat$num.nw]], 'n')
+  dat$el[[dat$num.nw]] <- new.edgelist
     
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
   dat <- append_attr(dat, "age", newAges, nNew)
