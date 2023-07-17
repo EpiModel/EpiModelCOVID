@@ -30,6 +30,12 @@ progress_covid <- function(dat, at) {
   vax4.rr.clinical <- get_param(dat, "vax4.rr.clinical")
   half.life <- get_param(dat, "half.life")
   prop.hospit <- get_param(dat, "prop.hospit")
+  hosp.boost.mult <- get_param(dat, "hosp.boost.mult")
+  hosp.boost.start <- get_param(dat, "hosp.boost.start")
+  hosp.boost.stop <- get_param(dat, "hosp.boost.stop")
+  hosp.supp.mult <- get_param(dat, "hosp.supp.mult")
+  hosp.supp.start <- get_param(dat, "hosp.supp.start")
+  hosp.supp.stop <- get_param(dat, "hosp.supp.stop")
   vax1.rr.hosp <- get_param(dat, "vax1.rr.hosp")
   vax2.rr.hosp <- get_param(dat, "vax2.rr.hosp")
   vax3.rr.hosp <- get_param(dat, "vax3.rr.hosp")
@@ -289,11 +295,22 @@ progress_covid <- function(dat, at) {
 
     prop.hosp.vec <- pmin(prop.hosp.vec * (2 ^ (latest.vax / half.life)), prop.hospit[age.group])
 
+    if (at >= hosp.boost.start & at <= hosp.boost.stop) {
+      prop.hosp.vec <- prop.hosp.vec * hosp.boost.mult
+    }
+
+    if (at >= hosp.supp.start & at <= hosp.supp.stop) {
+      prop.hosp.vec <- prop.hosp.vec * hosp.supp.mult
+    }
+
+    #Set pathway
+    if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
     hospit[ids.newIc] <- vec.new.hospit
   }
 
   # Ic to H: clinical infectious move to hospitalized
+  num.new.IctoH <- 0
   num.new.iso2 <- 0
   ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
   num.Ich <- length(ids.Ich)
@@ -301,6 +318,7 @@ progress_covid <- function(dat, at) {
     vec.new.H <- which(rbinom(num.Ich, 1, ich.rate) == 1)
     if (length(vec.new.H) > 0) {
       ids.new.H <- ids.Ich[vec.new.H]
+      num.new.IctoH <- length(ids.new.H)
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
       ids.new.iso2 <- which(status == "h" & statusTime == at & isolate == 1)
@@ -388,6 +406,7 @@ progress_covid <- function(dat, at) {
   dat <- set_epi(dat, "eip.flow", at, num.new.EtoIp)
   dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
   dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
+  dat <- set_epi(dat, "ich.flow", at, num.new.IctoH)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
   dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
   dat <- set_epi(dat, "iso1.flow", at, num.new.iso1)

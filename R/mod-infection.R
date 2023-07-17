@@ -25,6 +25,12 @@ infect_covid_corporate <- function(dat, at) {
   vax3.rr.infect <- get_param(dat, "vax3.rr.infect")
   vax4.rr.infect <- get_param(dat, "vax4.rr.infect")
   half.life <- get_param(dat, "half.life")
+  inf.add <- get_param(dat, "inf.add")
+  inf.sub <- get_param(dat, "inf.sub")
+  inf.boost.start <- get_param(dat, "inf.boost.start")
+  inf.boost.stop <- get_param(dat, "inf.boost.stop")
+  inf.supp.start <- get_param(dat, "inf.supp.start")
+  inf.supp.stop <- get_param(dat, "inf.supp.stop")
   inf.prob.mask.rr <- get_param(dat, "inf.prob.mask.rr")
   act.rate.iso.inter.time <- get_param(dat, "act.rate.iso.inter.time")
   act.rate.iso.inter.rr <- get_param(dat, "act.rate.iso.inter.rr")
@@ -48,6 +54,18 @@ infect_covid_corporate <- function(dat, at) {
         inf.prob.inter.time <- get_param(dat, "inf.prob.inter.time")[layer]
         act.rate.inter.rr <- get_param(dat, "act.rate.inter.rr")[layer]
         act.rate.inter.time <- get_param(dat, "act.rate.inter.time")[layer]
+
+        # Update inf.prob to account for seasonal variation
+        for (i in seq_along(inf.boost.start)) {
+          if (at >= inf.boost.start[i] & at <= inf.boost.stop[i]){
+            inf.prob <- inf.prob + inf.add[i]
+          }
+        }
+
+        for (i in seq_along(inf.supp.start)) {
+          if (at >= inf.supp.start[i] & at <= inf.supp.stop[i])
+            inf.prob <- inf.prob - inf.sub[i]
+        }
 
         # Set parameters on discordant edgelist data frame
         del$transProb <- inf.prob
