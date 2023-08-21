@@ -9,13 +9,14 @@ Description: Provides extension functionality for the EpiModel package to simula
   the transmission SARS-CoV-2 infection and the resulting COVID-19 disease.
 License: GPL-3
 Depends:
-    R (>= 4.0.0),
-    EpiModel (>= 2.3.2),
-    network (>= 1.18.0),
-    tergm (>= 4.1.1)
+    R (>= 4.1.0),
+    EpiModel (>= 2.4.0),
+    network (>= 1.18.1),
+    tergm (>= 4.2.0)
 Imports:
-    ergm (>= 4.3.1),
-    networkLite (>= 1.0.1)
+    ergm (>= 4.5.0),
+    networkLite (>= 1.0.5),
+    statnet.common (>= 4.9.0)
 Suggests:
     testthat (>= 3.0.0)
 RoxygenNote: 7.2.3

@@ -36,7 +36,6 @@ est.hh <- netest(
   formation.hh,
   target.stats.hh,
   coef.diss.hh,
-  keep.fit = TRUE,
   set.control.ergm = control.ergm(MCMLE.maxit = 500)
 )
 
@@ -51,7 +50,6 @@ est.oo <- netest(
   formation.oo,
   target.stats.oo,
   coef.diss.oo,
-  keep.fit = TRUE,
   set.control.ergm = control.ergm(MCMLE.maxit = 500)
 )
 
@@ -66,7 +64,6 @@ est.cc <- netest(
   formation.cc,
   target.stats.cc,
   coef.diss.cc,
-  keep.fit = TRUE,
   set.control.ergm = control.ergm(MCMLE.maxit = 500)
 )
 
@@ -136,6 +133,7 @@ test_that("base corporate model parameterization", {
       "departures.FUN",
       "arrivals.FUN",
       "resim_nets.FUN",
+      "summary_nets.FUN",
       "infection.FUN",
       "recovery.FUN",
       "dx.FUN",
@@ -145,9 +143,6 @@ test_that("base corporate model parameterization", {
     resimulate.network = TRUE,
     tergmLite = TRUE,
     save.nwstats = TRUE,
-    nwstats.formula.1 = "formation",
-    nwstats.formula.2 = "formation",
-    nwstats.formula.3 = "formation",
     verbose = FALSE
   )
 
@@ -226,6 +221,7 @@ test_that("vax corporate model parameterization", {
       "departures.FUN",
       "arrivals.FUN",
       "resim_nets.FUN",
+      "summary_nets.FUN",
       "infection.FUN",
       "recovery.FUN",
       "dx.FUN",
@@ -236,9 +232,6 @@ test_that("vax corporate model parameterization", {
     skip.check = TRUE,
     tergmLite = TRUE,
     save.nwstats = TRUE,
-    nwstats.formula.1 = "formation",
-    nwstats.formula.2 = "formation",
-    nwstats.formula.3 = "formation",
     verbose = FALSE
   )
 
