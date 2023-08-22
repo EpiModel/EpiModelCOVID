@@ -181,7 +181,6 @@ test_that("base ship model parameterization", {
       "aging.FUN",
       "departures.FUN",
       "resim_nets.FUN",
-      "summary_nets.FUN",
       "infection.FUN",
       "recovery.FUN",
       "dx.FUN",

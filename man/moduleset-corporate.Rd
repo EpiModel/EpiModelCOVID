@@ -24,7 +24,7 @@ prevalence_covid_corporate(dat, at)
 resim_nets_covid_corporate(dat, at)
 }
 \arguments{
-\item{dat}{Main `netsim_dat` class data object of network models.}
+\item{dat}{Master list object of network models.}
 
 \item{at}{Current time step.}
 
