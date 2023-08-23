@@ -9,6 +9,7 @@
 \alias{init_covid_corporate}
 \alias{prevalence_covid_corporate}
 \alias{resim_nets_covid_corporate}
+\alias{update_cumulative_edgelist}
 \title{EpiModel Module Set for Corporate Office Model}
 \usage{
 deaths_covid_corporate(dat, at)
@@ -22,9 +23,11 @@ init_covid_corporate(x, param, init, control, s)
 prevalence_covid_corporate(dat, at)
 
 resim_nets_covid_corporate(dat, at)
+
+update_cumulative_edgelist(dat, network, truncate = 0)
 }
 \arguments{
-\item{dat}{Master list object of network models.}
+\item{dat}{Main `netsim_dat` class data object of network models.}
 
 \item{at}{Current time step.}
 

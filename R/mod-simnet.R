@@ -2,96 +2,72 @@
 #' @rdname moduleset-corporate
 #' @export
 resim_nets_covid_corporate <- function(dat, at) {
-
-  # controls
-  set.control.tergm <- get_control(dat, "set.control.tergm")
-  set.control.ergm <- get_control(dat, "set.control.ergm")
-  save.nwstats <- get_control(dat, "save.nwstats")
-  nwstats.formulas <- get_control(dat, "nwstats.formulas")
+  
+  dat$num.nw <- dat$num.nw - 1 # disregard household nw for this module
 
   ## Edges correction
-  dat <- edges_correct_covid(dat, at)
-
-  # Network Resimulation
-  for (i in seq_len(length(dat[["el"]]) - 1)) {
-    nwparam <- get_nwparam(dat, network = i)
-    isTERGM <- nwparam[["isTERGM"]]
-
-    nwL <- networkLite(dat[["el"]][[i]], dat[["attr"]])
-
-    if (isTERGM) {
-      dat[["nw"]][[i]] <- simulate(
-        nwL ~ Form(nwparam[["formation"]]) +
-              Persist(nwparam[["coef.diss"]][["dissolution"]]),
-        coef = c(nwparam[["coef.form"]], nwparam[["coef.diss"]][["coef.adj"]]),
-        constraints = nwparam[["constraints"]],
-        time.start = at - 1,
-        time.slices = 1,
-        time.offset = 1,
-        monitor = nwstats.formulas[[i]],
-        control = set.control.tergm,
-        output = "final",
-        dynamic = TRUE
-      )
-    } else {
-      modified_controls <- set.control.tergm
-      modified_controls$MCMC.prop.args <- list(discordance_fraction = 0)
-      dat[["nw"]][[i]] <- simulate(
-        basis = nwL,
-        object = nwparam[["formation"]],
-        coef = nwparam[["coef.form"]],
-        constraints = nwparam[["constraints"]],
-        monitor = nwstats.formulas[[i]],
-        control = modified_controls,
-        time.start = at - 1,
-        time.slices = 1,
-        time.offset = 1,
-        dynamic = TRUE,
-        output = "final"
-      )
-      rm(modified_controls)
-    }
-
-    dat[["el"]][[i]] <- as.edgelist(dat[["nw"]][[i]])
+  dat <- edges_correct(dat, at)
+  
+  ## network resimulation
+  dat.updates <- NVL(get_control(dat, "dat.updates"), function(dat, ...) dat)
+  dat <- dat.updates(dat = dat, at = at, network = 0L)
+  for (network in seq_len(dat$num.nw)) {
+    dat <- simulate_dat(dat = dat, at = at, network = network)
+    dat <- dat.updates(dat = dat, at = at, network = network)
   }
 
   if (get_control(dat, "cumulative.edgelist")) {
-    for (n_network in seq_along(dat$nwparam)) {
+    for (n_network in seq_len(dat$num.nw)) {
+      browser()
       dat <- update_cumulative_edgelist(dat, n_network,
                                         get_control(dat, "truncate.el.cuml"))
     }
   }
 
-  if (save.nwstats) {
-    dat <- update_nwstats(dat)
-  }
-
-
-  return(dat)
-}
-
-
-edges_correct_covid <- function(dat, at) {
-
-  old.num <- dat$epi$num[at - 1]
-  new.num <- sum(dat$attr$active == 1, na.rm = TRUE)
-  adjust <- log(old.num) - log(new.num)
-
-  for (i in seq_along(dat$nwparam)) {
-    coef.form1 <- get_nwparam(dat, network = i)$coef.form
-    coef.form1[1] <- coef.form1[1] + adjust
-    dat$nwparam[[i]]$coef.form <- coef.form1
-  }
+  dat <- summary_nets(dat, at)
+  
+  dat$num.nw <- dat$num.nw + 1
 
   return(dat)
 }
 
-update_nwstats <- function(dat) {
-  for (i in seq_along(dat[["nwparam"]])) {
-    new.nwstats <- tail(attributes(dat$nw[[i]])$stats, 1)
-    keep.cols <- which(!duplicated(colnames(new.nwstats)))
-    new.nwstats <- new.nwstats[, keep.cols, drop = FALSE]
-    dat$stats$nwstats[[i]] <- rbind(dat$stats$nwstats[[i]], new.nwstats)
+#' @rdname moduleset-corporate
+#' @export
+update_cumulative_edgelist <- function(dat, network, truncate = 0) {
+  if (!get_control(dat, "cumulative.edgelist")) {
+    return(dat)
   }
+  
+  el <- get_edgelist(dat, network)
+  el_cuml <- get_cumulative_edgelist(dat, network)
+  
+  el <- tibble::tibble(
+    head = get_unique_ids(dat, el[, 1]),
+    tail = get_unique_ids(dat, el[, 2]),
+    current = TRUE
+  )
+  
+  el_cuml <- dplyr::full_join(el_cuml, el, by = c("head", "tail"))
+  
+  at <- get_current_timestep(dat)
+  
+  new_edges <- is.na(el_cuml[["start"]])
+  if (any(new_edges)) {
+    el_cuml[new_edges, ][["start"]] <- at
+  }
+  
+  terminated_edges <- is.na(el_cuml[["current"]]) & is.na(el_cuml[["stop"]])
+  if (any(terminated_edges)) {
+    el_cuml[terminated_edges, ][["stop"]] <- at - 1
+  }
+  
+  if (truncate != Inf) {
+    rel.age <- at - el_cuml[["stop"]]
+    rel.age <- ifelse(is.na(rel.age), 0, rel.age)
+    el_cuml <- el_cuml[rel.age <= truncate, ]
+  }
+  
+  dat[["el.cuml"]][[network]] <- el_cuml[, c("head", "tail", "start", "stop")]
+  
   return(dat)
 }

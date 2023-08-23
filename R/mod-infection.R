@@ -35,7 +35,7 @@ infect_covid_corporate <- function(dat, at) {
   act.rate.iso.inter.time <- get_param(dat, "act.rate.iso.inter.time")
   act.rate.iso.inter.rr <- get_param(dat, "act.rate.iso.inter.rr")
 
-  nLayers <- length(dat$el)
+  nLayers <- dat$num.nw
   nInf <- rep(0, nLayers)
 
   if (length(idsInf) > 0) {

@@ -6,45 +6,18 @@ init_covid_corporate <- function(x, param, init, control, s) {
   ## Master Data List Setup ##
   dat <- create_dat_object(param, init, control)
 
-  ## Network Setup ##
-  # Initial network simulations
-  dat[["nw"]] <- list()
-  for (i in 1:2) {
-    dat[["nw"]][[i]] <- simulate(
-      x[[i]][["formula"]],
-      coef = x[[i]][["coef.form.crude"]],
-      basis = x[[i]][["newnetwork"]],
-      constraints = x[[i]][["constraints"]],
-      control = get_control(dat, "set.control.ergm"),
-      dynamic = FALSE
-    )
-  }
-  nw <- dat[["nw"]]
+  dat <- init_nets(dat, x)
 
-  # Pull Network parameters
-  dat[["nwparam"]] <- list()
-  for (i in seq_along(x)) {
-    dat[["nwparam"]][i] <- list(x[[i]][!(names(x[[i]]) %in% c("fit", "newnetwork"))])
-    dat[["nwparam"]][[i]]["isTERGM"] <- all(x[[i]][["coef.diss"]][["duration"]] > 1)
-  }
-
-  ## Nodal Attributes Setup ##
-  num <- network.size(nw[[1]])
-  dat <- append_core_attr(dat, 1, num)
-
-  # Pull in attributes on network
-  nwattr.all <- list.vertex.attributes(nw[[1]])
-  nwattr.use <- nwattr.all[!nwattr.all %in% c("na", "vertex.names")]
-  for (i in seq_along(nwattr.use)) {
-    dat[["attr"]][[nwattr.use[i]]] <- get.vertex.attribute(nw[[1]], nwattr.use[i])
-  }
-
-  # Convert to tergmLite method
-  dat <- init_tergmLite(dat)
-
+  # simulate first time step
+  dat <- sim_nets_t1(dat)
+  dat <- summary_nets(dat, at = 1L)
+  
   # Add household network edgelist
-  dat$el[[length(x) + 1]] <- as.matrix(dat$param$hh.pairs)
-  attr(dat$el[[length(x) + 1]], 'n') <- num
+  dat$num.nw <- dat$num.nw + 1
+  dat$el[[dat$num.nw]] <- as.matrix(dat$param$hh.pairs)
+  attr(dat$el[[dat$num.nw]], 'n') <- get_epi(dat, "sim.num", at = 1)
+  dat$net_attr[[dat$num.nw]] <- list(n = get_epi(dat, "sim.num", at = 1))
+  dat$control[["tergmLite.track.duration"]][[dat$num.nw]] <- FALSE
 
   ## Infection Status and Time Modules
   dat <- init_status_covid_corporate(dat)
@@ -52,12 +25,6 @@ init_covid_corporate <- function(x, param, init, control, s) {
   ## Get initial prevalence
   dat <- prevalence_covid_corporate(dat, at = 1)
 
-  # Network stats
-  if (get_control(dat, "save.nwstats")) {
-    dat <- initialize_nwstats(dat)
-  }
-
-  class(dat) <- "dat"
   return(dat)
 }
 
@@ -120,16 +87,5 @@ init_status_covid_corporate <- function(dat) {
   dat <- set_attr(dat, "isolate", isolate)
   dat <- set_attr(dat, "isoTime", isoTime)
 
-  return(dat)
-}
-
-initialize_nwstats <- function(dat) {
-  dat[["stats"]][["nwstats"]] <- list()
-  for (i in seq_along(dat[["nwparam"]])) {
-    new.nwstats <- attributes(dat$nw[[i]])$stats
-    keep.cols <- which(!duplicated(colnames(new.nwstats)))
-    new.nwstats <- new.nwstats[, keep.cols, drop = FALSE]
-    dat$stats$nwstats[[i]] <- new.nwstats
-  }
   return(dat)
 }
