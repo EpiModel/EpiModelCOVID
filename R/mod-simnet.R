@@ -18,7 +18,6 @@ resim_nets_covid_corporate <- function(dat, at) {
 
   if (get_control(dat, "cumulative.edgelist")) {
     for (n_network in seq_len(dat$num.nw)) {
-      browser()
       dat <- update_cumulative_edgelist(dat, n_network,
                                         get_control(dat, "truncate.el.cuml"))
     }
