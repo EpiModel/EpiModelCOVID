@@ -25,6 +25,87 @@ vax_covid <- function(dat, at) {
   vax2.rate <- get_param(dat, "vax2.rate")
   vax3.rate <- get_param(dat, "vax3.rate")
   vax4.rate <- get_param(dat, "vax4.rate")
+  
+  vax1.boost <- get_param(dat, "vax1.boost")
+  vax2.boost <- get_param(dat, "vax1.boost")
+  vax3.boost <- get_param(dat, "vax1.boost")
+  vax4.boost <- get_param(dat, "vax1.boost")
+  vax1.boost.start <- get_param(dat, "vax1.boost.start")
+  vax2.boost.start <- get_param(dat, "vax2.boost.start")
+  vax3.boost.start <- get_param(dat, "vax3.boost.start")
+  vax4.boost.start <- get_param(dat, "vax4.boost.start")
+  
+  if (any(at == vax1.boost.start)) {
+    idsElig.vax1.boost <- which(active == 1 & !(status %in% c("ic", "h"))
+                            & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 0
+                            & at == vax1.boost.start[vax.age.group])
+    nElig.vax1.boost <- length(idsElig.vax1.boost)
+    
+    if (nElig.vax1.boost > 0) {
+      vax1.boost.age <- vax1.boost[vax.age.group[idsElig.vax1.boost]]
+      vec.vax1.boost <- which(rbinom(length(ids.vax1.boost),1,vax1.boost.age) == 1)
+      ids.vax1.boost <- idsElig.vax1.boost[vec.vax1.boost]
+      
+      if (length(ids.vax1.boost) > 0) {
+        vax[ids.vax1.boost] <- 1
+        vax1Time[ids.vax1.boost] <- at
+      }
+    }
+  }
+  
+  if (any(at == vax2.boost.start)) {
+    idsElig.vax2.boost <- which(active == 1 & !(status %in% c("ic", "h"))
+                                & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 0
+                                & at == vax2.boost.start[vax.age.group])
+    nElig.vax2.boost <- length(idsElig.vax2.boost)
+    
+    if (nElig.vax2.boost > 0) {
+      vax2.boost.age <- vax2.boost[vax.age.group[idsElig.vax2.boost]]
+      vec.vax2.boost <- which(rbinom(length(ids.vax2.boost),1,vax2.boost.age) == 1)
+      ids.vax2.boost <- idsElig.vax2.boost[vec.vax2.boost]
+      
+      if (length(ids.vax2.boost) > 0) {
+        vax[ids.vax2.boost] <- 1
+        vax2Time[ids.vax2.boost] <- at
+      }
+    }
+  }
+  
+  if (any(at == vax3.boost.start)) {
+    idsElig.vax3.boost <- which(active == 1 & !(status %in% c("ic", "h"))
+                                & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 0
+                                & at == vax3.boost.start[vax.age.group])
+    nElig.vax3.boost <- length(idsElig.vax3.boost)
+    
+    if (nElig.vax3.boost > 0) {
+      vax3.boost.age <- vax3.boost[vax.age.group[idsElig.vax3.boost]]
+      vec.vax3.boost <- which(rbinom(length(ids.vax3.boost),1,vax3.boost.age) == 1)
+      ids.vax3.boost <- idsElig.vax3.boost[vec.vax3.boost]
+      
+      if (length(ids.vax3.boost) > 0) {
+        vax[ids.vax3.boost] <- 1
+        vax3Time[ids.vax3.boost] <- at
+      }
+    }
+  }
+  
+  if (any(at == vax4.boost.start)) {
+    idsElig.vax4.boost <- which(active == 1 & !(status %in% c("ic", "h"))
+                                & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 0
+                                & at == vax4.boost.start[vax.age.group])
+    nElig.vax4.boost <- length(idsElig.vax4.boost)
+    
+    if (nElig.vax4.boost > 0) {
+      vax4.boost.age <- vax4.boost[vax.age.group[idsElig.vax4.boost]]
+      vec.vax4.boost <- which(rbinom(length(ids.vax4.boost),1,vax4.boost.age) == 1)
+      ids.vax4.boost <- idsElig.vax4.boost[vec.vax4.boost]
+      
+      if (length(ids.vax4.boost) > 0) {
+        vax[ids.vax4.boost] <- 1
+        vax4Time[ids.vax4.boost] <- at
+      }
+    }
+  }
 
   ## First vax
   nVax1 <- 0
