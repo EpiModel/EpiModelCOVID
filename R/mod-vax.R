@@ -27,9 +27,9 @@ vax_covid <- function(dat, at) {
   vax4.rate <- get_param(dat, "vax4.rate")
   
   vax1.boost <- get_param(dat, "vax1.boost")
-  vax2.boost <- get_param(dat, "vax1.boost")
-  vax3.boost <- get_param(dat, "vax1.boost")
-  vax4.boost <- get_param(dat, "vax1.boost")
+  vax2.boost <- get_param(dat, "vax2.boost")
+  vax3.boost <- get_param(dat, "vax3.boost")
+  vax4.boost <- get_param(dat, "vax4.boost")
   vax1.boost.start <- get_param(dat, "vax1.boost.start")
   vax2.boost.start <- get_param(dat, "vax2.boost.start")
   vax3.boost.start <- get_param(dat, "vax3.boost.start")
@@ -43,7 +43,7 @@ vax_covid <- function(dat, at) {
     
     if (nElig.vax1.boost > 0) {
       vax1.boost.age <- vax1.boost[vax.age.group[idsElig.vax1.boost]]
-      vec.vax1.boost <- which(rbinom(length(ids.vax1.boost),1,vax1.boost.age) == 1)
+      vec.vax1.boost <- which(rbinom(nElig.vax1.boost,1,vax1.boost.age) == 1)
       ids.vax1.boost <- idsElig.vax1.boost[vec.vax1.boost]
       
       if (length(ids.vax1.boost) > 0) {
