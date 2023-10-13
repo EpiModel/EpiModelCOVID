@@ -61,7 +61,7 @@ vax_covid <- function(dat, at) {
     
     if (nElig.vax2.boost > 0) {
       vax2.boost.age <- vax2.boost[vax.age.group[idsElig.vax2.boost]]
-      vec.vax2.boost <- which(rbinom(length(ids.vax2.boost),1,vax2.boost.age) == 1)
+      vec.vax2.boost <- which(rbinom(nElig.vax2.boost,1,vax2.boost.age) == 1)
       ids.vax2.boost <- idsElig.vax2.boost[vec.vax2.boost]
       
       if (length(ids.vax2.boost) > 0) {
@@ -79,7 +79,7 @@ vax_covid <- function(dat, at) {
     
     if (nElig.vax3.boost > 0) {
       vax3.boost.age <- vax3.boost[vax.age.group[idsElig.vax3.boost]]
-      vec.vax3.boost <- which(rbinom(length(ids.vax3.boost),1,vax3.boost.age) == 1)
+      vec.vax3.boost <- which(rbinom(nElig.vax3.boost,1,vax3.boost.age) == 1)
       ids.vax3.boost <- idsElig.vax3.boost[vec.vax3.boost]
       
       if (length(ids.vax3.boost) > 0) {
@@ -97,7 +97,7 @@ vax_covid <- function(dat, at) {
     
     if (nElig.vax4.boost > 0) {
       vax4.boost.age <- vax4.boost[vax.age.group[idsElig.vax4.boost]]
-      vec.vax4.boost <- which(rbinom(length(ids.vax4.boost),1,vax4.boost.age) == 1)
+      vec.vax4.boost <- which(rbinom(nElig.vax4.boost,1,vax4.boost.age) == 1)
       ids.vax4.boost <- idsElig.vax4.boost[vec.vax4.boost]
       
       if (length(ids.vax4.boost) > 0) {
