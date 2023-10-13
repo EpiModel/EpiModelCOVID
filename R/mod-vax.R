@@ -55,7 +55,7 @@ vax_covid <- function(dat, at) {
   
   if (any(at == vax2.boost.start)) {
     idsElig.vax2.boost <- which(active == 1 & !(status %in% c("ic", "h"))
-                                & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 0
+                                & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 1
                                 & at == vax2.boost.start[vax.age.group])
     nElig.vax2.boost <- length(idsElig.vax2.boost)
     
@@ -73,7 +73,7 @@ vax_covid <- function(dat, at) {
   
   if (any(at == vax3.boost.start)) {
     idsElig.vax3.boost <- which(active == 1 & !(status %in% c("ic", "h"))
-                                & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 0
+                                & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 2
                                 & at == vax3.boost.start[vax.age.group])
     nElig.vax3.boost <- length(idsElig.vax3.boost)
     
@@ -91,7 +91,7 @@ vax_covid <- function(dat, at) {
   
   if (any(at == vax4.boost.start)) {
     idsElig.vax4.boost <- which(active == 1 & !(status %in% c("ic", "h"))
-                                & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 0
+                                & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 3
                                 & at == vax4.boost.start[vax.age.group])
     nElig.vax4.boost <- length(idsElig.vax4.boost)
     
