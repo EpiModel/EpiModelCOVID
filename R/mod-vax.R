@@ -65,7 +65,7 @@ vax_covid <- function(dat, at) {
       ids.vax2.boost <- idsElig.vax2.boost[vec.vax2.boost]
       
       if (length(ids.vax2.boost) > 0) {
-        vax[ids.vax2.boost] <- 1
+        vax[ids.vax2.boost] <- 2
         vax2Time[ids.vax2.boost] <- at
       }
     }
@@ -83,7 +83,7 @@ vax_covid <- function(dat, at) {
       ids.vax3.boost <- idsElig.vax3.boost[vec.vax3.boost]
       
       if (length(ids.vax3.boost) > 0) {
-        vax[ids.vax3.boost] <- 1
+        vax[ids.vax3.boost] <- 3
         vax3Time[ids.vax3.boost] <- at
       }
     }
@@ -101,7 +101,7 @@ vax_covid <- function(dat, at) {
       ids.vax4.boost <- idsElig.vax4.boost[vec.vax4.boost]
       
       if (length(ids.vax4.boost) > 0) {
-        vax[ids.vax4.boost] <- 1
+        vax[ids.vax4.boost] <- 4
         vax4Time[ids.vax4.boost] <- at
       }
     }
