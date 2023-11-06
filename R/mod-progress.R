@@ -57,6 +57,7 @@ progress_covid <- function(dat, at) {
   # Determine exposures to infected contacts for masking guidelines
   num.elig.exp <- 0
   num.new.iso4 <- 0
+  num.new.iso4.w <- 0
 
   # pull ids for non-symptomatic, not diagnosed, not isolating
   ids.elig.exp <- which(active == 1 & status %in% c("s","a","e","ip","r") &
@@ -137,6 +138,9 @@ progress_covid <- function(dat, at) {
             ids.new.iso4 <- ids.new.notif[vec.new.iso4]
             num.new.iso4 <- num.new.iso4 + length(ids.new.iso4)
             isolate[ids.new.iso4] <- 4 # masking due to exposure notification
+            
+            ids.new.iso4.w <- intersect(ids.new.iso4,which(non.office==0))
+            num.new.iso4.w <- length(ids.new.iso4.w)
 
             partner.dx.time <- subset(ids.exp.dx2, ids.exp.dx2$index_posit_ids %in% ids.new.iso4)
             if (j == 2) {
@@ -250,7 +254,9 @@ progress_covid <- function(dat, at) {
 
   # Ip to Ic: preclinical infectious move to clinical infectious
   num.new.IptoIc <- 0
+  num.new.IptoIc.w <- 0
   num.new.iso1 <- 0
+  num.new.iso1.w <- 0
   ids.Ip <- which(active == 1 & status == "ip" & statusTime < at & clinical == 1)
   num.Ip <- length(ids.Ip)
   if (num.Ip > 0) {
@@ -260,12 +266,16 @@ progress_covid <- function(dat, at) {
       num.new.IptoIc <- length(ids.new.Ic)
       status[ids.new.Ic] <- "ic"
       statusTime[ids.new.Ic] <- at
+      ids.new.Ic.w <- intersect(ids.new.Ic,which(non.office == 0))
+      num.new.IptoIc.w <- length(ids.new.Ic.w)
       vec.new.iso <- which(rbinom(length(vec.new.Ic), 1, iso.prob) == 1)
       if (length(vec.new.iso) > 0) {
         ids.new.iso1 <- ids.new.Ic[vec.new.iso]
         num.new.iso1 <- length(ids.new.iso1)
         isolate[ids.new.iso1] <- 1 # isolation for mild infection
         isoTime[ids.new.iso1] <- at
+        ids.new.iso1.w <- intersect(ids.new.iso1,which(non.office==0))
+        num.new.iso1.w <- length(ids.new.iso1.w)
       }
     }
   }
@@ -311,7 +321,9 @@ progress_covid <- function(dat, at) {
 
   # Ic to H: clinical infectious move to hospitalized
   num.new.IctoH <- 0
+  num.new.IctoH.w <- 0
   num.new.iso2 <- 0
+  num.new.iso2.w <- 0
   ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
   num.Ich <- length(ids.Ich)
   if (num.Ich > 0) {
@@ -321,16 +333,21 @@ progress_covid <- function(dat, at) {
       num.new.IctoH <- length(ids.new.H)
       status[ids.new.H] <- "h"
       statusTime[ids.new.H] <- at
+      ids.new.H.w <- intersect(ids.new.H, which(non.office==0))
+      num.new.IctoH.w <- length(ids.new.H.w)
       ids.new.iso2 <- which(status == "h" & statusTime == at & isolate == 1)
       num.new.iso2 <- length(ids.new.iso2)
       if (num.new.iso2 > 0) {
         isolate[ids.new.iso2] <- 2 # isolation for severe infection
+        ids.new.iso2.w <- intersect(ids.new.iso2,which(non.office==0))
+        num.new.iso2.w <- length(ids.new.iso2.w)
       }
     }
   }
 
   # H to R: hospitalized move to recovered
   num.new.HtoR <- 0
+  num.new.HtoR.w <- 0
   ids.H <- which(active == 1 & status == "h" & statusTime < at & hospit == 1)
   num.H <- length(ids.H)
   if (num.H > 0) {
@@ -340,11 +357,14 @@ progress_covid <- function(dat, at) {
       num.new.HtoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      ids.new.R.w <- intersect(ids.new.R,which(non.office == 0))
+      num.new.HtoR.w <- length(ids.new.R.w)
     }
   }
 
   # Ic to R: clinical infectious move to recovered
   num.new.IctoR <- 0
+  num.new.IctoR.w <- 0
   ids.Icr <- which(active == 1 & status == "ic" & statusTime < at & hospit == 0)
   num.Icr <- length(ids.Icr)
   if (num.Icr > 0) {
@@ -354,6 +374,8 @@ progress_covid <- function(dat, at) {
       num.new.IctoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      ids.new.R.w <- intersect(ids.new.R, which(non.office == 0))
+      num.new.IctoR.w <- length(ids.new.R.w)
     }
   }
 
@@ -374,14 +396,18 @@ progress_covid <- function(dat, at) {
 
   # Move mild isolation to masking among R
   num.new.iso3 <- 0
+  num.new.iso3.w <- 0
   ids.new.iso3 <- which(active == 1 & status == "r" & isolate == 1 & (at - isoTime) > 5)
   num.new.iso3 <- length(ids.new.iso3)
   if (num.new.iso3 > 0) {
     isolate[ids.new.iso3] <- 3 # post-isolation masking
+    ids.new.iso3.w <- intersect(ids.new.iso3,which(non.office==0))
+    num.new.iso3.w <- length(ids.new.iso3.w)
   }
 
   # End isolation pathway
   num.new.iso.end <- 0
+  num.new.iso.end.w <- 0
   ids.new.iso.end <- which(active == 1 &
                              ((status == "r" & isolate %in% c(2,3)) | isolate == 4) &
                              (at - isoTime) > 10)
@@ -389,6 +415,8 @@ progress_covid <- function(dat, at) {
   if (num.new.iso.end > 0) {
     isolate[ids.new.iso.end] <- NA # end isolation pathway
     isoTime[ids.new.iso.end] <- NA
+    ids.new.iso.end.w <- intersect(ids.new.iso.end,which(non.office==0))
+    num.new.iso.end.w <- length(ids.new.iso.end.w)
   }
 
 
@@ -409,11 +437,23 @@ progress_covid <- function(dat, at) {
   dat <- set_epi(dat, "ich.flow", at, num.new.IctoH)
   dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
   dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
+  
+  dat <- set_epi(dat, "ipic.flow.w", at, num.new.IptoIc.w)
+  dat <- set_epi(dat, "icr.flow.w", at, num.new.IctoR.w)
+  dat <- set_epi(dat, "ich.flow.w", at, num.new.IctoH.w)
+  dat <- set_epi(dat, "hr.flow.w", at, num.new.HtoR.w)
+  
   dat <- set_epi(dat, "iso1.flow", at, num.new.iso1)
   dat <- set_epi(dat, "iso2.flow", at, num.new.iso2)
   dat <- set_epi(dat, "iso3.flow", at, num.new.iso3)
   dat <- set_epi(dat, "iso4.flow", at, num.new.iso4)
   dat <- set_epi(dat, "isoend.flow", at, num.new.iso.end)
+  
+  dat <- set_epi(dat, "iso1.flow.w", at, num.new.iso1.w)
+  dat <- set_epi(dat, "iso2.flow.w", at, num.new.iso2.w)
+  dat <- set_epi(dat, "iso3.flow.w", at, num.new.iso3.w)
+  dat <- set_epi(dat, "iso4.flow.w", at, num.new.iso4.w)
+  dat <- set_epi(dat, "isoend.flow.w", at, num.new.iso.end.w)
 
   return(dat)
 }
