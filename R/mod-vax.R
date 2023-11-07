@@ -13,6 +13,7 @@ vax_covid <- function(dat, at) {
   vax.age.group <- get_attr(dat, "vax.age.group")
   dxStatus <- get_attr(dat, "dxStatus")
   dxTime <- get_attr(dat, "dxTime")
+  non.office <- get_attr(dat, "non.office")
 
   vax1.start <- get_param(dat, "vax1.start")
   vax2.interval <- get_param(dat, "vax2.interval")
