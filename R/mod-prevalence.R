@@ -56,6 +56,64 @@ prevalence_covid_corporate <- function(dat, at) {
   dat <- set_epi(dat, "iso.sev.num.w", at, sum(active == 1 & isolate == 2 & non.office == 0, na.rm = TRUE))
   dat <- set_epi(dat, "mask.post.num.w", at, sum(active == 1 & isolate == 3 & non.office == 0, na.rm = TRUE))
   dat <- set_epi(dat, "mask.exp.num.w", at, sum(active == 1 & isolate == 4 & non.office == 0, na.rm = TRUE))
+  
+  dat <- set_epi(dat, "iso.and.sick.num", at, sum(active == 1 & 
+                                                    (isolate == 1 | isolate ==2) &
+                                                    (status == "ic" | status == "h"), 
+                                                  na.rm = TRUE))
+  dat <- set_epi(dat, "iso.and.sick.num.w", at, sum(active == 1 & 
+                                                      non.office == 0 &
+                                                      (isolate == 1 | isolate ==2) &
+                                                      (status == "ic" | status == "h"), 
+                                                    na.rm = TRUE))
+  dat <- set_epi(dat, "iso.or.sick.num", at, sum(active == 1 & 
+                                                    ((isolate == 1 | isolate ==2) |
+                                                    (status == "ic" | status == "h")), 
+                                                  na.rm = TRUE))
+  dat <- set_epi(dat, "iso.or.sick.num.w", at, sum(active == 1 & 
+                                                      non.office == 0 &
+                                                      ((isolate == 1 | isolate ==2) |
+                                                      (status == "ic" | status == "h")), 
+                                                    na.rm = TRUE))
+  
+  dat <- set_epi(dat, "iso.and.ic.num", at, sum(active == 1 & 
+                                                    (isolate == 1 | isolate ==2) &
+                                                    (status == "ic"), 
+                                                  na.rm = TRUE))
+  dat <- set_epi(dat, "iso.and.ic.num.w", at, sum(active == 1 & 
+                                                      non.office == 0 &
+                                                      (isolate == 1 | isolate ==2) &
+                                                      (status == "ic"), 
+                                                    na.rm = TRUE))
+  dat <- set_epi(dat, "iso.or.ic.num", at, sum(active == 1 & 
+                                                   ((isolate == 1 | isolate ==2) |
+                                                      (status == "ic")), 
+                                                 na.rm = TRUE))
+  dat <- set_epi(dat, "iso.or.ic.num.w", at, sum(active == 1 & 
+                                                     non.office == 0 &
+                                                     ((isolate == 1 | isolate ==2) |
+                                                        (status == "ic")), 
+                                                   na.rm = TRUE))
+  
+  dat <- set_epi(dat, "iso.and.h.num", at, sum(active == 1 & 
+                                                  (isolate == 1 | isolate ==2) &
+                                                  (status == "h"), 
+                                                na.rm = TRUE))
+  dat <- set_epi(dat, "iso.and.h.num.w", at, sum(active == 1 & 
+                                                   non.office == 0 &
+                                                    (isolate == 1 | isolate ==2) &
+                                                    (status == "h"), 
+                                                  na.rm = TRUE))
+  dat <- set_epi(dat, "iso.or.h.num", at, sum(active == 1 & 
+                                                 ((isolate == 1 | isolate ==2) |
+                                                    (status == "h")), 
+                                               na.rm = TRUE))
+  dat <- set_epi(dat, "iso.or.h.num.w", at, sum(active == 1 & 
+                                                   non.office == 0 &
+                                                   ((isolate == 1 | isolate ==2) |
+                                                      (status == "h")), 
+                                                 na.rm = TRUE))
+  
 
   return(dat)
 }
