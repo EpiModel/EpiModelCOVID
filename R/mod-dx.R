@@ -9,8 +9,10 @@ dx_covid <- function(dat, at) {
   dxTime <- get_attr(dat, "dxTime")
   isolate <- get_attr(dat, "isolate")
   isoTime <- get_attr(dat, "isoTime")
+  non.office <- get_attr(dat, "non.office")
 
-  iso.prob <- get_param(dat, "iso.prob")
+  iso.prob.office <- get_param(dat, "iso.prob.office")
+  iso.prob.other <- get_param(dat, "iso.prob.other")
 
   dx.rate.sympt <- get_param(dat, "dx.rate.sympt")
   if (length(dx.rate.sympt) > 1) {
@@ -47,7 +49,8 @@ dx_covid <- function(dat, at) {
 
   # Testing for symptomatic (not currently isolating)
   nElig.sympt <- length(idsElig.sympt)
-  num.new.dx.sympt.iso <- 0
+  num.new.dx.sympt.iso.office <- 0
+  num.new.dx.sympt.iso.other <- 0
   if (nElig.sympt > 0) {
     vecDx.sympt <- which(rbinom(nElig.sympt, 1, dx.rate.sympt) == 1)
     idsDx.sympt <- idsElig.sympt[vecDx.sympt]
@@ -62,13 +65,23 @@ dx_covid <- function(dat, at) {
       dxTime[idsDx.sympt.neg] <- at
 
       # start isolation pathway for positive tests not already isolating
-      ids.new.dx.sympt.not.iso <- intersect(idsDx.sympt.pos, which(is.na(isolate)))
-      vec.dx.sympt.iso <- which(rbinom(length(ids.new.dx.sympt.not.iso), 1, iso.prob) == 1)
-      if (length(vec.dx.sympt.iso) > 0) {
-        ids.new.dx.sympt.iso <- ids.new.dx.sympt.not.iso[vec.dx.sympt.iso]
-        num.new.dx.sympt.iso <- length(ids.new.dx.sympt.iso)
-        isolate[ids.new.dx.sympt.iso] <- 1
-        isoTime[ids.new.dx.sympt.iso] <- at
+      ### office workers
+      ids.new.dx.sympt.not.iso.office <- intersect(idsDx.sympt.pos, which(is.na(isolate) & non.office==0))
+      vec.dx.sympt.iso.office <- which(rbinom(length(ids.new.dx.sympt.not.iso.office), 1, iso.prob.office) == 1)
+      if (length(vec.dx.sympt.iso.office) > 0) {
+        ids.new.dx.sympt.iso.office <- ids.new.dx.sympt.not.iso.office[vec.dx.sympt.iso.office]
+        num.new.dx.sympt.iso.office <- length(ids.new.dx.sympt.iso.office)
+        isolate[ids.new.dx.sympt.iso.office] <- 1
+        isoTime[ids.new.dx.sympt.iso.office] <- at
+      }
+      ### non-office workers
+      ids.new.dx.sympt.not.iso.other <- intersect(idsDx.sympt.pos, which(is.na(isolate) & non.office==1))
+      vec.dx.sympt.iso.other <- which(rbinom(length(ids.new.dx.sympt.not.iso.other), 1, iso.prob.other) == 1)
+      if (length(vec.dx.sympt.iso.other) > 0) {
+        ids.new.dx.sympt.iso.other <- ids.new.dx.sympt.not.iso.other[vec.dx.sympt.iso.other]
+        num.new.dx.sympt.iso.other <- length(ids.new.dx.sympt.iso.other)
+        isolate[ids.new.dx.sympt.iso.other] <- 1
+        isoTime[ids.new.dx.sympt.iso.other] <- at
       }
     }
   }
@@ -95,15 +108,24 @@ dx_covid <- function(dat, at) {
       dxTime[idsDx.other.pos.true] <- at
 
       # start isolation pathway for positive tests not already isolating
-      ids.new.dx.not.iso <- intersect(idsDx.other.pos.true, which(is.na(isolate)))
-      vec.dx.iso <- which(rbinom(length(ids.new.dx.not.iso), 1, iso.prob) == 1)
-      if (length(vec.dx.iso) > 0) {
-        ids.new.dx.iso <- ids.new.dx.not.iso[vec.dx.iso]
-        num.new.dx.iso <- length(ids.new.dx.iso)
-        isolate[ids.new.dx.iso] <- 1
-        isoTime[ids.new.dx.iso] <- at
+      ### office workers
+      ids.new.dx.not.iso.office <- intersect(idsDx.other.pos.true, which(is.na(isolate) & non.office==0))
+      vec.dx.iso.office <- which(rbinom(length(ids.new.dx.not.iso.office), 1, iso.prob.office) == 1)
+      if (length(vec.dx.iso.office) > 0) {
+        ids.new.dx.iso.office <- ids.new.dx.not.iso.office[vec.dx.iso.office]
+        num.new.dx.iso.office <- length(ids.new.dx.iso.office)
+        isolate[ids.new.dx.iso.office] <- 1
+        isoTime[ids.new.dx.iso.office] <- at
       }
-
+      ### non-office workers
+      ids.new.dx.not.iso.other <- intersect(idsDx.other.pos.true, which(is.na(isolate) & non.office==1))
+      vec.dx.iso.other <- which(rbinom(length(ids.new.dx.not.iso.other), 1, iso.prob.other) == 1)
+      if (length(vec.dx.iso.other) > 0) {
+        ids.new.dx.iso.other <- ids.new.dx.not.iso.other[vec.dx.iso.other]
+        num.new.dx.iso.other <- length(ids.new.dx.iso.other)
+        isolate[ids.new.dx.iso.other] <- 1
+        isoTime[ids.new.dx.iso.other] <- at
+      }
     }
   }
 
@@ -151,7 +173,7 @@ dx_covid <- function(dat, at) {
   dat <- set_epi(dat, "nDx.pos.sympt", at, length(idsDx.sympt.pos))
   dat <- set_epi(dat, "nDx.pos.fn", at, length(idsDx.sympt.neg) +
                    length(idsDx.other.pos.false))
-  dat <- set_epi(dat, "nDx.new.iso", at, num.new.dx.sympt.iso + num.new.dx.iso)
+  dat <- set_epi(dat, "nDx.new.iso", at, num.new.dx.sympt.iso.office + num.new.dx.sympt.iso.other + num.new.dx.iso.office + num.new.dx.iso.other)
   dat <- set_epi(dat, "nDx.end.iso", at, num.iso.end.iso)
 
   return(dat)
