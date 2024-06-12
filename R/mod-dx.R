@@ -88,7 +88,8 @@ dx_covid <- function(dat, at) {
 
   # Testing for asymptomatic (not currently isolating)
   nElig.other <- length(idsElig.other)
-  num.new.dx.iso <- 0
+  num.new.dx.iso.office <- 0
+  num.new.dx.iso.other <- 0
   if (nElig.other > 0) {
     vecDx.other <- which(rbinom(nElig.other, 1, dx.rate.other) == 1)
     idsDx.other <- idsElig.other[vecDx.other]
