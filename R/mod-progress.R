@@ -48,7 +48,8 @@ progress_covid <- function(dat, at) {
   icr.rate <- get_param(dat, "icr.rate")
   hr.rate <- get_param(dat, "hr.rate")
   rs.rate <- get_param(dat, "rs.rate")
-  iso.prob <- get_param(dat, "iso.prob")
+  iso.prob.office <- get_param(dat, "iso.prob.office")
+  iso.prob.other <- get_param(dat, "iso.prob.other")
   notif.prob <- get_param(dat, "notif.prob")
 
   # Number of networks, excluding households
@@ -56,8 +57,8 @@ progress_covid <- function(dat, at) {
 
   # Determine exposures to infected contacts for masking guidelines
   num.elig.exp <- 0
-  num.new.iso4 <- 0
-  num.new.iso4.w <- 0
+  num.new.iso4.other <- 0
+  num.new.iso4.office <- 0
 
   # pull ids for non-symptomatic, not diagnosed, not isolating
   ids.elig.exp <- which(active == 1 & status %in% c("s","a","e","ip","r") &
@@ -127,22 +128,23 @@ progress_covid <- function(dat, at) {
       # loop through networks
       for (j in 1:3) {
         ids.index <- unique(ids.exp.dx2$index_posit_ids[ids.exp.dx2$network == j])
+        
         # identify those who were notified of the exposure by their contact
         vec.new.notif <- which(rbinom(length(ids.index),1,notif.prob[j]) == 1)
 
         if (length(vec.new.notif) > 0) {
           ids.new.notif <- ids.index[vec.new.notif]
+          
           # identify those who decide to follow isolation guidelines
-          vec.new.iso4 <- which(rbinom(length(ids.new.notif), 1, iso.prob) == 1)
-          if (length(vec.new.iso4) > 0) {
-            ids.new.iso4 <- ids.new.notif[vec.new.iso4]
-            num.new.iso4 <- num.new.iso4 + length(ids.new.iso4)
-            isolate[ids.new.iso4] <- 4 # masking due to exposure notification
-            
-            ids.new.iso4.w <- intersect(ids.new.iso4,which(non.office==0))
-            num.new.iso4.w <- length(ids.new.iso4.w)
+          ### office workers
+          ids.new.notif.office <- intersect(ids.new.notif, which(is.na(isolate) & non.office==0))
+          vec.new.iso4.office <- which(rbinom(length(ids.new.notif.office), 1, iso.prob.office) == 1)
+          if (length(vec.new.iso4.office) > 0) {
+            ids.new.iso4.office <- ids.new.notif.office[vec.new.iso4.office]
+            num.new.iso4.office <- num.new.iso4.office + length(ids.new.iso4.office)
+            isolate[ids.new.iso4.office] <- 4 # masking due to exposure notification
 
-            partner.dx.time <- subset(ids.exp.dx2, ids.exp.dx2$index_posit_ids %in% ids.new.iso4)
+            partner.dx.time <- subset(ids.exp.dx2, ids.exp.dx2$index_posit_ids %in% ids.new.iso4.office)
             if (j == 2) {
               # for community contacts, start isolation at time of contact
               partner.dx.time <- partner.dx.time[,c("start",
@@ -151,8 +153,8 @@ progress_covid <- function(dat, at) {
                                                      partner.dx.time$index_posit_ids,
                                                      FUN = function(x) x == min(x)) == 1, ]
               partner.dx.time <- unique(partner.dx.time)
-              if (length(ids.new.iso4) != length(partner.dx.time$start)) browser()
-              isoTime[ids.new.iso4] <- partner.dx.time$start
+              # if (length(ids.new.iso4.office) != length(partner.dx.time$start)) browser()
+              isoTime[ids.new.iso4.office] <- partner.dx.time$start
             } else {
               # for HH and office contacts, start isolation at time of diagnosis
               # since contacts are 'permanent'
@@ -162,10 +164,43 @@ progress_covid <- function(dat, at) {
                                                      partner.dx.time$index_posit_ids,
                                                      FUN = function(x) x == min(x)) == 1, ]
               partner.dx.time <- unique(partner.dx.time)
-              if (length(ids.new.iso4) != length(partner.dx.time$dxTime)) browser()
-              isoTime[ids.new.iso4] <- partner.dx.time$dxTime
+              # if (length(ids.new.iso4.office) != length(partner.dx.time$dxTime)) browser()
+              isoTime[ids.new.iso4.office] <- partner.dx.time$dxTime
             }
 
+          }
+          ### non-office workers
+          ids.new.notif.other <- intersect(ids.new.notif, which(is.na(isolate) & non.office==1))
+          vec.new.iso4.other <- which(rbinom(length(ids.new.notif.other), 1, iso.prob.other) == 1)
+          if (length(vec.new.iso4.other) > 0) {
+            ids.new.iso4.other <- ids.new.notif.other[vec.new.iso4.other]
+            num.new.iso4.other <- num.new.iso4.other + length(ids.new.iso4.other)
+            isolate[ids.new.iso4.other] <- 4 # masking due to exposure notification
+            
+            partner.dx.time <- subset(ids.exp.dx2, ids.exp.dx2$index_posit_ids %in% ids.new.iso4.other)
+            if (j == 2) {
+              # for community contacts, start isolation at time of contact
+              partner.dx.time <- partner.dx.time[,c("start",
+                                                    "index_posit_ids")]
+              partner.dx.time <- partner.dx.time[ave(partner.dx.time$start,
+                                                     partner.dx.time$index_posit_ids,
+                                                     FUN = function(x) x == min(x)) == 1, ]
+              partner.dx.time <- unique(partner.dx.time)
+              # if (length(ids.new.iso4.other) != length(partner.dx.time$start)) browser()
+              isoTime[ids.new.iso4.other] <- partner.dx.time$start
+            } else {
+              # for HH and office contacts, start isolation at time of diagnosis
+              # since contacts are 'permanent'
+              partner.dx.time <- partner.dx.time[,c("dxTime",
+                                                    "index_posit_ids")]
+              partner.dx.time <- partner.dx.time[ave(partner.dx.time$dxTime,
+                                                     partner.dx.time$index_posit_ids,
+                                                     FUN = function(x) x == min(x)) == 1, ]
+              partner.dx.time <- unique(partner.dx.time)
+              # if (length(ids.new.iso4.other) != length(partner.dx.time$dxTime)) browser()
+              isoTime[ids.new.iso4.other] <- partner.dx.time$dxTime
+            }
+            
           }
         }
       }
@@ -255,8 +290,8 @@ progress_covid <- function(dat, at) {
   # Ip to Ic: preclinical infectious move to clinical infectious
   num.new.IptoIc <- 0
   num.new.IptoIc.w <- 0
-  num.new.iso1 <- 0
-  num.new.iso1.w <- 0
+  num.new.iso1.other <- 0
+  num.new.iso1.office <- 0
   ids.Ip <- which(active == 1 & status == "ip" & statusTime < at & clinical == 1)
   num.Ip <- length(ids.Ip)
   if (num.Ip > 0) {
@@ -266,16 +301,24 @@ progress_covid <- function(dat, at) {
       num.new.IptoIc <- length(ids.new.Ic)
       status[ids.new.Ic] <- "ic"
       statusTime[ids.new.Ic] <- at
-      ids.new.Ic.w <- intersect(ids.new.Ic,which(non.office == 0))
-      num.new.IptoIc.w <- length(ids.new.Ic.w)
-      vec.new.iso <- which(rbinom(length(vec.new.Ic), 1, iso.prob) == 1)
-      if (length(vec.new.iso) > 0) {
-        ids.new.iso1 <- ids.new.Ic[vec.new.iso]
-        num.new.iso1 <- length(ids.new.iso1)
-        isolate[ids.new.iso1] <- 1 # isolation for mild infection
-        isoTime[ids.new.iso1] <- at
-        ids.new.iso1.w <- intersect(ids.new.iso1,which(non.office==0))
-        num.new.iso1.w <- length(ids.new.iso1.w)
+      ids.new.Ic.other <- intersect(ids.new.Ic,which(non.office == 1))
+      ids.new.Ic.office <- intersect(ids.new.Ic,which(non.office == 0))
+      num.new.IptoIc.w <- length(ids.new.Ic.office)
+      ### office workers
+      vec.new.iso.office <- which(rbinom(length(ids.new.Ic.office), 1, iso.prob.office) == 1)
+      if (length(vec.new.iso.office) > 0) {
+        ids.new.iso1.office <- ids.new.Ic.office[vec.new.iso.office]
+        num.new.iso1.office <- length(ids.new.iso1.office)
+        isolate[ids.new.iso1.office] <- 1 # isolation for mild infection
+        isoTime[ids.new.iso1.office] <- at
+      }
+      ### non-office workers
+      vec.new.iso.other <- which(rbinom(length(ids.new.Ic.other), 1, iso.prob.other) == 1)
+      if (length(vec.new.iso.other) > 0) {
+        ids.new.iso1.other <- ids.new.Ic.other[vec.new.iso.other]
+        num.new.iso1.other <- length(ids.new.iso1.other)
+        isolate[ids.new.iso1.other] <- 1 # isolation for mild infection
+        isoTime[ids.new.iso1.other] <- at
       }
     }
   }
@@ -443,16 +486,16 @@ progress_covid <- function(dat, at) {
   dat <- set_epi(dat, "ich.flow.w", at, num.new.IctoH.w)
   dat <- set_epi(dat, "hr.flow.w", at, num.new.HtoR.w)
   
-  dat <- set_epi(dat, "iso1.flow", at, num.new.iso1)
+  dat <- set_epi(dat, "iso1.flow", at, num.new.iso1.other + num.new.iso1.office)
   dat <- set_epi(dat, "iso2.flow", at, num.new.iso2)
   dat <- set_epi(dat, "iso3.flow", at, num.new.iso3)
-  dat <- set_epi(dat, "iso4.flow", at, num.new.iso4)
+  dat <- set_epi(dat, "iso4.flow", at, num.new.iso4.other + num.new.iso4.office)
   dat <- set_epi(dat, "isoend.flow", at, num.new.iso.end)
   
-  dat <- set_epi(dat, "iso1.flow.w", at, num.new.iso1.w)
+  dat <- set_epi(dat, "iso1.flow.w", at, num.new.iso1.office)
   dat <- set_epi(dat, "iso2.flow.w", at, num.new.iso2.w)
   dat <- set_epi(dat, "iso3.flow.w", at, num.new.iso3.w)
-  dat <- set_epi(dat, "iso4.flow.w", at, num.new.iso4.w)
+  dat <- set_epi(dat, "iso4.flow.w", at, num.new.iso4.office)
   dat <- set_epi(dat, "isoend.flow.w", at, num.new.iso.end.w)
 
   return(dat)
