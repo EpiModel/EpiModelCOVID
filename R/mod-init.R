@@ -133,18 +133,19 @@ init_gmc19 <- function(x, param, init, control, s) {
   # talk to Adrien on the home layer. more stream line way to pull the attribute. have attribute defined in dat.
   ## Master Data List Setup ##
   dat <- create_dat_object(param, init, control)
+
   dat <- init_nets(dat, x)
-  
-  
+
+
   # define initial nodal attributes
-  node_age_grp <- as.character(init$attr$node.age.grp)           
-  node_age     <- as.numeric  (init$attr$node.age)               
-  deg_work   <- as.integer  (init$attr$contact_attribute_Work) 
+  node_age_grp <- as.character(init$attr$node.age.grp)
+  node_age     <- as.numeric  (init$attr$node.age)
+  deg_work   <- as.integer  (init$attr$contact_attribute_Work)
   deg_school <- as.integer  (init$attr$contact_attribute_School)
   deg_nonhome   <- as.integer  (init$attr$contact_attribute_Nonhome)
-  
+
   no_contact <- 1L - deg_nonhome
-  
+
 
   ## set attributes
   dat <- set_attr(dat, "age.grp", node_age_grp)
@@ -152,22 +153,26 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- set_attr(dat, "deg_school", deg_school)
   dat <- set_attr(dat, "deg_work",   deg_work)
   dat <- set_attr(dat, "no.contact",         no_contact)
-  
+
   # simulate first time step
   dat <- sim_nets_t1(dat)
   dat <- summary_nets(dat, at = 1L)
-  
+
   ## add home layer edgelist
   dat$num.nw <- dat$num.nw + 1
+  dat$el[[dat$num.nw]] <- as.matrix(dat$param$hh.pairs) # edgelist rather than network needed!
+  attr(dat$el[[dat$num.nw]], 'n') <- get_epi(dat, "sim.num", at = 1)
+  dat$net_attr[[dat$num.nw]] <- list(n = get_epi(dat, "sim.num", at = 1))
+  dat$control[["tergmLite.track.duration"]][[dat$num.nw]] <- FALSE
   
-  dat$nw[["home"]] <- dat$param$nw_home   
+  dat$nw[["home"]] <- dat$param$nw_home
   dat$num.nw <- length(dat$nw)
-  
+
   # addition to keep a place holder for home layer
   # keep HOME last (helps with any "num.nw - 1" tricks)
-  
+
   nm <- c("school",  "work"  ,  "nonhome" ,"home"   )
-  
+
   # helper: ensure a list has one slot per layer, with names
   ensure_slots <- function(lst, n, nm) {
     if (is.null(lst)) lst <- vector("list", n)
@@ -175,18 +180,18 @@ init_gmc19 <- function(x, param, init, control, s) {
     names(lst) <- nm
     lst
   }
-  
+
   # grow/align per-layer bookkeeping so [[home]] exists
   dat$run$el   <- ensure_slots(dat$run$el,   dat$num.nw, nm)  # cumulative edgelist
   dat$control$nwstats.formula[[4]] <- NA
-  
+
   # end addition
-  
+
   ## Infection Status and Time Modules
   dat <- init_status_covid_corporate(dat)
-  
+
   ## Get initial prevalence
   dat <- prevalence_covid_corporate(dat, at = 1)
-  
+
   return(dat)
 }
