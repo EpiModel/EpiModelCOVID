@@ -158,6 +158,8 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- summary_nets(dat, at = 1L)
   
   ## add home layer edgelist
+  dat$num.nw <- dat$num.nw + 1
+  
   dat$nw[["home"]] <- dat$param$nw_home   
   dat$num.nw <- length(dat$nw)
   
