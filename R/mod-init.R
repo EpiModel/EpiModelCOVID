@@ -95,13 +95,14 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- summary_nets(dat, at = 1L)
 
   ## add home layer edgelist
-  dat$num.nw <- dat$num.nw + 1
+  dat$num.nw <- dat$num.nw + 1L
   dat$el[[dat$num.nw]] <- as.matrix(dat$param$hh.pairs) # edgelist rather than network needed!
   attr(dat$el[[dat$num.nw]], 'n') <- dat$run$num
-  #dat$net_attr[[dat$num.nw]] <- list(n = get_epi(dat, "sim.num", at = 1))
-  #dat$control[["tergmLite.track.duration"]][[dat$num.nw]] <- FALSE
-  #dat$nw[["home"]] <- dat$param$nw_home
-  #dat$num.nw <- length(dat$nw)
+  
+  ## track attribute
+  dat$net_attr[[dat$num.nw]] <- list(n = dat$run$num)
+  dat$control[["tergmLite.track.duration"]][[dat$num.nw]] <- FALSE
+  
 
 
 
