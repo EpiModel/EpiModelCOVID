@@ -101,6 +101,54 @@ deaths_covid_corporate <- function(dat, at) {
   return(dat)
 }
 
+#' @rdname moduleset-gmc19
+#' @export
+deaths_covid_gmc19 <- function(dat, at) {
+  
+  ## Attributes ##
+  active <- get_attr(dat, "active")
+  age <- get_attr(dat, "age")
+  status <- get_attr(dat, "status")
+  
+  ## Parameters ##
+  mort.rates <- get_param(dat, "mort.rates")
+  mort.dis.mult <- get_param(dat, "mort.dis.mult")
+  
+  idsElig <- which(active == 1)
+  nElig <- length(idsElig)
+  nDeaths <- nDeathsH <- 0
+  
+  if (nElig > 0) {
+    
+    whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86) # take upper bound of numeric age as integer age, here need to updated to gmc19 age group
+    death_rates_of_elig <- mort.rates[whole_ages_of_elig] # age-dependent death rate
+    
+    idsElig.inf <- which(status[idsElig] == "h") # if hospitalized, scale up the mortality rate
+    death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] *
+      mort.dis.mult
+    
+    vecDeaths <- which(rbinom(nElig, 1, death_rates_of_elig) == 1) # among the number of active nodes, use death rate of each individual to determine who dies
+    idsDeaths <- idsElig[vecDeaths] # id of individual who dies
+    nDeaths <- length(idsDeaths) # number of people who dies
+    nDeathsH <- length(intersect(idsDeaths, idsElig.inf)) # number of people who dies and is hospitalized
+    
+    if (nDeaths > 0) { # record the ids of those who dies
+      #dat$attr$active[idsDeaths] <- 0
+      #inactive <- which(dat$attr$active == 0)
+      dat <- set_attr(dat, "active", 0,idsDeaths # here shouldn't be "inactive" as this way only depart previously, rather than current inactive nodes
+                      )
+      dat <- depart_nodes(dat, idsDeaths)
+      
+    }
+  }
+  
+  ## Summary statistics ##
+  dat <- set_epi(dat, "d.flow", at, nDeaths)
+  dat <- set_epi(dat, "d.h.flow", at, nDeathsH)
+  
+  return(dat)
+}
+
 
 #' @rdname moduleset-ship
 #' @export
@@ -154,7 +202,7 @@ arrival_covid_corporate <- function(dat, at) {
 
   ## Process
   num <- dat$epi$num[1]
-  nNew <- rpois(1, a.rate * num)
+  nNew <- rpois(1, a.rate * num) # number of people entering the model, based on the arrival rate
 
   ## Update Attr
   if (nNew > 0) {
@@ -172,21 +220,21 @@ arrival_covid_corporate <- function(dat, at) {
 
 
 setNewAttr_covid_corporate <- function(dat, at, nNew) {
-
+  
   dat <- append_core_attr(dat, at, nNew)
-
+  
   arrival.age <- get_param(dat, "arrival.age")
   newAges <- rep(arrival.age, nNew)
   dat <- append_attr(dat, "age", newAges, nNew)
-
+  
   age.breaks <- seq(0, 200, 10)
   attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
   dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
-
+  
   # Disease status and related
   dat <- append_attr(dat, "status", "s", nNew)
   dat <- append_attr(dat, "infTime", NA, nNew)
-
+  
   dat <- append_attr(dat, "statusTime", 0, nNew)
   dat <- append_attr(dat, "clinical", NA, nNew)
   dat <- append_attr(dat, "hospit", NA, nNew)
@@ -194,6 +242,77 @@ setNewAttr_covid_corporate <- function(dat, at, nNew) {
   dat <- append_attr(dat, "vax", 0, nNew)
   dat <- append_attr(dat, "vax1Time", NA, nNew)
   dat <- append_attr(dat, "vax2Time", NA, nNew)
-
+  
   return(dat)
 }
+
+#' @rdname moduleset-gmc19
+#' @export
+arrival_covid_gmc19 <- function(dat, at) {
+  
+  # Parameters
+  a.rate   <- get_param(dat, "a.rate")
+  
+  ## Process
+  num <- dat$epi$num[1]
+  nNew <- rpois(1, a.rate * num) # number of people entering the model, based on the arrival rate
+  
+  ## Update Attr
+  if (nNew > 0) {
+    dat <- setNewAttr_covid_gmc19(dat, at, nNew)
+  }
+  
+  # Update Networks
+  dat <- arrive_nodes(dat, nNew)
+  
+  ## Output
+  dat <- set_epi(dat, "nNew", at, nNew)
+  
+  return(dat)
+}
+
+
+setNewAttr_covid_gmc19 <- function(dat, at, nNew) {
+  
+  dat <- append_core_attr(dat, at, nNew)
+  
+  arrival.age <- get_param(dat, "arrival.age")
+  newAges <- rep(arrival.age, nNew)
+  dat <- append_attr(dat, "age", newAges, nNew)
+  
+  # age.breaks <- seq(0, 200, 10)
+  # attr_age.grp <- cut(newAges, age.breaks, labels = FALSE, right = FALSE)
+  # dat <- append_attr(dat, "age.grp", attr_age.grp, nNew)
+  AGE_LABELS <- c("0-9y","10-19y","20-29y","30-39y","40-59y","60+y")
+  AGE_BREAKS <- c(0, 10, 20, 30, 40, 60, Inf)
+
+  age_grp_factor <- cut(newAges,
+                        breaks = AGE_BREAKS,
+                        labels = AGE_LABELS,
+                        right  = FALSE,
+                        include.lowest = TRUE)
+  
+  dat <- append_attr(dat, "age.grp", as.character(age_grp_factor), nNew)
+  
+  # Disease status and related
+  dat <- append_attr(dat, "status", "s", nNew)
+  dat <- append_attr(dat, "infTime", NA, nNew)
+  
+  dat <- append_attr(dat, "statusTime", 0, nNew)
+  dat <- append_attr(dat, "clinical", NA, nNew)
+  dat <- append_attr(dat, "hospit", NA, nNew)
+  dat <- append_attr(dat, "dxStatus", NA, nNew)
+  dat <- append_attr(dat, "vax", 0, nNew)
+  dat <- append_attr(dat, "vax1Time", NA, nNew)
+  dat <- append_attr(dat, "vax2Time", NA, nNew)
+  
+  # addition
+  dat <- append_attr(dat, "deg.x_layer", rep(0L, nNew),         nNew)
+  dat <- append_attr(dat, "deg_school",  rep(0L, nNew),         nNew)
+  dat <- append_attr(dat, "deg_work",    rep(0L, nNew),         nNew)
+  dat <- append_attr(dat, "no.contact",  rep(0L, nNew),         nNew)
+  dat <- append_attr(dat, "hh.ids",      rep(NA_integer_, nNew),nNew)
+  
+  return(dat)
+}
+

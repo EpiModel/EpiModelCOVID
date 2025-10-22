@@ -30,32 +30,18 @@ resim_nets_covid_corporate <- resim_nets
 
 #' @rdname moduleset-gmc19
 #' @export
-resim_nets_gmc19_x_layer <- function(dat, at) { # adapted from cruiseship above. to be modified.
+resim_nets_gmc19_x_layer <- function(dat, at) { # adapted from cruiseship function 
   
-  nms  <- names(dat$nw)
+  nms  <- names(dat$run$el)
   idx_school <- which(nms == "school")
   idx_work <- which(nms == "work")
   idx_nonhome <- which(nms == "nonhome")
-
+  
+  dat$num.nw <- dat$num.nw - 1 # disregard household nw for this module
   
   ## Edges correction
-  #dat <- edges_correct(dat, at) # adjust the edge cofficient
-  edges_correct_skip_home <- function(dat, at) {
-   # note : check Karina's work to see how to simulate home layer given the birth index
-    old_num <- dat$num.nw
-    dyn_num <- length(dat$nwparam)  # number of netest-fitted (dynamic) layers
-    
-
-    
-    dat$num.nw <- dyn_num           # hide home layer
-    dat <- edges_correct(dat, at)   # <-- called once
-    dat$num.nw <- old_num           # restore full count
-    dat
-  }
+  dat <- edges_correct(dat, at)
   
-  dat <- edges_correct_skip_home(dat=dat, at =at)
-  
-
   ## network resimulation
   dat.updates <- NVL(get_control(dat, "dat.updates"), function(dat, ...) dat)
   
@@ -70,7 +56,7 @@ resim_nets_gmc19_x_layer <- function(dat, at) { # adapted from cruiseship above.
   deg_bi_work_t <- #  binarize degree, still numeric
     ifelse(deg_work_t>0, yes=1, no=0)
   
-  school_layer_t <-   get_network(x =dat, network = idx_school) # get the school layer
+  school_layer_t <-   get_network(x =dat, network = idx_school) # get the school layer's degree
   
   school_layer_t <- # assign binarized degree at work (at t) to school layer
   set_vertex_attribute(school_layer_t, attrname = "deg.x_layer" , 
@@ -99,6 +85,7 @@ resim_nets_gmc19_x_layer <- function(dat, at) { # adapted from cruiseship above.
   dat  <- simulate_dat(dat = dat, at = at, network = idx_work)
   dat  <- dat.updates(dat = dat, at = at, network = idx_work)
 
+  dat$num.nw <- dat$num.nw + 1 # disregard household nw for this module
   
   return(dat)
   

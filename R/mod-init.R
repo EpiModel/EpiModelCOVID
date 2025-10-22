@@ -96,11 +96,12 @@ init_gmc19 <- function(x, param, init, control, s) {
 
   ## add home layer edgelist
   dat$num.nw <- dat$num.nw + 1L
-  dat$el[[dat$num.nw]] <- as.matrix(dat$param$hh.pairs) # edgelist rather than network needed!
+  dat$el[[dat$num.nw]] <- as.matrix(dat$param$hh.pairs) # design-time containers
   attr(dat$el[[dat$num.nw]], 'n') <- dat$run$num
-  
-  ## track attribute
   dat$net_attr[[dat$num.nw]] <- list(n = dat$run$num)
+  
+  dat$run$el[[dat$num.nw]]        <- dat$el[[dat$num.nw]] # run-time mirror for tergmLite
+  dat$run$net_attr[[dat$num.nw]]  <- dat$net_attr[[dat$num.nw]]
   dat$control[["tergmLite.track.duration"]][[dat$num.nw]] <- FALSE
   
 
