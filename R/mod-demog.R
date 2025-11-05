@@ -69,6 +69,7 @@ deaths_covid_gmc19 <- function(dat, at) {
 #' @rdname moduleset-gmc19
 #' @export
 arrival_covid_gmc19 <- function(dat, at) {
+  # if (at>200) browser()
   
   # Parameters
   a.rate   <- get_param(dat, "a.rate")
