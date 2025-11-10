@@ -2,7 +2,7 @@
 #' @export
 deaths_covid_gmc19 <- function(dat, at) {
   
-  if (at>2) browser()
+  if (at>=3) browser()
 
   ## Input
   # Attributes
@@ -39,6 +39,7 @@ deaths_covid_gmc19 <- function(dat, at) {
     if (nDeaths > 0) { # record the ids of those who dies at this time step
       # dat$attr$active[idsDeaths] <- 0, this doesn't work
       #inactive <- which(dat$attr$active == 0) this doesn't work
+      dat <- set_attr(dat, "active", 0, posit_ids = idsDeaths)
       dat <- depart_nodes(dat, departures = idsDeaths) # only the things in "run" are updated
       attr.length <- unique(vapply(get_attr_list(dat), length, numeric(1)))
       if (attr.length != attributes(dat$run$el[[1]])[["n"]]) {
