@@ -13,9 +13,9 @@ get_default_attrs <- function(dat) {
   list(
     deg_work=0,
     deg_school=0,
-    deg_nonhome=0
-    # status = 0,
-    # age = get_param(dat, "arrival.age"),
+    deg_nonhome=0,
+    status = 0,
+    age = get_param(dat, "arrival.age")#,
     # sqrt.age = NA,
     # active.sex = 1,
     # deg.casl = 0,
@@ -117,32 +117,32 @@ get_default_attrs <- function(dat) {
 #' nodes.
 make_computed_attrs <- function(dat, n_new, post_init) {
   new_nodes_pid <- length(get_attr(dat, "active")) - n_new + seq_len(n_new)
-  ns <- get_param(dat, "netstats")
-  age_breaks <- ns$demog$age.breaks
-  race_dist <- prop.table(table(ns$attr$race))
-  race_lvls <- as.numeric(names(race_dist))
+  # ns <- get_param(dat, "netstats")
+  # age_breaks <- ns$demog$age.breaks
+  # race_dist <- prop.table(table(ns$attr$race))
+  # race_lvls <- as.numeric(names(race_dist))
   
   n_attr <- list()
-  if (post_init) {
-    n_attr$race <- sample(race_lvls, n_new, TRUE, race_dist)
-    n_attr$role.class <- make_role_class(dat, n_attr$race, race_lvls)
-    n_attr$risk.grp <- sample(seq_len(5), n_new, TRUE)
-  } else {
-    n_attr$race <- get_attr(dat, "race", posit_ids = new_nodes_pid)
-    n_attr$role.class <- get_attr(dat, "role.class", posit_ids = new_nodes_pid)
-    n_attr$risk.grp <- get_attr(dat, "risk.grp", posit_ids = new_nodes_pid)
-  }
+  # if (post_init) {
+  #   n_attr$race <- sample(race_lvls, n_new, TRUE, race_dist)
+  #   n_attr$role.class <- make_role_class(dat, n_attr$race, race_lvls)
+  #   n_attr$risk.grp <- sample(seq_len(5), n_new, TRUE)
+  # } else {
+  #   n_attr$race <- get_attr(dat, "race", posit_ids = new_nodes_pid)
+  #   n_attr$role.class <- get_attr(dat, "role.class", posit_ids = new_nodes_pid)
+  #   n_attr$risk.grp <- get_attr(dat, "risk.grp", posit_ids = new_nodes_pid)
+  # }
   
   age <- get_attr(dat, "age", posit_ids = new_nodes_pid)
   
   n_attr <- c(n_attr, list(
-    late.tester = make_late_tester(dat, n_attr$race),
-    circ        = make_circ(dat, n_attr$race, race_lvls),
-    age.grp     = cut(age, age_breaks, labels = FALSE, right = FALSE),
-    ins.quot    = make_ins_quot(n_attr$role.class),
-    tt.traj     = make_tt_traj(dat, n_attr$race, race_lvls),
-    prep.class   = make_prep_class(dat, length(n_attr$race)),
-    last.neg.test = get_attr(dat, "entrTime", posit_ids = new_nodes_pid)
+    # late.tester = make_late_tester(dat, n_attr$race),
+    # circ        = make_circ(dat, n_attr$race, race_lvls),
+    age.grp     =  rep("1", length(age)) #cut(age, age_breaks, labels = FALSE, right = FALSE),
+    # ins.quot    = make_ins_quot(n_attr$role.class),
+    # tt.traj     = make_tt_traj(dat, n_attr$race, race_lvls),
+    # prep.class   = make_prep_class(dat, length(n_attr$race)),
+    # last.neg.test = get_attr(dat, "entrTime", posit_ids = new_nodes_pid)
   ))
   
   for (attr_name in names(n_attr)) {

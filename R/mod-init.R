@@ -9,7 +9,7 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- create_dat_object(param, init, control)
 
   ## network and stats initialization
-  dat <- init_nets(dat, x) # this introduce dat$run$attr$deg.x_layer from school/work, which seems not contained in the arguments
+  dat <- init_nets(dat, x)   # this introduce dat$run$attr$deg.x_layer, the attribute of at work for school, which seems not contained in the arguments
   
   ## Initialize all remaining attributes
   dat <- init_attrs(dat)
@@ -88,9 +88,9 @@ init_attrs <- function(dat) { #no.contact needs to be defined here.
   
   n_nodes <- sum(get_attr(dat, "active") ==  1)
   
-  # add no.contact
-  deg_nonhome   <- get_init(dat, "contact_attribute_Nonhome")
-  no_contact <- 1L - deg_nonhome
+  # add no.contact, nonhome
+  init_attr  <- get_init(dat, "attr")
+  no_contact <- 1L - init_attr$contact_attribute_Nonhome
   dat <- set_attr(dat, "no.contact",         no_contact)
   
   def_attrs <- get_default_attrs(dat)
