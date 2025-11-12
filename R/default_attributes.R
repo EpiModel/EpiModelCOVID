@@ -9,93 +9,15 @@
 #' @return A named list of all the attributes with default values.
 #'
 #' TODO: document all the attributes
-get_default_attrs <- function(dat) {
+get_default_attrs <- function(dat) { # all attributes should be listed here
   list(
     deg_work=0,
     deg_school=0,
     deg_nonhome=0,
-    status = 0,
-    age = get_param(dat, "arrival.age")#,
-    # sqrt.age = NA,
-    # active.sex = 1,
-    # deg.casl = 0,
-    # deg.main = 0,
-    # deg.tot = 0,
-    # diag.status = 0,
-    # inf.time = NA,
-    # stage = NA,
-    # stage.time = NA,
-    # aids.time = NA,
-    # diag.stage = NA,
-    # vl = NA,
-    # vl.last.usupp = NA,
-    # vl.last.supp = NA,
-    # diag.time = NA,
-    # tx.status = NA,
-    # cuml.time.on.tx = NA,
-    # cuml.time.off.tx = NA,
-    # tx.init.time = NA,
-    # part.tx.init.time = NA,
-    # part.tx.reinit.time = NA,
-    # ## Gonorrhea
-    # gono.rect = 0,
-    # gono.uret = 0,
-    # gono.rect.sympt = 0,
-    # gono.uret.sympt = 0,
-    # gono.rect.inf.last = -Inf,
-    # gono.uret.inf.last = -Inf,
-    # gono.rect.inf.count = 0,
-    # gono.uret.inf.count = 0,
-    # gono.test.last = -Inf,
-    # gono.dx = 0,
-    # gono.dx.last = 0,
-    # gono.tx = 0,
-    # ## Chlamidya
-    # chla.rect = 0,
-    # chla.uret = 0,
-    # chla.rect.sympt = 0,
-    # chla.uret.sympt = 0,
-    # chla.rect.inf.last = -Inf,
-    # chla.uret.inf.last = -Inf,
-    # chla.rect.inf.count = 0,
-    # chla.uret.inf.count = 0,
-    # chla.test.last = -Inf,
-    # chla.dx = 0,
-    # chla.dx.last = -Inf,
-    # chla.tx = 0,
-    # ## Syphilis
-    # syph.inf = 0,
-    # syph.sympt = 0,
-    # syph.inf.last = -Inf,
-    # syph.inf.count = 0,
-    # syph.test.last = -Inf,
-    # syph.dx = 0,
-    # syph.dx.last = -Inf,
-    # syph.tx = 0,
-    # syph.stage = NA,
-    # syph.stage.last = -Inf,
-    # ##
-    # prep = 0,
-    # prep.start.last = -Inf,
-    # prep.start.count = 0,
-    # prep.indic = 0,
-    # prep.risk.last = -Inf,
-    # act.last = -Inf,
-    # uai.last = -Inf,
-    # usupp.partner.last = -Inf,
-    # unknown.partner.last = -Inf,
-    # #
-    # # computed upon arrival
-    # race = 0,
-    # risk.grp = 0,
-    # late.tester = 0,
-    # circ = 0,
-    # age.grp = 0,
-    # ins.quot = 0,
-    # tt.traj = 0,
-    # last.neg.test = -Inf, # entrTime
-    # role.class = 0,
-    # prep.class = 0
+    no.contact=0, 
+    age = get_param(dat, "arrival.age"), 
+    age.grp = NA
+   
   )
 }
 
@@ -117,28 +39,38 @@ get_default_attrs <- function(dat) {
 #' nodes.
 make_computed_attrs <- function(dat, n_new, post_init) {
   new_nodes_pid <- length(get_attr(dat, "active")) - n_new + seq_len(n_new)
+
   # ns <- get_param(dat, "netstats")
   # age_breaks <- ns$demog$age.breaks
   # race_dist <- prop.table(table(ns$attr$race))
   # race_lvls <- as.numeric(names(race_dist))
   
   n_attr <- list()
-  # if (post_init) {
-  #   n_attr$race <- sample(race_lvls, n_new, TRUE, race_dist)
-  #   n_attr$role.class <- make_role_class(dat, n_attr$race, race_lvls)
-  #   n_attr$risk.grp <- sample(seq_len(5), n_new, TRUE)
-  # } else {
-  #   n_attr$race <- get_attr(dat, "race", posit_ids = new_nodes_pid)
-  #   n_attr$role.class <- get_attr(dat, "role.class", posit_ids = new_nodes_pid)
-  #   n_attr$risk.grp <- get_attr(dat, "risk.grp", posit_ids = new_nodes_pid)
-  # }
+  if (post_init) { # after the initialization
+  
+   n_attr$deg_work <- rep(0,n_new)
+   n_attr$deg_school <- rep(0,n_new)
+   n_attr$deg_nonhome <- rep(0,n_new)
+   n_attr$no.contact<- rep(1,n_new)
+    
+  } else {  # at the initialization
+    n_attr$deg_work <- get_attr(dat, "deg_work", posit_ids = new_nodes_pid)
+    n_attr$deg_school <- get_attr(dat, "deg_school", posit_ids = new_nodes_pid)
+    n_attr$deg_nonhome <- get_attr(dat, "deg_nonhome", posit_ids = new_nodes_pid)
+    n_attr$no.contact <- get_attr(dat, "no.contact", posit_ids = new_nodes_pid)
+    
+    
+    # n_attr$race <- get_attr(dat, "race", posit_ids = new_nodes_pid)
+    # n_attr$role.class <- get_attr(dat, "role.class", posit_ids = new_nodes_pid)
+    # n_attr$risk.grp <- get_attr(dat, "risk.grp", posit_ids = new_nodes_pid)
+  }
   
   age <- get_attr(dat, "age", posit_ids = new_nodes_pid)
   
   n_attr <- c(n_attr, list(
     # late.tester = make_late_tester(dat, n_attr$race),
     # circ        = make_circ(dat, n_attr$race, race_lvls),
-    age.grp     =  rep("1", length(age)) #cut(age, age_breaks, labels = FALSE, right = FALSE),
+    age.grp     =  rep("0-9y", length(age)) #cut(age, age_breaks, labels = FALSE, right = FALSE),
     # ins.quot    = make_ins_quot(n_attr$role.class),
     # tt.traj     = make_tt_traj(dat, n_attr$race, race_lvls),
     # prep.class   = make_prep_class(dat, length(n_attr$race)),
@@ -151,6 +83,11 @@ make_computed_attrs <- function(dat, n_new, post_init) {
   
   return(dat)
 }
+
+# add no.contact, nonhome
+# init_attr  <- get_init(dat, "attr")
+# no_contact <- 1L - init_attr$contact_attribute_Nonhome
+# dat <- set_attr(dat, "no.contact",         no_contact)
 
 # Generate the `late.tester` attributes
 make_late_tester <- function(dat, race) {

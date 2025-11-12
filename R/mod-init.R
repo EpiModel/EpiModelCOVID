@@ -9,13 +9,26 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- create_dat_object(param, init, control)
 
   ## network and stats initialization
-  dat <- init_nets(dat, x)   # this introduce dat$run$attr$deg.x_layer, the attribute of at work for school, which seems not contained in the arguments
+  dat <- init_nets(dat, x)   
   
   ## Initialize all remaining attributes
   dat <- init_attrs(dat)
   dat <- overwrite_attrs(dat)
   
   # simulate first time step
+  dat$nwparam$school$formula <- 
+    update(dat$nwparam$school$formula, 
+           TARGET_STATS ~ edges + nodemix("age.grp", levels2 = -1) + nodefactor("deg_work", 
+                                                                                levels = -1)
+    )
+  
+  dat$nwparam$work$formula <- 
+    update(dat$nwparam$work$formula, 
+           TARGET_STATS ~ edges + nodemix("age.grp", levels2 = -1) + nodefactor("deg_work", 
+                                                                                levels = -1)
+    )
+  
+  
   dat <- sim_nets_t1(dat)
   dat <- summary_nets(dat, at = 1L)
   
@@ -85,14 +98,8 @@ init_gmc19 <- function(x, param, init, control, s) {
 init_attrs <- function(dat) { #no.contact needs to be defined here.
   
 
-  
+   
   n_nodes <- sum(get_attr(dat, "active") ==  1)
-  
-  # add no.contact, nonhome
-  init_attr  <- get_init(dat, "attr")
-  no_contact <- 1L - init_attr$contact_attribute_Nonhome
-  dat <- set_attr(dat, "no.contact",         no_contact)
-  
   def_attrs <- get_default_attrs(dat)
   cur_attrs <- get_attr_list(dat)
   missing <- names(def_attrs)[!names(def_attrs) %in% names(cur_attrs)]
@@ -100,7 +107,7 @@ init_attrs <- function(dat) { #no.contact needs to be defined here.
     dat <- append_attr(dat, attr_name, def_attrs[[attr_name]], n_nodes)
   }
   
-  #dat <- make_computed_attrs(dat, n_nodes, post_init = FALSE) # mute for now, age need to be updated
+  dat <- make_computed_attrs(dat, n_nodes, post_init = FALSE) 
   
   # # HIV-related attributes
   # dat <- init_status_msm(dat)
