@@ -4,7 +4,7 @@ source("~/Documents/GitHub/EpiModelCOVID/R/default_attributes.R")
 #' @rdname moduleset-gmc19
 #' @export
 init_gmc19 <- function(x, param, init, control, s) {
-
+  
   ## Master Data List Setup ##
   dat <- create_dat_object(param, init, control)
 
@@ -16,17 +16,6 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- overwrite_attrs(dat)
   
   # simulate first time step
-  dat$nwparam$school$formula <- 
-    update(dat$nwparam$school$formula, 
-           TARGET_STATS ~ edges + nodemix("age.grp", levels2 = -1) + nodefactor("deg_work", 
-                                                                                levels = -1)
-    )
-  
-  dat$nwparam$work$formula <- 
-    update(dat$nwparam$work$formula, 
-           TARGET_STATS ~ edges + nodemix("age.grp", levels2 = -1) + nodefactor("deg_work", 
-                                                                                levels = -1)
-    )
   
   
   dat <- sim_nets_t1(dat)

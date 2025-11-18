@@ -11,10 +11,12 @@
 #' TODO: document all the attributes
 get_default_attrs <- function(dat) { # all attributes should be listed here
   list(
+    status=0,
     deg_work=0,
     deg_school=0,
     deg_nonhome=0,
-    no.contact=0, 
+    #no.contact=0, 
+    hh.ids =0,
     age = get_param(dat, "arrival.age"), 
     age.grp = NA
    
@@ -47,18 +49,14 @@ make_computed_attrs <- function(dat, n_new, post_init) {
   
   n_attr <- list()
   if (post_init) { # after the initialization
-  
-   n_attr$deg_work <- rep(0,n_new)
-   n_attr$deg_school <- rep(0,n_new)
-   n_attr$deg_nonhome <- rep(0,n_new)
-   n_attr$no.contact<- rep(1,n_new)
+   # n_attr$deg_work <- rep(0,n_new)
+   # n_attr$deg_school <- rep(0,n_new)
+   # n_attr$deg_nonhome <- rep(0,n_new)
     
   } else {  # at the initialization
-    n_attr$deg_work <- get_attr(dat, "deg_work", posit_ids = new_nodes_pid)
-    n_attr$deg_school <- get_attr(dat, "deg_school", posit_ids = new_nodes_pid)
-    n_attr$deg_nonhome <- get_attr(dat, "deg_nonhome", posit_ids = new_nodes_pid)
-    n_attr$no.contact <- get_attr(dat, "no.contact", posit_ids = new_nodes_pid)
-    
+    # n_attr$deg_work <- get_attr(dat, "deg_work", posit_ids = new_nodes_pid)
+    # n_attr$deg_school <- get_attr(dat, "deg_school", posit_ids = new_nodes_pid)
+    # n_attr$deg_nonhome <- get_attr(dat, "deg_nonhome", posit_ids = new_nodes_pid)
     
     # n_attr$race <- get_attr(dat, "race", posit_ids = new_nodes_pid)
     # n_attr$role.class <- get_attr(dat, "role.class", posit_ids = new_nodes_pid)
@@ -67,10 +65,16 @@ make_computed_attrs <- function(dat, n_new, post_init) {
   
   age <- get_attr(dat, "age", posit_ids = new_nodes_pid)
   
+  
   n_attr <- c(n_attr, list(
     # late.tester = make_late_tester(dat, n_attr$race),
     # circ        = make_circ(dat, n_attr$race, race_lvls),
-    age.grp     =  rep("0-9y", length(age)) #cut(age, age_breaks, labels = FALSE, right = FALSE),
+    age.grp     =   as.character(
+                        cut(age, c(0, 10, 20, 30, 40, 60, Inf), 
+                        labels = c("0-9y", "10-19y", "20-29y", "30-39y", "40-59y", "60+y"), 
+                        right = FALSE
+                        )
+                        )
     # ins.quot    = make_ins_quot(n_attr$role.class),
     # tt.traj     = make_tt_traj(dat, n_attr$race, race_lvls),
     # prep.class   = make_prep_class(dat, length(n_attr$race)),
