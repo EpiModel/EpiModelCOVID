@@ -2,7 +2,7 @@
 #' @export
 deaths_covid_gmc19 <- function(dat, at) {
   
-  if (at>=3) browser()
+  #if (at>=4) browser()
 
   ## Input
   # Attributes
@@ -10,37 +10,26 @@ deaths_covid_gmc19 <- function(dat, at) {
   age <- get_attr(dat, "age")
   status <- get_attr(dat, "status")
 
-  # age <- floor(age) # from HIV
+  #age <- floor(age) 
 
   ## Parameters ##
   mort.rates <-  get_param(dat, "mort.rates")
-  mort.dis.mult <- get_param(dat, "mort.dis.mult")
+  #mort.dis.mult <- get_param(dat, "mort.dis.mult")
 
   ## General deaths
-  idsElig <-which(as.logical(active))
+  idsElig <- which(as.logical(active))
+  
+  if (length(idsElig) > 0) {
+  age_idx_elig <- pmin(ceiling(age[idsElig]), 86) # take upper bound of numeric age as integer age (0.5 -> 1); this define a age index look up mortality rate
 
-  nElig <- length(idsElig)
-  nDeaths <-
-    nDeathsH <- 0
+  death_rates_of_elig <- mort.rates[age_idx_elig] # mortality rate of each node based on their age index
 
-  if (nElig > 0) {
-
-    whole_ages_of_elig <- pmin(ceiling(age[idsElig]), 86) # take upper bound of numeric age as integer age
-    death_rates_of_elig <- mort.rates[whole_ages_of_elig] # age-dependent death rate
-
-    idsElig.inf <- which(status[idsElig] == "h") # if hospitalized, scale up the mortality rate
-    death_rates_of_elig[idsElig.inf] <- death_rates_of_elig[idsElig.inf] *mort.dis.mult
-
-    vecDeaths <- which(rbinom(nElig, 1, death_rates_of_elig) == 1) # among the number of active nodes, use death rate of each individual to determine who dies
-    idsDeaths <- idsElig[vecDeaths] # id of individual who dies
-    nDeaths <- length(idsDeaths) # number of people who dies
-    nDeathsH <- length(intersect(idsDeaths, idsElig.inf)) # number of people who dies and is hospitalized
-
-    if (nDeaths > 0) { # record the ids of those who dies at this time step
-      # dat$attr$active[idsDeaths] <- 0, this doesn't work
-      #inactive <- which(dat$attr$active == 0) this doesn't work
-      dat <- set_attr(dat, "active", 0, posit_ids = idsDeaths)
-      dat <- depart_nodes(dat, departures = idsDeaths) # only the things in "run" are updated
+  idsDep <- idsElig[ runif(length(idsElig)) < # vector of random nunmber btw 0-1 for each node
+                       death_rates_of_elig] # when the number < death rate of that node, death occur
+  
+    if (length(idsDep) > 0) { # record the ids of those who dies at this time step
+      dat <- set_attr(dat, "active", 0, posit_ids = idsDep)
+      dat <- depart_nodes(dat, departures = idsDep) 
       attr.length <- unique(vapply(get_attr_list(dat), length, numeric(1)))
       if (attr.length != attributes(dat$run$el[[1]])[["n"]]) {
         stop("mismatch between el and attr length in departures mod")
@@ -48,12 +37,11 @@ deaths_covid_gmc19 <- function(dat, at) {
 
 
 
-    }
   }
-
+}
   ## Summary Output
-  dat <- set_epi(dat, "d.flow", at, nDeaths)
-  dat <- set_epi(dat, "d.h.flow", at, nDeathsH)
+  #dat <- set_epi(dat, "d.flow", at, nDeaths)
+  #dat <- set_epi(dat, "d.h.flow", at, nDeathsH)
 
   return(dat)
 }
