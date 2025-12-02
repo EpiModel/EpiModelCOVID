@@ -20,14 +20,13 @@ arrival <- function(dat, at) {
   
   ## Update Attr
   if (nNew > 0) {
-   # dat <- init_new_nodes_attrs(dat, nNew)
+   dat <- init_new_nodes_attrs(dat, nNew)
    # After the default above, add houshold id to new nodes and create home edgelists
-   dat <- set_home_attr_el(dat, at, nNew)
+   #dat <- set_home_attr_el(dat, at, nNew)
   }
   
   # Update Networks
   dat <- arrive_nodes(dat, nNew)
-  
 
   
   ## Output
@@ -52,7 +51,7 @@ init_new_nodes_attrs <- function(dat, n_new) {
 
 # Assign new nodes to households and create home edgelist for these nodes, run in arrivals module
 set_home_attr_el <- function(dat, at, nNew) {
-
+  new_nodes_pid <- length(get_attr(dat, "active")) - nNew + seq_len(nNew)
   
   age.grp <- get_attr(dat, "age.grp") # age of all nodes, include the new nodes (0)
   hh.ids <- get_attr(dat, "hh.ids" #  hh.ids, 0 for new nodes
@@ -67,14 +66,14 @@ set_home_attr_el <- function(dat, at, nNew) {
       )
   
   # add hh.ids of newly arrivals to run$attr
-  dat <- append_attr(dat, "hh.ids", newHH, nNew)
+  dat <- set_attr(dat, "hh.ids", newHH, posit_ids = new_nodes_pid)
 
   # update household edgelist, arrivals module
   heads <- cbind((length(hh.ids) + 1):(length(hh.ids) + nNew), newHH) # arrival nodes + their hh.ids
   tails <- cbind(which(hh.ids %in% newHH), hh.ids[which(hh.ids %in% newHH)]) # existing nodes living with new nodes + their hh.ids
   new.edges <- merge(heads, tails, by.x = 2, by.y = 2)[, 2:3] # join by the 2nd column. connect each new node to existing nodes
   new.edgelist <- as.matrix(rbind(dat$el[[dat$num.nw]], setNames(new.edges, c(".head", ".tail")))) 
-  attr(new.edgelist, 'n') <- attr(dat$el[[dat$num.nw]], 'n')
+  #attr(new.edgelist, 'n') <- attr(dat$el[[dat$num.nw]], 'n')
   dat$run$el[[dat$num.nw]] <- new.edgelist
   
   # update dat$run$net_attr

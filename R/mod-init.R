@@ -15,24 +15,26 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- init_attrs(dat)
   dat <- overwrite_attrs(dat)
   
-  # simulate first time step
-  
-  dat <- sim_nets_t1(dat)
-  dat <- summary_nets(dat, at = 1L)
-  
-  num <- sum(get_attr(dat, "active") == 1)
-  
   # Add household network edgelist
   ## network index
   dat$num.nw <- dat$num.nw + 1
   ## edgelist 
-  dat$run$el[[dat$num.nw]] <- NULL
   dat$run$el[[dat$num.nw]] <- as.matrix(dat$param$hh.pairs) 
   ## net_attr
   dat$run$net_attr[[dat$num.nw]] <- list() 
   dat$run$net_attr[[dat$num.nw]][["n"]] <- dat$run$num
   ## control
   dat$control[["tergmLite.track.duration"]][[dat$num.nw]] <- FALSE
+  
+  # simulate first time step
+  dat$num.nw <- 3
+  dat <- sim_nets_t1(dat)
+  dat <- summary_nets(dat, at = 1L)
+  dat$num.nw <- 4
+  
+  num <- sum(get_attr(dat, "active") == 1)
+  
+ 
   
   
   
