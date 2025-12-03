@@ -2,7 +2,6 @@
 #' @export
 deaths_covid_gmc19 <- function(dat, at) {
   
-  #if (at>=4) browser()
 
   ## Input
   # Attributes
@@ -20,8 +19,10 @@ deaths_covid_gmc19 <- function(dat, at) {
   idsElig <- which(as.logical(active))
   
   if (length(idsElig) > 0) {
-  age_idx_elig <- pmin(ceiling(age[idsElig]), 86) # take upper bound of numeric age as integer age (0.5 -> 1); this define a age index look up mortality rate
-
+  # this define a age index to look up mortality rate
+  #age_idx_elig <- pmin(ceiling(age[idsElig]), 86) # take upper bound of numeric age as integer age (0.5 -> 1); For those >=86 year, the index is 86
+  age_idx_elig <- pmin(pmax(ceiling(age[idsElig]), 1), 86) # this is not used in CoporateMix
+  
   death_rates_of_elig <- mort.rates[age_idx_elig] # mortality rate of each node based on their age index
 
   idsDep <- idsElig[ runif(length(idsElig)) < # vector of random nunmber btw 0-1 for each node
