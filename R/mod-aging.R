@@ -14,7 +14,7 @@
 #' @export
 #'
 aging <- function(dat, at) {
-
+  # if (at>10) browser()
   
   ## Input
   # Attributes
@@ -23,27 +23,22 @@ aging <- function(dat, at) {
   age.grp <- get_attr(dat, "age.grp") 
 
   # Parameters
-  time.unit <- 1
-    #get_param(dat, "time.unit")
+  time.unit <- get_param(dat, "time.unit")
 
   ## Process
   age[active == 1] <- age[active == 1] + time.unit / 364
   
-  #netstats <- get_param(dat, "netstats")
   
-  age.breaks <-c(0, 10, 20, 30, 40, 60, Inf)
-  age.labels <- c("0-9y", "10-19y", "20-29y", "30-39y", "40-59y", "60+y")
-  
-
-    #netstats[["demog"]][["age.breaks"]]
+  age.breaks <- get_param(dat, "age.breaks") 
+  age.grps <- get_param(dat, "age.grps") 
 
   
   age.grp[active == 1] <- cut(
     age[active == 1],
     age.breaks,
-    labels = age.labels,
+    labels = age.grps,
     right = FALSE
-  )
+  ) |> as.character()
 
   ## Output
   # Set Attributes

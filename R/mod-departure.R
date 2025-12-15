@@ -9,7 +9,7 @@ deaths_covid_gmc19 <- function(dat, at) {
   age <- get_attr(dat, "age")
   status <- get_attr(dat, "status")
 
-  #age <- floor(age) 
+  # age <- floor(age) # lower integer integer of each number age, not used in Corporate
 
   ## Parameters ##
   mort.rates <-  get_param(dat, "mort.rates")
@@ -20,12 +20,12 @@ deaths_covid_gmc19 <- function(dat, at) {
   
   if (length(idsElig) > 0) {
   # this define a age index to look up mortality rate
-  #age_idx_elig <- pmin(ceiling(age[idsElig]), 86) # take upper bound of numeric age as integer age (0.5 -> 1); For those >=86 year, the index is 86
-  age_idx_elig <- pmin(pmax(ceiling(age[idsElig]), 1), 86) # this is not used in CoporateMix
+  age_idx_elig <- pmin(ceiling(age[idsElig]), 86) # take upper bound of numeric age as location index for mort.rates; For those >=86 year, the index is 86
+  # age_idx_elig <- pmin(pmax(ceiling(age[idsElig]), 1), 86) # this is not used in CoporateMix
   
   death_rates_of_elig <- mort.rates[age_idx_elig] # mortality rate of each node based on their age index
 
-  idsDep <- idsElig[ runif(length(idsElig)) < # vector of random nunmber btw 0-1 for each node
+  idsDep <- idsElig[ runif(length(death_rates_of_elig)) < # vector of random nunmber btw 0-1 for each node
                        death_rates_of_elig] # when the number < death rate of that node, death occur
   
     if (length(idsDep) > 0) { # record the ids of those who dies at this time step

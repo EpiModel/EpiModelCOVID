@@ -2,7 +2,7 @@
 #' @rdname moduleset-ship
 #' @export
 infect_covid_ship <- function(dat, at) {
-
+  
   ## Attributes ##
   active <- dat$attr$active
   status <- dat$attr$status
@@ -250,7 +250,7 @@ discord_edgelist_covid_ship <- function(dat, nw = 1) {
 #' @rdname moduleset-corporate
 #' @export
 infect_covid_corporate <- function(dat, at) {
-
+   # if (at>2) browser()
   ## Attributes ##
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
@@ -260,10 +260,10 @@ infect_covid_corporate <- function(dat, at) {
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
 
   ## Common Parameters ##
-  inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr")
-  act.rate.dx.inter.rr <- get_param(dat, "act.rate.dx.inter.rr")
-  act.rate.dx.inter.time <- get_param(dat, "act.rate.dx.inter.time")
-  act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr")
+  inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr") # relative risk multiplier for per-act infectiousness of asymptomatic infections.
+  act.rate.dx.inter.rr <- get_param(dat, "act.rate.dx.inter.rr") # relative change in act rate after diagnosis
+  act.rate.dx.inter.time <- get_param(dat, "act.rate.dx.inter.time") # time step when the diagnosis-based act-rate intervention turns on
+  act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr") # relative change in act rate for symptomatic infectious individuals
   act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
   vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
   vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
@@ -280,7 +280,7 @@ infect_covid_corporate <- function(dat, at) {
       ## If any discordant pairs, proceed ##
       if (!(is.null(del))) {
 
-        ## Parameters ##
+        ## Parameters, layer specific ##
         inf.prob <- get_param(dat, "inf.prob")[layer]
         act.rate <- get_param(dat, "act.rate")[layer]
         inf.prob.inter.rr <- get_param(dat, "inf.prob.inter.rr")[layer]

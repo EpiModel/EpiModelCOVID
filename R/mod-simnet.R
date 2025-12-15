@@ -1,6 +1,5 @@
 
 #' @rdname moduleset-gmc19
-#' @export
 resim_nets_gmc19_x_layer <- function(dat, at) { # adapted from cruiseship function 
   
   nms  <- names(dat$run$el)

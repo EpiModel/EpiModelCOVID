@@ -11,14 +11,29 @@
 #' TODO: document all the attributes
 get_default_attrs <- function(dat) { # all attributes should be listed here
   list(
+    # network attributes
     status=0,
     deg_work=0,
     deg_school=0,
     deg_nonhome=0,
-    #no.contact=0, 
     hh.ids =0,
     age = get_param(dat, "arrival.age"), 
-    age.grp = NA
+    age.grp = NA,
+    # disease-related attributes
+    vax.age.group = NA, 
+    statusTime = NA,
+    infTime = NA,
+    clinical= NA,
+    hospit= NA,
+    dxStatus= NA,
+    dxTime= NA,
+    vax= NA,
+    vax1Time= NA,
+    vax2Time= NA,
+    vax3Time= NA,
+    vax4Time= NA,
+    isolate= NA,
+    isoTime= NA
    
   )
 }
@@ -64,17 +79,19 @@ make_computed_attrs <- function(dat, n_new, post_init) {
   }
   
   age <- get_attr(dat, "age", posit_ids = new_nodes_pid)
+  age.breaks <- get_param(dat, "age.breaks")
+  age.grps <- get_param(dat, "age.grps")
   
   
   n_attr <- c(n_attr, list(
     # late.tester = make_late_tester(dat, n_attr$race),
     # circ        = make_circ(dat, n_attr$race, race_lvls),
-    age.grp     =   as.character(
-                        cut(age, c(0, 10, 20, 30, 40, 60, Inf), 
-                        labels = c("0-9y", "10-19y", "20-29y", "30-39y", "40-59y", "60+y"), 
+    age.grp     =   cut(age, 
+                        age.breaks, 
+                        labels = age.grps, 
                         right = FALSE
-                        )
-                        )
+                        ) |> as.character()
+                        
     # ins.quot    = make_ins_quot(n_attr$role.class),
     # tt.traj     = make_tt_traj(dat, n_attr$race, race_lvls),
     # prep.class   = make_prep_class(dat, length(n_attr$race)),
