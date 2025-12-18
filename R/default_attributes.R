@@ -64,6 +64,9 @@ make_computed_attrs <- function(dat, n_new, post_init) {
   
   n_attr <- list()
   if (post_init) { # after the initialization
+    # Disease status and related
+     n_attr$status <- rep("s",n_new)
+     n_attr$vax <- rep(0,n_new)
    # n_attr$deg_work <- rep(0,n_new)
    # n_attr$deg_school <- rep(0,n_new)
    # n_attr$deg_nonhome <- rep(0,n_new)

@@ -250,7 +250,7 @@ discord_edgelist_covid_ship <- function(dat, nw = 1) {
 #' @rdname moduleset-corporate
 #' @export
 infect_covid_corporate <- function(dat, at) {
-   # if (at>2) browser()
+    
   ## Attributes ##
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")

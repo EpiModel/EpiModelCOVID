@@ -18,7 +18,7 @@ arrival <- function(dat, at) {
   
 
   
-  ## Update Attr
+  # Update Attr
   if (nNew > 0) {
    dat <- init_new_nodes_attrs(dat, nNew)
    # After the default above, add houshold id to new nodes and create home edgelists
