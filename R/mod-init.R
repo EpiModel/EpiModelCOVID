@@ -16,8 +16,8 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- init_attrs(dat)
   dat <- overwrite_attrs(dat)
   
-  # Infection status and related
-  dat <- init_status_gmc19(dat)
+  # # Infection status and related
+  # dat <- init_status_gmc19(dat)
   
   # Add household network edgelist
   ## network index
@@ -109,9 +109,9 @@ init_status_gmc19 <- # adapted from init_status_covid_corporate
   # statusTime <- rep(NA, num)
    statusTime <- get_attr(dat, "statusTime")
    statusTime[idsInf] <- 1
-  # dxStatus <- rep(0, num)
+   # dxStatus <- rep(0, num)
   # dxTime <- rep(NA, num)
-   vax <- rep(0, num)
+   # vax <- rep(0, num)
   # vax1Time <- rep(NA, num)
   # vax2Time <- rep(NA, num)
   # vax3Time <- rep(NA, num)
@@ -123,9 +123,9 @@ init_status_gmc19 <- # adapted from init_status_covid_corporate
   # dat <- set_attr(dat, "infTime", infTime)
   # dat <- set_attr(dat, "clinical", clinical)
   # dat <- set_attr(dat, "hospit", hospit)
-  # dat <- set_attr(dat, "dxStatus", dxStatus)
+   # dat <- set_attr(dat, "dxStatus", dxStatus)
   # dat <- set_attr(dat, "dxTime", dxTime)
-   dat <- set_attr(dat, "vax", vax)
+   # dat <- set_attr(dat, "vax", vax)
   # dat <- set_attr(dat, "vax1Time", vax1Time)
   # dat <- set_attr(dat, "vax2Time", vax2Time)
   # dat <- set_attr(dat, "vax3Time", vax3Time)

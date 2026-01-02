@@ -12,7 +12,7 @@
 get_default_attrs <- function(dat) { # all attributes should be listed here
   list(
     # network attributes
-    status=0,
+    status="s",
     deg_work=0,
     deg_school=0,
     deg_nonhome=0,
@@ -25,9 +25,9 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     infTime = NA,
     clinical= NA,
     hospit= NA,
-    dxStatus= NA,
+    dxStatus= 0,
     dxTime= NA,
-    vax= NA,
+    vax= 0,
     vax1Time= NA,
     vax2Time= NA,
     vax3Time= NA,
@@ -57,28 +57,33 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
 make_computed_attrs <- function(dat, n_new, post_init) {
   new_nodes_pid <- length(get_attr(dat, "active")) - n_new + seq_len(n_new)
 
-  # ns <- get_param(dat, "netstats")
-  # age_breaks <- ns$demog$age.breaks
-  # race_dist <- prop.table(table(ns$attr$race))
-  # race_lvls <- as.numeric(names(race_dist))
   
   n_attr <- list()
   if (post_init) { # after the initialization
     # Disease status and related
-     n_attr$status <- rep("s",n_new)
-     n_attr$vax <- rep(0,n_new)
-   # n_attr$deg_work <- rep(0,n_new)
-   # n_attr$deg_school <- rep(0,n_new)
-   # n_attr$deg_nonhome <- rep(0,n_new)
+    #  n_attr$status <- rep("s",n_new)
     
   } else {  # at the initialization
-    # n_attr$deg_work <- get_attr(dat, "deg_work", posit_ids = new_nodes_pid)
-    # n_attr$deg_school <- get_attr(dat, "deg_school", posit_ids = new_nodes_pid)
-    # n_attr$deg_nonhome <- get_attr(dat, "deg_nonhome", posit_ids = new_nodes_pid)
+    # Disease status 
+    e.num <- get_init(dat, "e.num")
     
-    # n_attr$race <- get_attr(dat, "race", posit_ids = new_nodes_pid)
-    # n_attr$role.class <- get_attr(dat, "role.class", posit_ids = new_nodes_pid)
-    # n_attr$risk.grp <- get_attr(dat, "risk.grp", posit_ids = new_nodes_pid)
+    active <- get_attr(dat, "active")
+    num <- sum(active)
+    
+    status <- get_attr(dat, "status")
+    if (e.num > 0) {
+      status[sample(which(active == 1), size = e.num)] <- "e"
+    }
+    
+    n_attr$status <- status
+    
+    
+    # Infection Time 
+    idsInf <- which(status == "e")
+    statusTime <- get_attr(dat, "statusTime")
+    statusTime[idsInf] <- 1
+    
+    n_attr$statusTime <- statusTime
   }
   
   age <- get_attr(dat, "age", posit_ids = new_nodes_pid)
@@ -87,18 +92,11 @@ make_computed_attrs <- function(dat, n_new, post_init) {
   
   
   n_attr <- c(n_attr, list(
-    # late.tester = make_late_tester(dat, n_attr$race),
-    # circ        = make_circ(dat, n_attr$race, race_lvls),
     age.grp     =   cut(age, 
                         age.breaks, 
                         labels = age.grps, 
                         right = FALSE
                         ) |> as.character()
-                        
-    # ins.quot    = make_ins_quot(n_attr$role.class),
-    # tt.traj     = make_tt_traj(dat, n_attr$race, race_lvls),
-    # prep.class   = make_prep_class(dat, length(n_attr$race)),
-    # last.neg.test = get_attr(dat, "entrTime", posit_ids = new_nodes_pid)
   ))
   
   for (attr_name in names(n_attr)) {

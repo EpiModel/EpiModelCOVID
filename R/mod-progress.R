@@ -2,7 +2,7 @@
 #' @rdname moduleset-common
 #' @export
 progress_covid <- function(dat, at) {
-
+  #if (at>20) browser()
   ## Attributes
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")

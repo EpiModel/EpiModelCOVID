@@ -1,7 +1,8 @@
 
 #' @rdname moduleset-common
 #' @export
-vax_covid <- function(dat, at) {
+vax_covid <- function(dat, at) { # this is copied directl from the main module.
+  # if (at>20) browser()
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   age <- get_attr(dat, "age")

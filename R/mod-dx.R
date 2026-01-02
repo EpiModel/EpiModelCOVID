@@ -2,7 +2,7 @@
 #' @rdname moduleset-common
 #' @export
 dx_covid <- function(dat, at) {
-
+  # if (at>10) browser()
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   dxStatus <- get_attr(dat, "dxStatus")
