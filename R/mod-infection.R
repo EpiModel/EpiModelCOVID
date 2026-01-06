@@ -1,7 +1,7 @@
 #' @rdname moduleset-corporate
 #' @export
 infect_covid_corporate <- function(dat, at) { #maria's repo
-  
+  # if (at>30) browser()
   ## Attributes ##
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
@@ -44,7 +44,8 @@ infect_covid_corporate <- function(dat, at) { #maria's repo
                               infstat = c("a", "ic", "ip"))
       
       ## If any discordant pairs, proceed ##
-      if (!(is.null(del))) {
+      if (!(is.null(del))
+          ) {
         
         ## Parameters ##
         inf.prob <- get_param(dat, "inf.prob")[layer]
@@ -77,16 +78,16 @@ infect_covid_corporate <- function(dat, at) { #maria's repo
         del$transProb[del$vaxSus == 4] <- del$transProb[del$vaxSus == 4] * vax4.rr.infect
         
         #Waning vaccine immunity
-        sinceVax1 <- at - vax1Time[del$sus]
-        sinceVax2 <- at - vax2Time[del$sus]
-        sinceVax3 <- at - vax3Time[del$sus]
-        sinceVax4 <- at - vax4Time[del$sus]
+        sinceVax1 <- at - vax1Time[del$sus] # days since 1st vax
+        sinceVax2 <- at - vax2Time[del$sus] # days since 2nd vax
+        sinceVax3 <- at - vax3Time[del$sus] # days since 3rd vax
+        sinceVax4 <- at - vax4Time[del$sus] # days since 4th vax
         
-        latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, sinceVax4, na.rm = TRUE)
-        latest.vax[is.na(latest.vax)] <- 0
+        latest.vax <- pmin(sinceVax1, sinceVax2, sinceVax3, sinceVax4, na.rm = TRUE) # identify the most recent vax by taking the minimum time since vaccination across doses.
+        latest.vax[is.na(latest.vax)] <- 0 #  individuals with no vax are assigned 0 - no waning 
         
         del$latest.vax <- latest.vax
-        del$transProb <- pmin(del$transProb * (2 ^ (del$latest.vax / half.life)), inf.prob)
+        del$transProb <- pmin(del$transProb * (2 ^ (del$latest.vax / half.life)), inf.prob) # Vaccine protection as exponential waning: the transmission probability increases by a factor of 2 every half.life time units since the most recent dose, capped at the baseline transmission probability (inf.prob)
         
         # Asymptomatic infection
         del$stat <- status[del$inf]
@@ -150,7 +151,7 @@ infect_covid_corporate <- function(dat, at) { #maria's repo
 #' @rdname moduleset-corporate
 #' @export
 infect_covid_corporate_main <- function(dat, at) { # main module
-  if (at>30) browser()
+  #if (at>30) browser()
   ## Attributes ##
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
