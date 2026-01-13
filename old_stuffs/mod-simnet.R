@@ -1,7 +1,7 @@
 
 #' @rdname moduleset-gmc19
 resim_nets_gmc19_x_layer <- function(dat, at) { # adapted from cruiseship function 
-  
+  if (at>20) browser()
   nms  <- names(dat$run$el)
   idx_school <- which(nms == "school")
   idx_work <- which(nms == "work")
@@ -9,17 +9,17 @@ resim_nets_gmc19_x_layer <- function(dat, at) { # adapted from cruiseship functi
   
   dat$num.nw <- dat$num.nw - 1 # disregard household nw for this module
   
-  ## Edges correction
+  # Edges correction
   dat <- edges_correct(dat, at)
   
-  ## network resimulation
+  # network resimulation
   dat.updates <- NVL(get_control(dat, "dat.updates"), function(dat, ...) dat)
   
-  # nonhome simulation
+  ## nonhome simulation
   dat <- simulate_dat(dat = dat, at = at, network = idx_nonhome)
   dat <- dat.updates(dat = dat, at = at, network = idx_nonhome)
   
-  # school simulation at t+1 (on/after simulate_date), depends on work's degree at t (before simulate_dat)
+  ## school simulation at t+1 (on/after simulate_date), depends on work's degree at t (before simulate_dat)
   work_layer_t <-   get_network(x =dat, network = idx_work)
   deg_work_t <-   get_degree(work_layer_t)
   
@@ -37,7 +37,7 @@ resim_nets_gmc19_x_layer <- function(dat, at) { # adapted from cruiseship functi
   dat  <- simulate_dat(dat = dat, at = at, network = idx_school)
   dat  <- dat.updates(dat = dat, at = at, network = idx_school)
   
-  # work simulation at t, depends on school's degree at t+1 ----
+  ## work simulation at t, depends on school's degree at t+1 ----
   school_layer_t <-   get_network(x =dat, network = idx_school)
   deg_school_t <-   get_degree(school_layer_t)
   
@@ -54,6 +54,15 @@ resim_nets_gmc19_x_layer <- function(dat, at) { # adapted from cruiseship functi
   
   dat  <- simulate_dat(dat = dat, at = at, network = idx_work)
   dat  <- dat.updates(dat = dat, at = at, network = idx_work)
+  
+  # update cumulative edgelist
+  if (get_control(dat, "cumulative.edgelist")) {
+    for (n_network in seq_len(dat$num.nw)) {
+      dat <- update_cumulative_edgelist(dat, n_network,
+                                        get_control(dat, "truncate.el.cuml"))
+    }
+  }
+  
 
   dat$num.nw <- dat$num.nw + 1 # disregard household nw for this module
   
