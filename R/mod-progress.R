@@ -168,6 +168,7 @@
 #' @rdname moduleset-common
 #' @export
 progress_covid_corporate <- function(dat, at) {
+  #if (at>=10) browser()
   
   ## Attributes
   active <- get_attr(dat, "active")
@@ -182,6 +183,7 @@ progress_covid_corporate <- function(dat, at) {
   vax3Time <- get_attr(dat, "vax3Time")
   vax4Time <- get_attr(dat, "vax4Time")
   dxStatus <- get_attr(dat, "dxStatus")
+  deg_work <- get_attr(dat, "deg_work")
   non.office <- ifelse(deg_work > 0, 0, 1)  # 0=office, 1=non-office
   
   
@@ -211,12 +213,20 @@ progress_covid_corporate <- function(dat, at) {
   icr.rate <- get_param(dat, "icr.rate")
   hr.rate <- get_param(dat, "hr.rate")
   rs.rate <- get_param(dat, "rs.rate")
+  age.breaks<- get_param(dat, "age.breaks")
   
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
   num.newInf <- length(ids.newInf)
   if (num.newInf > 0) {
-    age.group <- pmin((floor(age[ids.newInf] / 10)) + 1, 9)
+    age.group <- 
+      cut(
+        age[ids.newInf],
+        breaks = age.breaks,
+        right = F,
+        labels = 1:6
+       
+      ) |> as.character() |> as.integer()
     prop.clin.vec <- prop.clinical[age.group]
     
     #vaccination reduces risk of clinical disease
@@ -313,7 +323,14 @@ progress_covid_corporate <- function(dat, at) {
   ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
   num.newIc <- length(ids.newIc)
   if (num.newIc > 0) {
-    age.group <- pmin((floor(age[ids.newIc] / 10)) + 1, 9)
+    age.group <- 
+      cut(
+        age[ids.newIc],
+        breaks = age.breaks,
+        right = F,
+        labels = 1:6
+        
+      ) |> as.character() |> as.integer()
     prop.hosp.vec <- prop.hospit[age.group]
     if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
     
