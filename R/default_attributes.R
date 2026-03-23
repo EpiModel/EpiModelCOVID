@@ -11,10 +11,16 @@
 #' TODO: document all the attributes
 get_default_attrs <- function(dat) { # all attributes should be listed here
   list(
-    # network attributes
+    # network attributes, binary
     deg_work=0,
     deg_school=0,
     deg_nonhome=0,
+    # network attributes, integer
+    degree_work=0,
+    degree_school=0,
+    degree_nonhome=0,
+    degree_hh=0,
+    degree_total=0,
     # houshold id and age
     hh.ids =0, 
     age = get_param(dat, "arrival.age"), 
