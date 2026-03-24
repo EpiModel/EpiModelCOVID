@@ -1,91 +1,83 @@
-#' 
-#' #' @rdname moduleset-common
-#' #' @export
-#' vax_covid <- function(dat, at) { # this is copied directl from the main module.
-#'   # if (at>20) browser()
-#'   active <- get_attr(dat, "active")
-#'   status <- get_attr(dat, "status")
-#'   age <- get_attr(dat, "age")
-#'   vax <- get_attr(dat, "vax")
-#'   vax1Time <- get_attr(dat, "vax1Time")
-#'   vax2Time <- get_attr(dat, "vax2Time")
-#' 
-#'   vax.start <- get_param(dat, "vax.start")
-#'   vax1.rate <- get_param(dat, "vax1.rate")
-#'   vax2.interval <- get_param(dat, "vax2.interval")
-#'   vax1.immune <- get_param(dat, "vax1.immune")
-#'   vax2.immune <- get_param(dat, "vax2.immune")
-#' 
-#'   ## First vax
-#'   nVax <- 0
-#'   if (at >= vax.start) {
-#'     idsElig.vax1 <- which(active == 1 & status == "s" & vax == 0)
-#'     nElig.vax1 <- length(idsElig.vax1)
-#'     if (nElig.vax1 > 0) {
-#'       age.group <- pmin((floor(age[idsElig.vax1] / 10)) + 1, 8)
-#'       vax1.rate.vec <- vax1.rate[age.group]
-#'       vecVax <- which(rbinom(nElig.vax1, 1, vax1.rate.vec) == 1)
-#'       idsVax <- idsElig.vax1[vecVax]
-#'       nVax <- length(idsVax)
-#'       if (nVax > 0) {
-#'         vax[idsVax] <- 1
-#'         vax1Time[idsVax] <- at
-#'       }
-#'     }
-#'   }
-#' 
-#'   idsVax1.gt65 <- which(active == 1 & vax == 1 & vax1Time == at & age >= 65)
-#'   nidsVax1.gt65 <- length(idsVax1.gt65)
-#' 
-#'   idsVax1.15to65 <- which(active == 1 & vax == 1 & vax1Time == at & age < 65 &
-#'                         age >= 15)
-#'   nidsVax1.15to65 <- length(idsVax1.15to65)
-#' 
-#'   idsVax1.lt15 <- which(active == 1 & vax == 1 & vax1Time == at & age < 15)
-#'   nidsVax1.lt15 <- length(idsVax1.lt15)
-#' 
-#'   # Partial Immunity after first shot
-#'   idsvaximmunePartial <- which(active == 1 & vax == 1 & at - vax1Time >= vax1.immune)
-#'   nvaximmunePartial <- length(idsvaximmunePartial)
-#'   if (nvaximmunePartial > 0) {
-#'     vax[idsvaximmunePartial] <- 2
-#'   }
-#' 
-#'   ## Second vax
-#'   idsvaxFull <- which(active == 1 & vax == 2 & (at - vax1Time >= vax2.interval))
-#'   nvaxFull <- length(idsvaxFull)
-#'   if (nvaxFull > 0) {
-#'     vax[idsvaxFull] <- 3
-#'     vax2Time[idsvaxFull] <- at
-#'   }
-#' 
-#'   # Partial Immunity after first shot
-#'   idsvaximmuneFull <- which(active == 1 & vax == 3 & at - vax2Time >= vax2.immune)
-#'   nvaximmuneFull <- length(idsvaximmuneFull)
-#'   if (nvaximmuneFull > 0) {
-#'     vax[idsvaximmuneFull] <- 4
-#'   }
-#' 
-#'   ## Replace attr
-#'   dat <- set_attr(dat, "vax", vax)
-#'   dat <- set_attr(dat, "vax1Time", vax1Time)
-#'   dat <- set_attr(dat, "vax2Time", vax2Time)
-#' 
-#'   ## Summary statistics ##
-#'   dat <- set_epi(dat, "nVax1", at, nVax)
-#'   dat <- set_epi(dat, "nVax2", at, nvaxFull)
-#'   dat <- set_epi(dat, "nVaxImmunePart", at, nvaximmunePartial)
-#'   dat <- set_epi(dat, "nVax1gt65", at, nidsVax1.gt65)
-#'   dat <- set_epi(dat, "nVax115to65", at, nidsVax1.15to65)
-#'   dat <- set_epi(dat, "nVax1lt15", at, nidsVax1.lt15)
-#' 
-#'   return(dat)
-#' }
-
 
 #' @rdname moduleset-common
 #' @export
 vax_covid_corporate <- function(dat, at) {
+  
+  # parameter-driven strategy selector 
+  get_vax_rate_vec <- function(rate, ids, vax.age.group, vax.strategy) {
+    if (vax.strategy == "age") {
+      rate[vax.age.group[ids]]
+    } else if (vax.strategy == "random") {
+      rep(rate[1], length(ids))
+    } else if (vax.strategy == "degree") {
+      rate[vax.age.group[ids]]   # stub for now
+    } else if (vax.strategy == "bridge") {
+      rate[vax.age.group[ids]]   # stub for now
+    } else {
+      stop("Unknown vax.strategy: ", vax.strategy)
+    }
+  }
+  
+  # degree-based allocation
+  select_degree_ids <- function(ids, degree_total, remaining_supply) {
+    
+    n_elig <- length(ids)  # number of eligible people 
+    
+    if (n_elig == 0) { # if nobody is eligible, return an empty vector
+      return(integer(0))
+    }
+    
+    if (remaining_supply <= 0) { # if no vaccine doses are left for this timestep, return an empty vector
+      return(integer(0))
+    }
+    
+    n_take <- min(remaining_supply, n_elig) # decide number of people to vaccinate: take the smaller of: 1) number of doses left, 2) number of eligible people
+    
+    # degree-based allocatiom - rank eligible people by degree_total from high to low
+    ord <- order(-degree_total[ids], # sort degre values of eligible people in descending order
+                 runif(n_elig)) # runif(n_elig) adds random numbers to break ties randomly
+    
+    
+    ids_ranked <- ids[ord] # reorder the eligible IDs based on that ranking
+    
+    ids_selected <- ids_ranked[1:n_take] # take the top n_take people from the ranked list
+    
+    return(ids_selected)
+  }
+  
+  # replacing the above two functions
+  get_vax_targets <- function(ids, rate, vax.age.group, vax.strategy,
+                              degree_total, remaining_supply) {
+    n_elig <- length(ids)
+    
+    if (n_elig == 0) {
+      return(integer(0))
+    }
+    
+    if (vax.strategy == "degree") {
+      if (remaining_supply <= 0) {
+        return(integer(0))
+      }
+      
+      n_take <- min(remaining_supply, n_elig)
+      ord <- order(-degree_total[ids], runif(n_elig))
+      ids_ranked <- ids[ord]
+      return(ids_ranked[1:n_take])
+    }
+    
+    rate.vec <- if (vax.strategy == "age") {
+      rate[vax.age.group[ids]]
+    } else if (vax.strategy == "random") {
+      rep(rate[1], n_elig)
+    } else if (vax.strategy == "bridge") {
+      rate[vax.age.group[ids]]
+    } else {
+      stop("Unknown vax.strategy: ", vax.strategy)
+    }
+    
+    ids[which(rbinom(n_elig, 1, rate.vec) == 1)]
+  }
+  
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   age <- get_attr(dat, "age")
@@ -104,12 +96,24 @@ vax_covid_corporate <- function(dat, at) {
       
     ) |> as.character() |> as.integer()
     
-  # vax.age.group <- get_attr(dat, "vax.age.group")
   dxStatus <- get_attr(dat, "dxStatus")
   dxTime <- get_attr(dat, "dxTime")
   
   deg_work <- get_attr(dat, "deg_work")
   non.office <- ifelse(deg_work > 0, 0, 1)  # 0=office, 1=non-office
+  
+  degree_total <- get_attr(dat, "degree_total")
+  
+  vax.strategy <- get_param(dat, "vax.strategy") # determine which stategy to use
+  vax.supply.rate <- get_param(dat, "vax.supply.rate")
+  
+  n_pop <- sum(active == 1) # active nodes
+  
+  remaining_supply <- if (is.infinite(vax.supply.rate)) {
+    Inf
+  } else {
+    floor(vax.supply.rate * n_pop) # number of eligible population who'll receive vaccine
+  }
   
   vax1.start <- get_param(dat, "vax1.start")
   vax2.interval <- get_param(dat, "vax2.interval")
@@ -139,7 +143,9 @@ vax_covid_corporate <- function(dat, at) {
     nElig.vax1.boost <- length(idsElig.vax1.boost)
     
     if (nElig.vax1.boost > 0) {
-      vax1.boost.age <- vax1.boost[vax.age.group[idsElig.vax1.boost]]
+      #vax1.boost.age <- vax1.boost[vax.age.group[idsElig.vax1.boost]]
+      vax1.boost.age <- get_vax_rate_vec(vax1.boost, idsElig.vax1.boost, vax.age.group, vax.strategy)
+      
       vec.vax1.boost <- which(rbinom(nElig.vax1.boost,1,vax1.boost.age) == 1)
       ids.vax1.boost <- idsElig.vax1.boost[vec.vax1.boost]
       
@@ -157,7 +163,8 @@ vax_covid_corporate <- function(dat, at) {
     nElig.vax2.boost <- length(idsElig.vax2.boost)
     
     if (nElig.vax2.boost > 0) {
-      vax2.boost.age <- vax2.boost[vax.age.group[idsElig.vax2.boost]]
+      #vax2.boost.age <- vax2.boost[vax.age.group[idsElig.vax2.boost]]
+      vax2.boost.age <- get_vax_rate_vec(vax2.boost, idsElig.vax2.boost, vax.age.group, vax.strategy)
       vec.vax2.boost <- which(rbinom(nElig.vax2.boost,1,vax2.boost.age) == 1)
       ids.vax2.boost <- idsElig.vax2.boost[vec.vax2.boost]
       
@@ -175,7 +182,8 @@ vax_covid_corporate <- function(dat, at) {
     nElig.vax3.boost <- length(idsElig.vax3.boost)
     
     if (nElig.vax3.boost > 0) {
-      vax3.boost.age <- vax3.boost[vax.age.group[idsElig.vax3.boost]]
+      #vax3.boost.age <- vax3.boost[vax.age.group[idsElig.vax3.boost]]
+      vax3.boost.age <- get_vax_rate_vec(vax3.boost, idsElig.vax3.boost, vax.age.group, vax.strategy)
       vec.vax3.boost <- which(rbinom(nElig.vax3.boost,1,vax3.boost.age) == 1)
       ids.vax3.boost <- idsElig.vax3.boost[vec.vax3.boost]
       
@@ -193,7 +201,8 @@ vax_covid_corporate <- function(dat, at) {
     nElig.vax4.boost <- length(idsElig.vax4.boost)
     
     if (nElig.vax4.boost > 0) {
-      vax4.boost.age <- vax4.boost[vax.age.group[idsElig.vax4.boost]]
+      #vax4.boost.age <- vax4.boost[vax.age.group[idsElig.vax4.boost]]
+      vax4.boost.age <- get_vax_rate_vec(vax4.boost, idsElig.vax4.boost, vax.age.group, vax.strategy)
       vec.vax4.boost <- which(rbinom(nElig.vax4.boost,1,vax4.boost.age) == 1)
       ids.vax4.boost <- idsElig.vax4.boost[vec.vax4.boost]
       
@@ -212,7 +221,8 @@ vax_covid_corporate <- function(dat, at) {
   nElig.vax1 <- length(idsElig.vax1)
   if (nElig.vax1 > 0) {
     #set vax rate based on age
-    vax1.rate.vec <- vax1.rate[vax.age.group[idsElig.vax1]]
+    #vax1.rate.vec <- vax1.rate[vax.age.group[idsElig.vax1]]
+    vax1.rate.vec <- get_vax_rate_vec(vax1.rate, idsElig.vax1, vax.age.group, vax.strategy)
     
     vecVax1 <- which(rbinom(nElig.vax1, 1, vax1.rate.vec) == 1)
     idsVax1 <- idsElig.vax1[vecVax1]
@@ -231,7 +241,8 @@ vax_covid_corporate <- function(dat, at) {
   nElig.vax2 <- length(idsElig.vax2)
   if (nElig.vax2 > 0) {
     #set vax rate based on age
-    vax2.rate.vec <- vax2.rate[vax.age.group[idsElig.vax2]]
+    #vax2.rate.vec <- vax2.rate[vax.age.group[idsElig.vax2]]
+    vax2.rate.vec <- get_vax_rate_vec(vax2.rate, idsElig.vax2, vax.age.group, vax.strategy)
     
     #roll for second dose
     vecVax2 <- which(rbinom(nElig.vax2, 1, vax2.rate.vec) == 1)
@@ -254,7 +265,8 @@ vax_covid_corporate <- function(dat, at) {
   nElig.vax3 <- length(idsElig.vax3)
   if (nElig.vax3 > 0) {
     #set vax rate based on age
-    vax3.rate.vec <- vax3.rate[vax.age.group[idsElig.vax3]]
+    #vax3.rate.vec <- vax3.rate[vax.age.group[idsElig.vax3]]
+    vax3.rate.vec <- get_vax_rate_vec(vax3.rate, idsElig.vax3, vax.age.group, vax.strategy)
     
     #roll for 3rd dose
     vecVax3 <- which(rbinom(nElig.vax3, 1, vax3.rate.vec) == 1)
@@ -278,7 +290,8 @@ vax_covid_corporate <- function(dat, at) {
   nElig.vax4 <- length(idsElig.vax4)
   if (nElig.vax4 > 0) {
     #set vax rate based on age
-    vax4.rate.vec <- vax4.rate[vax.age.group[idsElig.vax4]]
+    #vax4.rate.vec <- vax4.rate[vax.age.group[idsElig.vax4]]
+    vax4.rate.vec <- get_vax_rate_vec(vax4.rate, idsElig.vax4, vax.age.group, vax.strategy)
     
     #roll for fourth dose
     vecVax4 <- which(rbinom(nElig.vax4, 1, vax4.rate.vec) == 1)
