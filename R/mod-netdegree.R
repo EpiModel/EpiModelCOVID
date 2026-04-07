@@ -1,23 +1,14 @@
 netdegree <- function(dat, at) {
-  #if (at>20) browser()
+  if (at>20) browser()
   if (isFALSE(dat$param$compute.degree)) return(dat)
   
   degree_work    <- get_degree(dat$run$el[["work"]])
   degree_school  <- get_degree(dat$run$el[["school"]])
   degree_nonhome <- get_degree(dat$run$el[["nonhome"]])
   
-  # if (is.null(dat$degree_hh_cache)) { # assumed static
-  #   dat$degree_hh_cache <-
-  #   tabulate(c(dat$run$el[[4]][,1], dat$run$el[[4]][,2]), 
-  #            nbins=attr(dat$run$el$school, "n") # check
-  #            )
-  #    
-  # }
-  # degree_hh <- dat$degree_hh_cache
-  
   degree_hh <-
     tabulate(c(dat$run$el[[4]][,1], dat$run$el[[4]][,2]),
-             nbins=attr(dat$run$el$school, "n") # check
+             nbins=attr(dat$run$el$school, "n") # number of active nodes at this time step, pulled from school layer
              )
 
   degree_total <- degree_work + degree_school + degree_nonhome + degree_hh
@@ -30,12 +21,11 @@ netdegree <- function(dat, at) {
   age.grp <- get_attr(dat, item = "age.grp")
   mean_degree_age <- aggregate(degree_total ~ age.grp, FUN = mean)
   
-  
-  # proportion of nodes that are cross-layer bridges
+  # proportion of nodes that are cross-layer bridges  
   ## overall
-   prop.table(table(is_bridge))[2]
+  prop_bridge <- mean(is_bridge)
   ## by age group
-   prop.table(table(age.grp, is_bridge))
+  prop_bridge_age <-  prop.table(table(age.grp, is_bridge))
    
   # degree variance by age group 
   degree_var_age <-  aggregate(degree_total ~ age.grp, FUN = var)
@@ -54,6 +44,14 @@ netdegree <- function(dat, at) {
   dat <- set_epi(dat, "mean_degree_nonhome", at, mean(degree_nonhome))
   dat <- set_epi(dat, "mean_degree_hh", at, mean(degree_hh))
   dat <- set_epi(dat, "mean_degree_total", at, mean(degree_total))
+  
+  dat <- set_epi(dat, "prop_bridge", at, prop_bridge) 
+  dat <- set_epi(dat, "prop_bridge_age1", at, prop_bridge_age[1,2])
+  dat <- set_epi(dat, "prop_bridge_age2", at, prop_bridge_age[2,2])
+  dat <- set_epi(dat, "prop_bridge_age3", at, prop_bridge_age[3,2])
+  dat <- set_epi(dat, "prop_bridge_age4", at, prop_bridge_age[4,2])
+  dat <- set_epi(dat, "prop_bridge_age5", at, prop_bridge_age[5,2])
+  dat <- set_epi(dat, "prop_bridge_age6", at, prop_bridge_age[6,2])
   
   dat <- set_epi(dat, "mean_degree_age1", at, mean_degree_age[1,2])
   dat <- set_epi(dat, "mean_degree_age2", at, mean_degree_age[2,2])
