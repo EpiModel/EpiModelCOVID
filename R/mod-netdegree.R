@@ -1,5 +1,5 @@
 netdegree <- function(dat, at) {
-  if (at>20) browser()
+  #if (at>20) browser()
   if (isFALSE(dat$param$compute.degree)) return(dat)
   
   degree_work    <- get_degree(dat$run$el[["work"]])

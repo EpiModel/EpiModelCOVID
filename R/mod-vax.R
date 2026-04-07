@@ -82,6 +82,9 @@ vax_covid_corporate <- function(dat, at) {
   ids.vax3.boost <- integer(0)
   ids.vax4.boost <- integer(0)
   
+  ids_newly_vaxed <- integer(0)
+  ids_elig_all <- integer(0)
+  
   if (any(at == vax1.boost.start)) {
     idsElig.vax1.boost <- which(active == 1 & !(status %in% c("ic", "h"))
                                 & !(dxStatus == 2 & (at - dxTime <= 10)) & vax == 0
@@ -102,6 +105,9 @@ vax_covid_corporate <- function(dat, at) {
         n_layers_active = n_layers_active,
         remaining_supply = effective_supply
       )
+      
+      ids_elig_all <- c(ids_elig_all, idsElig.vax1.boost)     
+      ids_newly_vaxed <- c(ids_newly_vaxed, ids.vax1.boost) 
       
       if (length(ids.vax1.boost) > 0) {
         vax[ids.vax1.boost] <- 1
@@ -131,6 +137,9 @@ vax_covid_corporate <- function(dat, at) {
         remaining_supply = remaining_supply
       )
       
+      ids_elig_all <- c(ids_elig_all, idsElig.vax2.boost)     
+      ids_newly_vaxed <- c(ids_newly_vaxed, ids.vax2.boost) 
+      
       if (length(ids.vax2.boost) > 0) {
         vax[ids.vax2.boost] <- 2
         vax2Time[ids.vax2.boost] <- at
@@ -159,6 +168,9 @@ vax_covid_corporate <- function(dat, at) {
         remaining_supply = remaining_supply
       )
       
+      ids_elig_all <- c(ids_elig_all, idsElig.vax3.boost)     
+      ids_newly_vaxed <- c(ids_newly_vaxed, ids.vax3.boost) 
+      
       if (length(ids.vax3.boost) > 0) {
         vax[ids.vax3.boost] <- 3
         vax3Time[ids.vax3.boost] <- at
@@ -186,6 +198,9 @@ vax_covid_corporate <- function(dat, at) {
         n_layers_active = n_layers_active,
         remaining_supply = remaining_supply
       )
+      
+      ids_elig_all <- c(ids_elig_all, idsElig.vax4.boost)     
+      ids_newly_vaxed <- c(ids_newly_vaxed, ids.vax4.boost) 
       
       if (length(ids.vax4.boost) > 0) {
         vax[ids.vax4.boost] <- 4
@@ -218,6 +233,10 @@ vax_covid_corporate <- function(dat, at) {
       n_layers_active = n_layers_active,
       remaining_supply = effective_supply
     )
+    
+    ids_elig_all <- c(ids_elig_all, idsElig.vax1)     
+    ids_newly_vaxed <- c(ids_newly_vaxed, idsVax1) 
+    
     nVax1 <- length(idsVax1)
     
     if (nVax1) {
@@ -246,6 +265,9 @@ vax_covid_corporate <- function(dat, at) {
       n_layers_active = n_layers_active,
       remaining_supply = remaining_supply
     )
+    
+    ids_elig_all <- c(ids_elig_all, idsElig.vax2)     
+    ids_newly_vaxed <- c(ids_newly_vaxed, idsVax2) 
     
     nVax2 <- length(idsVax2)
     
@@ -276,6 +298,10 @@ vax_covid_corporate <- function(dat, at) {
       n_layers_active = n_layers_active,
       remaining_supply = remaining_supply
     )
+    
+    ids_elig_all <- c(ids_elig_all, idsElig.vax3)     
+    ids_newly_vaxed <- c(ids_newly_vaxed, idsVax3) 
+    
     nVax3 <- length(idsVax3)
     
     if (nVax3>0) {
@@ -306,6 +332,10 @@ vax_covid_corporate <- function(dat, at) {
       n_layers_active = n_layers_active,
       remaining_supply = remaining_supply
     )
+    
+    ids_elig_all <- c(ids_elig_all, idsElig.vax4)     
+    ids_newly_vaxed <- c(ids_newly_vaxed, idsVax4) 
+    
     nVax4 <- length(idsVax4)
     if (length(idsVax4)) {
       vax[idsVax4] <- 4
@@ -347,24 +377,42 @@ vax_covid_corporate <- function(dat, at) {
   dat <- set_epi(dat, "cov_vax4_50to64", at, length(which(vax.age.group == 4 & vax >= 4)) / length(which(vax.age.group == 4)))
   dat <- set_epi(dat, "cov_vax4_65p", at, length(which(vax.age.group == 5 & vax >= 4)) / length(which(vax.age.group == 5)))
   
-  # acceptance check, degree and bridge
+  # mnean deg and num of bridge in those ever vaccinated and never vaccinated
+  ## individual ever vaccinated and never vaccinated
   vaccinated_ids <- which(active == 1 & vax >= 1)
   unvaccinated_ids <- which(active == 1 & vax == 0)
-  
-  if (vax.strategy == "degree"){
-  #  Verified: under degree strategy, mean degree of vaccinated individuals at any timepoint should exceed mean degree of unvaccinated
+  ##  mean degree and bridge number in ever vaccinated individuals vs. in those unvaccinated
   mean_deg_vax <- mean(degree_total[vaccinated_ids])
   mean_deg_unvax <- mean(degree_total[unvaccinated_ids])
-  } else if (vax.strategy == "bridge"){
-  #Verified: under bridge strategy, vaccinated individuals should have higher mean n_layers_active than unvaccinated
-  mean_deg_vax <- mean(n_layers_active[vaccinated_ids])
-  mean_deg_unvax <- mean(n_layers_active[unvaccinated_ids])
-  }
-
+  mean_n_layers_vax <- mean(n_layers_active[vaccinated_ids])
+  mean_n_layers_unvax <- mean(n_layers_active[unvaccinated_ids])
   
   dat <- set_epi(dat, "mean_deg_vax", at, mean_deg_vax)
   dat <- set_epi(dat, "mean_deg_unvax", at, mean_deg_unvax)
-  dat <- set_epi(dat, "deg_vax_gt_unvax", at, as.integer(mean_deg_vax > mean_deg_unvax))
+  dat <- set_epi(dat, "mean_n_layers_vax", at, mean_n_layers_vax)
+  dat <- set_epi(dat, "mean_n_layers_unvax", at, mean_n_layers_unvax)
+
+  # acceptance check, the mean degree of newly vaccinated individuals should be > that of eligible but not selected individuals.
+  eligible_not_selected_ids <- setdiff(unique(ids_elig_all), unique(ids_newly_vaxed))
+  
+  mean_deg_newly_vaxed <- if (length(ids_newly_vaxed) > 0) {
+    mean(degree_total[unique(ids_newly_vaxed)])
+  } else NA_real_
+  mean_deg_elig_not_selected <- if (length(eligible_not_selected_ids) > 0) {
+    mean(degree_total[eligible_not_selected_ids])
+  } else NA_real_
+  mean_n_layers_newly_vaxed <- if (length(ids_newly_vaxed) > 0) {
+      mean(n_layers_active[unique(ids_newly_vaxed)])
+    } else NA_real_
+  mean_n_layers_elig_not_selected <- if (length(eligible_not_selected_ids) > 0) {
+      mean(n_layers_active[eligible_not_selected_ids])
+    } else NA_real_
+  
+  dat <- set_epi(dat, "mean_deg_newly_vaxed", at, mean_deg_newly_vaxed)
+  dat <- set_epi(dat, "mean_deg_elig_not_selected", at, mean_deg_elig_not_selected)
+  dat <- set_epi(dat, "mean_n_layers_newly_vaxed", at, mean_n_layers_newly_vaxed)
+  dat <- set_epi(dat, "mean_n_layers_elig_not_selected", at, mean_n_layers_elig_not_selected)
+
   
   # acceptance check, Verified: with a cap of 0.005, daily vaccination count never exceeds 0.5% of population size
   daily_vax_total <- nVax1 + nVax2 + nVax3 + nVax4 +
@@ -409,7 +457,7 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     names(degree_jitter) <- idsElig  # attach eligible ids as names so they stay linked to their degree_jitters
     
     idsElig_ranked <- as.integer(names(sort(degree_jitter, decreasing = TRUE))) # sort jittered degree from high to low, then recover the ranked IDs
-    ids.vax <- idsElig_ranked[1:n_take] # take the top n_take people from the ranked list
+    ids.vax <- idsElig_ranked[1:n_take] # take the top n_take people from the ranked list, i.e., nodes w/ highest degree are vaccinated first
     return(ids.vax)  
   } else if (vax.strategy == "bridge") {
     if (remaining_supply <= 0) {
