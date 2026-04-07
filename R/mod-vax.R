@@ -384,13 +384,13 @@ vax_covid_corporate <- function(dat, at) {
   ##  mean degree and bridge number in ever vaccinated individuals vs. in those unvaccinated
   mean_deg_vax <- mean(degree_total[vaccinated_ids])
   mean_deg_unvax <- mean(degree_total[unvaccinated_ids])
-  mean_n_layers_vax <- mean(n_layers_active[vaccinated_ids])
-  mean_n_layers_unvax <- mean(n_layers_active[unvaccinated_ids])
+  mean_n_layers_active_vax <- mean(n_layers_active[vaccinated_ids])
+  mean_n_layers_active_unvax <- mean(n_layers_active[unvaccinated_ids])
   
   dat <- set_epi(dat, "mean_deg_vax", at, mean_deg_vax)
   dat <- set_epi(dat, "mean_deg_unvax", at, mean_deg_unvax)
-  dat <- set_epi(dat, "mean_n_layers_vax", at, mean_n_layers_vax)
-  dat <- set_epi(dat, "mean_n_layers_unvax", at, mean_n_layers_unvax)
+  dat <- set_epi(dat, "mean_n_layers_active_vax", at, mean_n_layers_active_vax)
+  dat <- set_epi(dat, "mean_n_layers_active_unvax", at, mean_n_layers_active_unvax)
 
   # acceptance check, the mean degree of newly vaccinated individuals should be > that of eligible but not selected individuals.
   eligible_not_selected_ids <- setdiff(unique(ids_elig_all), unique(ids_newly_vaxed))
@@ -401,17 +401,17 @@ vax_covid_corporate <- function(dat, at) {
   mean_deg_elig_not_selected <- if (length(eligible_not_selected_ids) > 0) {
     mean(degree_total[eligible_not_selected_ids])
   } else NA_real_
-  mean_n_layers_newly_vaxed <- if (length(ids_newly_vaxed) > 0) {
+  mean_n_layers_active_newly_vaxed <- if (length(ids_newly_vaxed) > 0) {
       mean(n_layers_active[unique(ids_newly_vaxed)])
     } else NA_real_
-  mean_n_layers_elig_not_selected <- if (length(eligible_not_selected_ids) > 0) {
+  mean_n_layers_active_elig_not_selected <- if (length(eligible_not_selected_ids) > 0) {
       mean(n_layers_active[eligible_not_selected_ids])
     } else NA_real_
   
   dat <- set_epi(dat, "mean_deg_newly_vaxed", at, mean_deg_newly_vaxed)
   dat <- set_epi(dat, "mean_deg_elig_not_selected", at, mean_deg_elig_not_selected)
-  dat <- set_epi(dat, "mean_n_layers_newly_vaxed", at, mean_n_layers_newly_vaxed)
-  dat <- set_epi(dat, "mean_n_layers_elig_not_selected", at, mean_n_layers_elig_not_selected)
+  dat <- set_epi(dat, "mean_n_layers_active_newly_vaxed", at, mean_n_layers_active_newly_vaxed)
+  dat <- set_epi(dat, "mean_n_layers_active_elig_not_selected", at, mean_n_layers_active_elig_not_selected)
 
   
   # acceptance check, Verified: with a cap of 0.005, daily vaccination count never exceeds 0.5% of population size
