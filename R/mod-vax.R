@@ -2,7 +2,7 @@
 #' @rdname moduleset-common
 #' @export
 vax_covid_corporate <- function(dat, at) {
-  
+  #if (at>20) browser()
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   age <- get_attr(dat, "age")
@@ -43,13 +43,13 @@ vax_covid_corporate <- function(dat, at) {
   }
   
   #  vax.supply.total caps cumulative first-dose coverage
-  n_firstdose_done <- sum(active == 1 & vax >= 1) # number of active people who already got at least 1 dose
+  n_greater_than_equal_1_dose <- sum(active == 1 & vax >= 1) # number of active people who already got at least 1 dose
   
   remaining_firstdose <- if (is.infinite(vax.supply.total)) { 
     Inf
   } else {  # how many more first doses are  allowed 
     floor(vax.supply.total * n_pop) - # total number of population receive vaccines
-      n_firstdose_done
+      n_greater_than_equal_1_dose
   }
 
   remaining_firstdose <- max(0, remaining_firstdose) # number of remaining firstdose
