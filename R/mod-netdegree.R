@@ -1,5 +1,4 @@
 netdegree <- function(dat, at) {
-  #if (at>20) browser()
   if (isFALSE(dat$param$compute.degree)) return(dat)
   
   degree_work    <- get_degree(dat$run$el[["work"]])
@@ -19,16 +18,16 @@ netdegree <- function(dat, at) {
   
   # mean degree by age group 
   age.grp <- get_attr(dat, item = "age.grp")
-  mean_degree_age <- aggregate(degree_total ~ age.grp, FUN = mean)
+  mean_degree_age <- tapply(degree_total, age.grp, mean)
   
   # proportion of nodes that are cross-layer bridges  
   ## overall
   prop_bridge <- mean(is_bridge)
   ## by age group
-  prop_bridge_age <-  prop.table(table(age.grp, is_bridge))
+  prop_bridge_age <-  tapply(is_bridge, age.grp, mean)
    
   # degree variance by age group 
-  degree_var_age <-  aggregate(degree_total ~ age.grp, FUN = var)
+  var_degree_age <-  tapply(degree_total, age.grp, var)
   
   
   dat <- set_attr(dat, "degree_work", degree_work)
@@ -46,26 +45,26 @@ netdegree <- function(dat, at) {
   dat <- set_epi(dat, "mean_degree_total", at, mean(degree_total))
   
   dat <- set_epi(dat, "prop_bridge", at, prop_bridge) 
-  dat <- set_epi(dat, "prop_bridge_age1", at, prop_bridge_age[1,2])
-  dat <- set_epi(dat, "prop_bridge_age2", at, prop_bridge_age[2,2])
-  dat <- set_epi(dat, "prop_bridge_age3", at, prop_bridge_age[3,2])
-  dat <- set_epi(dat, "prop_bridge_age4", at, prop_bridge_age[4,2])
-  dat <- set_epi(dat, "prop_bridge_age5", at, prop_bridge_age[5,2])
-  dat <- set_epi(dat, "prop_bridge_age6", at, prop_bridge_age[6,2])
+  dat <- set_epi(dat, "prop_bridge_age1", at, prop_bridge_age[[1]])
+  dat <- set_epi(dat, "prop_bridge_age2", at, prop_bridge_age[[2]])
+  dat <- set_epi(dat, "prop_bridge_age3", at, prop_bridge_age[[3]])
+  dat <- set_epi(dat, "prop_bridge_age4", at, prop_bridge_age[[4]])
+  dat <- set_epi(dat, "prop_bridge_age5", at, prop_bridge_age[[5]])
+  dat <- set_epi(dat, "prop_bridge_age6", at, prop_bridge_age[[6]])
   
-  dat <- set_epi(dat, "mean_degree_age1", at, mean_degree_age[1,2])
-  dat <- set_epi(dat, "mean_degree_age2", at, mean_degree_age[2,2])
-  dat <- set_epi(dat, "mean_degree_age3", at, mean_degree_age[3,2])
-  dat <- set_epi(dat, "mean_degree_age4", at, mean_degree_age[4,2])
-  dat <- set_epi(dat, "mean_degree_age5", at, mean_degree_age[5,2])
-  dat <- set_epi(dat, "mean_degree_age6", at, mean_degree_age[6,2])
+  dat <- set_epi(dat, "mean_degree_age1", at, mean_degree_age[[1]])
+  dat <- set_epi(dat, "mean_degree_age2", at, mean_degree_age[[2]])
+  dat <- set_epi(dat, "mean_degree_age3", at, mean_degree_age[[3]])
+  dat <- set_epi(dat, "mean_degree_age4", at, mean_degree_age[[4]])
+  dat <- set_epi(dat, "mean_degree_age5", at, mean_degree_age[[5]])
+  dat <- set_epi(dat, "mean_degree_age6", at, mean_degree_age[[6]])
   
-  dat <- set_epi(dat, "degree_var_age1", at, degree_var_age[1,2])
-  dat <- set_epi(dat, "degree_var_age2", at, degree_var_age[2,2])
-  dat <- set_epi(dat, "degree_var_age3", at, degree_var_age[3,2])
-  dat <- set_epi(dat, "degree_var_age4", at, degree_var_age[4,2])
-  dat <- set_epi(dat, "degree_var_age5", at, degree_var_age[5,2])
-  dat <- set_epi(dat, "degree_var_age6", at, degree_var_age[6,2])
+  dat <- set_epi(dat, "var_degree_age1", at, var_degree_age[[1]])
+  dat <- set_epi(dat, "var_degree_age2", at, var_degree_age[[2]])
+  dat <- set_epi(dat, "var_degree_age3", at, var_degree_age[[3]])
+  dat <- set_epi(dat, "var_degree_age4", at, var_degree_age[[4]])
+  dat <- set_epi(dat, "var_degree_age5", at, var_degree_age[[5]])
+  dat <- set_epi(dat, "var_degree_age6", at, var_degree_age[[6]])
   
   dat
 }
