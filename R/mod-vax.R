@@ -2,7 +2,7 @@
 #' @rdname moduleset-common
 #' @export
 vax_covid_corporate <- function(dat, at) {
-  #if (at>20) browser()
+
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   age <- get_attr(dat, "age")
@@ -219,8 +219,6 @@ vax_covid_corporate <- function(dat, at) {
 
   nElig.vax1 <- length(idsElig.vax1)
   if (nElig.vax1 > 0) {
-    # if (vax.strategy == "degree" && length(idsElig.vax1) > 0) browser() # check acceptance: When vax.strategy = "degree", highest-degree nodes are vaccinated first within each dose level
-    # if (vax.strategy == "bridge" && length(idsElig.vax1) > 0) browser() # check acceptance: When vax.strategy = "bridge", cross-layer bridge nodes are vaccinated first
     effective_supply <- min(remaining_supply, remaining_firstdose)
   
     idsVax1 <- allocation_strategy(
@@ -395,7 +393,8 @@ vax_covid_corporate <- function(dat, at) {
   # acceptance check, the mean degree of newly vaccinated individuals should be > that of eligible but not selected individuals.
   eligible_not_selected_ids <- setdiff(unique(ids_elig_all), unique(ids_newly_vaxed))
   
-  mean_deg_newly_vaxed <- if (length(ids_newly_vaxed) > 0) {
+  # this tracker pools across all dose levels per timestep. If we ever need per-dose-level verification, we'd need separate trackers.
+  mean_deg_newly_vaxed <- if (length(ids_newly_vaxed) > 0) { 
     mean(degree_total[unique(ids_newly_vaxed)])
   } else NA_real_
   mean_deg_elig_not_selected <- if (length(eligible_not_selected_ids) > 0) {
@@ -445,7 +444,7 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     return(integer(0))
   }
   
-  if (vax.strategy == "degree") {
+  if (vax.strategy == "degree") { # rate not used: degree sorting replaces rate-based sampling
     if (remaining_supply <= 0) { # if no vaccine doses are left for this timestep-nobody is eligible and exit the function
       return(integer(0))
     }
