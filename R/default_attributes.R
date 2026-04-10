@@ -22,7 +22,7 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     degree_hh=0,
     degree_total=0,
     # cross-layer bridge indicators
-    is_bridge = NA,
+    is_bridge = FALSE,
     n_layers_active =0,
     # houshold id and age
     hh.ids =0, 

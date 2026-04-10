@@ -467,7 +467,7 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     
     max_deg <- max(degree_total) + 1 # define a multiplier so n_layers_active has higher priority than degree_total
     
-    score <- as.integer(is_bridge[idsElig]) * (5 * max_deg) + # bridge gets the biggest weight, 5 is (max(n_layers_active) +1)
+    score <- as.integer(is_bridge[idsElig]) * ((max(n_layers_active) +1) * max_deg) + # bridge gets the biggest weight, (max(n_layers_active) +1)=5 in the 4-layer model
       n_layers_active[idsElig] * max_deg + # then n_layers_active (i.e., 5> max(n_layers_active))
       degree_total[idsElig] +  # then degree_total (i.e., max_deg> degree_total)
       runif(nElig, 0, 1e-8) # tiny random noise to break ties
