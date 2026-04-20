@@ -15,4 +15,8 @@
    LazyLoad: \tab yes\cr
 }
 }
+\author{
+\strong{Maintainer}: Samuel M. Jenness \email{samuel.m.jenness@emory.edu}
+
+}
 \keyword{package}

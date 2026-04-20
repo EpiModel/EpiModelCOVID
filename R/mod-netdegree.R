@@ -1,3 +1,5 @@
+#' @rdname moduleset-gmc19
+#' @export
 netdegree <- function(dat, at) {
   if (isFALSE(dat$param$compute.degree)) return(dat)
   

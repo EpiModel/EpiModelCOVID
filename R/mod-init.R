@@ -1,6 +1,4 @@
 
-source("~/Documents/GitHub/EpiModelCOVID/R/default_attributes.R")
-
 #' @rdname moduleset-gmc19
 #' @export
 init_gmc19 <- function(x, param, init, control, s) {
