@@ -22,18 +22,4 @@ vax_covid_corporate(dat, at)
 \description{
 This set of functions is associated with all EpiModel studies of
              COVID.
-
-dx.rate.sympt <- get_param(dat, "dx.rate.sympt")
-  if (length(dx.rate.sympt) > 1) {
-    dx.rate.sympt <- dx.rate.sympt[at]
-  }
-  dx.rate.other <- get_param(dat, "dx.rate.other")
-  if (length(dx.rate.other) > 1) {
-    dx.rate.other <- dx.rate.other[at]
-  }
-  allow.rescreen <- get_param(dat, "allow.rescreen")
-  pcr.sens <- get_param(dat, "pcr.sens")
-}
-\details{
-
 }

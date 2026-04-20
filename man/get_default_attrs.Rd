@@ -6,15 +6,6 @@
 \usage{
 get_default_attrs(dat)
 }
-\value{
-A named list of all the attributes with default values.
-
-TODO: document all the attributes
-}
 \description{
 Get the list the attributes used by the model with their default value
-}
-\details{
-This list must be exhaustive. All attributes should get a default value (even
-NA) here.
 }
