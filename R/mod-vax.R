@@ -452,7 +452,7 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
   }
 
   # First step: priority mechanism-rank eligible people by prioritization strategy
-  if (vax.strategy == "degree") { # rate not used: degree sorting replaces rate-based sampling
+  if (vax.strategy == "degree") { 
     
     # First, degree-based allocation - rank all eligible individuals by degree score from high to low
     degree_jitter <- degree_total[idsElig] + runif(nElig, 0, 1e-8) # add small random noise breaks ties randomly
