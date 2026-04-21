@@ -450,72 +450,76 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
   if (remaining_supply <= 0) { # supply mechanism: if no vaccine doses are left for this timestep-nobody would be vaccinated and exit the function
     return(integer(0))
   }
-  
-  rate_person <- rate[vax.age.group[idsElig]] # Per-person uptake probability, age-specific 
-  
-  # demand mechanism: show-up process—for each eligible person, first filter by rbinom(1, 1, rate) to determine who "shows up" for vaccination that timestep
-  show_up <- rbinom(nElig, size = 1, prob = rate_person) == 1 # people with TRUE are who showed up
-  idsShow <- idsElig[show_up] # ids of people who showed up
-  nShow <- length(idsShow) # number of people who showed up
-  
-  if (nShow == 0) { # if nobody shows up, return an empty vector, meaning nobody would be vaccinated and exit the function
-    return(integer(0)) 
-  }
-  
-  # per-timestep supply cap mechanism, apply strategy ordering and supply cap to that nShow pool. 
-  n_take <- min(remaining_supply, nShow) # applies only to those who showed up, vaccinate no more than doses available & number of people showed up
 
-  # priority mechanism-who gets the limited doses
+  # First step: priority mechanism-rank eligible people by prioritization strategy
   if (vax.strategy == "degree") { # rate not used: degree sorting replaces rate-based sampling
     
-    # degree-based allocatiom - rank people who show up by degree_total from high to low
-    degree_jitter <- degree_total[idsShow] + runif(nShow, 0, 1e-8) # add small random noise breaks ties randomly
+    # First, degree-based allocation - rank all eligible individuals by degree score from high to low
+    degree_jitter <- degree_total[idsElig] + runif(nElig, 0, 1e-8) # add small random noise breaks ties randomly
     
-    names(degree_jitter) <- idsShow  # attach eligible ids as names so they stay linked to their degree_jitters
+    names(degree_jitter) <- idsElig  # attach eligible ids as names so they stay linked to their degree_jitters
     
     ids_ranked <- as.integer(names(sort(degree_jitter, decreasing = TRUE))) # sort jittered degree from high to low, then recover the ranked IDs
-    ids.vax <- ids_ranked[1:n_take] # take the top n_take people from the ranked list to be vaxed, i.e., nodes w/ highest degree are vaccinated first
-    return(ids.vax)  
+     
   } else if (vax.strategy == "bridge") {
     
     max_deg <- max(degree_total) + 1 # define a multiplier so n_layers_active has higher priority than degree_total
     
-    score <- as.integer(is_bridge[idsShow]) * ((max(n_layers_active) +1) * max_deg) + # bridge gets the biggest weight, (max(n_layers_active) +1)=5 in the 4-layer model
-      n_layers_active[idsShow] * max_deg + # then n_layers_active (i.e., 5> max(n_layers_active))
-      degree_total[idsShow] +  # then degree_total (i.e., max_deg> degree_total)
-      runif(nShow, 0, 1e-8) # tiny random noise to break ties
+    # First, bridge-based allocation - rank all eligible individuals by bridge score from high to low
+    score <- as.integer(is_bridge[idsElig]) * ((max(n_layers_active) +1) * max_deg) + # bridge gets the biggest weight, (max(n_layers_active) +1)=5 in the 4-layer model
+      n_layers_active[idsElig] * max_deg + # then n_layers_active (i.e., 5> max(n_layers_active))
+      degree_total[idsElig] +  # then degree_total (i.e., max_deg> degree_total)
+      runif(nElig, 0, 1e-8) # tiny random noise to break ties
     
-    names(score) <- idsShow  # attach IDs of who show up as names
+    names(score) <- idsElig  # attach IDs of who are eligible as names
     
     ids_ranked <- as.integer(names(sort(score, decreasing = TRUE)))  # sort from high to low and get ranked IDs
     
     
-    ids.vax <- ids_ranked[1:n_take] # same per-timestep supply cap as the degree strategy
-    
-    return(ids.vax)
-    
   }   else if (vax.strategy == "age") {
+    # First, rank all eligible individuals by age from high to low
+    age_priority <- rate[vax.age.group[idsElig]] # among those who eligible, use the age-specific vaccination rate as the priority ordering
     
-    age_priority <- rate[vax.age.group[idsShow]] # among those who show up, use the age-specific vaccination rate as the priority ordering
+    age_priority_jitter <- age_priority + runif(nElig, 0, 1e-8) # higher rate = higher priority; add random noise to break ties randomly
     
-    age_priority_jitter <- age_priority + runif(nShow, 0, 1e-8) # higher rate = higher priority; add random noise to break ties randomly
+    names(age_priority_jitter) <- idsElig # attach IDs as names so they stay linked to their ordering
     
-    names(age_priority_jitter) <- idsShow # attach showed-up IDs as names so they stay linked to their ordering
-    
-    ids_ranked <- as.integer(names(sort(age_priority_jitter, decreasing = TRUE)))# sort from high to low and get the ranked IDs of those showed up
-    
-    ids.vax <- ids_ranked[1:n_take] # take the top n_take showed-up people from the ranked 
-    
-    return(ids.vax)
+    ids_ranked <- as.integer(names(sort(age_priority_jitter, decreasing = TRUE)))# sort from high to low and get the ranked IDs
     
   } else if (vax.strategy == "random") {
-  
-    ids.vax <- sample(idsShow, n_take) # choose n_take showed-up people uniformly at random
+    # First uniformly rank eligible people at random
+    ids_ranked <- sample(idsElig, nElig) 
     
-    return(ids.vax) 
-}
-  else { stop("Unknown vax.strategy: ", vax.strategy) }
+  } else { 
+  stop("Unknown vax.strategy: ", vax.strategy) 
+  }
   
+  # Second step: apply the show-up filter (or equivalent stochastic uptake) to the ranked list
+  ## Now, ids_ranked is already ordered by the selected priority rule
+  
+  ## Get each ranked eligible person's age-specific vax probability. 
+  rate_person <- rate[vax.age.group[ids_ranked]]
+  
+  ## Determine who showed up based on each ranked eligible person's vax prob
+  show_up  <- rbinom(nElig, size = 1, prob = rate_person) == 1
+  
+  ## Keep only the people who showed up, while preserving their ranked order, So high-priority individuals remain earlier in the list if show-up.
+  idsShow <- ids_ranked[show_up]
+  # Count how many ranked eligible people showed up
+  nShow <- length(idsShow)
+  
+  ## If no one showed up, no vaccination occurs this timestep.
+  if (nShow == 0) {
+    return(integer(0))
+  }
+  
+  # Third step: take top n_take from filtered ranked list
+  ## Determine how many people can be vaccinated: limited by available supply and the number showed up.
+  n_take <- min(remaining_supply, nShow)
+  ## Vaccinate the highest-priority people among those who showed up.
+  ids.vax <- idsShow[1:n_take]
+
+  return(ids.vax)
 }
 
 
