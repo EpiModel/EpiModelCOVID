@@ -1,14 +1,4 @@
 #' Get the list the attributes used by the model with their default value
-#'
-#' @inheritParams aging_msm
-#'
-#' @details
-#' This list must be exhaustive. All attributes should get a default value (even
-#' NA) here.
-#'
-#' @return A named list of all the attributes with default values.
-#'
-#' TODO: document all the attributes
 get_default_attrs <- function(dat) { # all attributes should be listed here
   list(
     # network attributes, binary
@@ -22,7 +12,7 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     degree_hh=0,
     degree_total=0,
     # cross-layer bridge indicators
-    is_bridge = NA,
+    is_bridge = FALSE,
     n_layers_active =0,
     # houshold id and age
     hh.ids =0, 
@@ -49,19 +39,6 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
 }
 
 #' Update the attributes requiring computation for new nodes
-#'
-#' @inheritParams aging_msm
-#' @param n_new The number of new nodes to update
-#' @param post_init logical flag, TRUE if not called by the initialization
-#' module.
-#'
-#' @details
-#' This function takes care of all the attributes requiring some computations.
-#' This includes the random assignment for race or the calculation of the
-#' age groups. New attributes that need special assignment should be set here
-#' AS WELL AS in the `get_default_attrs` function.
-#'
-#' @return
 #' This function returns the `dat` object with updated attributes for the new
 #' nodes.
 make_computed_attrs <- function(dat, n_new, post_init) {
