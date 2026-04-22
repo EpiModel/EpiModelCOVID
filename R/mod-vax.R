@@ -494,30 +494,28 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
   stop("Unknown vax.strategy: ", vax.strategy) 
   }
   
-  # Second step: apply the show-up filter (or equivalent stochastic uptake) to the ranked list
-  ## Now, ids_ranked is already ordered by the selected priority rule
-  
-  ## Get each ranked eligible person's age-specific vax probability. 
+  # Second step: determine vaccination allocation
+  ## Get each ranked eligible person's age-specific vax probability.
   rate_person <- rate[vax.age.group[ids_ranked]]
-  
-  ## Determine who showed up based on each ranked eligible person's vax prob
-  show_up  <- rbinom(nElig, size = 1, prob = rate_person) == 1
-  
-  ## Keep only the people who showed up, while preserving their ranked order, So high-priority individuals remain earlier in the list if show-up.
-  idsShow <- ids_ranked[show_up]
-  # Count how many ranked eligible people showed up
-  nShow <- length(idsShow)
-  
-  ## If no one showed up, no vaccination occurs this timestep.
-  if (nShow == 0) {
-    return(integer(0))
+
+  if (vax.strategy %in% c("degree", "bridge")) {
+    ## For network-based priority strategies: stochastic demand (driven by
+    ## age-specific rates) determines how many get vaccinated each timestep;
+    ## the priority ranking determines who.  This ensures high-priority
+    ## individuals are selected even when demand < supply.
+    n_willing <- sum(rbinom(nElig, size = 1, prob = rate_person))
+    if (n_willing == 0) return(integer(0))
+    n_take <- min(remaining_supply, n_willing)
+    ids.vax <- ids_ranked[1:n_take]
+  } else {
+    ## For random/age strategies: individual show-up filter then cap by supply
+    show_up <- rbinom(nElig, size = 1, prob = rate_person) == 1
+    idsShow <- ids_ranked[show_up]
+    nShow <- length(idsShow)
+    if (nShow == 0) return(integer(0))
+    n_take <- min(remaining_supply, nShow)
+    ids.vax <- idsShow[1:n_take]
   }
-  
-  # Third step: take top n_take from filtered ranked list
-  ## Determine how many people can be vaccinated: limited by available supply and the number showed up.
-  n_take <- min(remaining_supply, nShow)
-  ## Vaccinate the highest-priority people among those who showed up.
-  ids.vax <- idsShow[1:n_take]
 
   return(ids.vax)
 }
