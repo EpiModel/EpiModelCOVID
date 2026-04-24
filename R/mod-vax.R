@@ -75,7 +75,7 @@ vax_covid_corporate <- function(dat, at) {
   vax3.boost.start <- get_param(dat, "vax3.boost.start")
   vax4.boost.start <- get_param(dat, "vax4.boost.start")
   
-  # initialize these 4 strings for checking the number of people recieved boosters
+  # initialize these 4 strings for checking the number of people received boosters
   ids.vax1.boost <- integer(0)
   ids.vax2.boost <- integer(0)
   ids.vax3.boost <- integer(0)
@@ -108,11 +108,13 @@ vax_covid_corporate <- function(dat, at) {
       ids_elig_all <- c(ids_elig_all, idsElig.vax1.boost)     
       ids_newly_vaxed <- c(ids_newly_vaxed, ids.vax1.boost) 
       
-      if (length(ids.vax1.boost) > 0) {
+      nVax1.boost <- length(ids.vax1.boost)
+      
+      if (nVax1.boost > 0) {
         vax[ids.vax1.boost] <- 1
         vax1Time[ids.vax1.boost] <- at
-        remaining_supply <- remaining_supply - length(ids.vax1.boost)
-        remaining_firstdose <- remaining_firstdose - length(ids.vax1.boost)
+        remaining_supply <- remaining_supply - nVax1.boost
+        remaining_firstdose <- remaining_firstdose - nVax1.boost
       }
     }
   }
@@ -139,10 +141,13 @@ vax_covid_corporate <- function(dat, at) {
       ids_elig_all <- c(ids_elig_all, idsElig.vax2.boost)     
       ids_newly_vaxed <- c(ids_newly_vaxed, ids.vax2.boost) 
       
-      if (length(ids.vax2.boost) > 0) {
+      nVax2.boost <- length(ids.vax2.boost)
+      
+      if (nVax2.boost > 0) {
+      
         vax[ids.vax2.boost] <- 2
         vax2Time[ids.vax2.boost] <- at
-        remaining_supply <- remaining_supply - length(ids.vax2.boost)
+        remaining_supply <- remaining_supply - nVax2.boost
         
       }
     }
@@ -170,10 +175,13 @@ vax_covid_corporate <- function(dat, at) {
       ids_elig_all <- c(ids_elig_all, idsElig.vax3.boost)     
       ids_newly_vaxed <- c(ids_newly_vaxed, ids.vax3.boost) 
       
-      if (length(ids.vax3.boost) > 0) {
+      nVax3.boost <- length(ids.vax3.boost)
+      
+      if (nVax3.boost > 0) {
+  
         vax[ids.vax3.boost] <- 3
         vax3Time[ids.vax3.boost] <- at
-        remaining_supply <- remaining_supply - length(ids.vax3.boost)
+        remaining_supply <- remaining_supply - nVax3.boost
         
       }
     }
@@ -201,10 +209,13 @@ vax_covid_corporate <- function(dat, at) {
       ids_elig_all <- c(ids_elig_all, idsElig.vax4.boost)     
       ids_newly_vaxed <- c(ids_newly_vaxed, ids.vax4.boost) 
       
-      if (length(ids.vax4.boost) > 0) {
+      nVax4.boost <- length(ids.vax4.boost)
+      
+      if (nVax4.boost > 0) {
+      
         vax[ids.vax4.boost] <- 4
         vax4Time[ids.vax4.boost] <- at
-        remaining_supply <- remaining_supply - length(ids.vax4.boost)
+        remaining_supply <- remaining_supply - nVax4.boost
         
       }
     }
@@ -236,7 +247,7 @@ vax_covid_corporate <- function(dat, at) {
     
     nVax1 <- length(idsVax1)
     
-    if (nVax1) {
+    if (nVax1>0) {
       vax[idsVax1] <- 1
       vax1Time[idsVax1] <- at
       remaining_supply <- remaining_supply - length(idsVax1)
@@ -268,7 +279,7 @@ vax_covid_corporate <- function(dat, at) {
     
     nVax2 <- length(idsVax2)
     
-    if (nVax2) {
+    if (nVax2>0) {
       vax[idsVax2] <- 2
       vax2Time[idsVax2] <- at
       remaining_supply <- remaining_supply - nVax2
@@ -334,7 +345,8 @@ vax_covid_corporate <- function(dat, at) {
     ids_newly_vaxed <- c(ids_newly_vaxed, idsVax4) 
     
     nVax4 <- length(idsVax4)
-    if (length(idsVax4)) {
+    
+    if (nVax4 > 0) {
       vax[idsVax4] <- 4
       vax4Time[idsVax4] <- at
       remaining_supply <- remaining_supply - nVax4
@@ -374,7 +386,7 @@ vax_covid_corporate <- function(dat, at) {
   dat <- set_epi(dat, "cov_vax4_50to64", at, length(which(vax.age.group == 4 & vax >= 4)) / length(which(vax.age.group == 4)))
   dat <- set_epi(dat, "cov_vax4_65p", at, length(which(vax.age.group == 5 & vax >= 4)) / length(which(vax.age.group == 5)))
   
-  # mnean deg and num of bridge in those ever vaccinated and never vaccinated
+  # mean deg and num of bridge in those ever vaccinated and never vaccinated
   ## individual ever vaccinated and never vaccinated
   vaccinated_ids <- which(active == 1 & vax >= 1)
   unvaccinated_ids <- which(active == 1 & vax == 0)
@@ -491,7 +503,7 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     ids_ranked <- sample(idsElig, nElig) 
     
   } else { 
-  stop("Unknown vax.strategy: ", vax.strategy) 
+    stop("Unknown vax.strategy: ", vax.strategy) 
   }
   
   # Second step: determine vaccination allocation
