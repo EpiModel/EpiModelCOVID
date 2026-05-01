@@ -1,6 +1,8 @@
 #' @rdname moduleset-common
 #' @export
 vax_general <- function(dat, at) {
+
+  ######## extract attribute ########
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   age <- get_attr(dat, "age")
@@ -24,10 +26,11 @@ vax_general <- function(dat, at) {
   is_bridge <- get_attr(dat, "is_bridge")
   n_layers_active <- get_attr(dat, "n_layers_active")
   
+  ######## extract parameters ########
   vax.strategy <- get_param(dat, "vax.strategy") # determine which stategy to use
   vax.supply.rate <- get_param(dat, "vax.supply.rate")
   vax.supply.total <- get_param(dat, "vax.supply.total")
-  
+
   vax.schedule <- get_param(dat, "vax.schedule") # data.frame containing vax-related details, replacing individual get_param for each par
   
   n_pop <- sum(active == 1) # active nodes
@@ -54,116 +57,19 @@ vax_general <- function(dat, at) {
   ids_newly_vaxed <- integer(0) 
   ids_elig_all <- integer(0)
   
-  # the following keeps the original logic in CorporateMix where booster campaign doses are attempted first.
-  
-  ######## 1. booster campaign doses initiated using boost.start ########
-  
-  # Track booster vaccinations separately from regular vaccinations
-  daily_boost_by_dose <- rep(0L, nrow(vax.schedule)) # Track the number of people who receive each booster dose at this timestep.
-  
-  for (dose_i in seq_len(nrow(vax.schedule))) {
-    
-    # Pull the schedule row for this dose.
-    # dose_row contains boost.start, boost.rate, start, interval...
-    dose_row <- vax.schedule[dose_i, , drop = FALSE]
-    
-    # Pull age-specific booster campaign start times for this dose
-    boost_start_vec <- dose_row$boost.start[[1]] # this is dose-specific because dose_row is the current row of vax.schedule
-    
-    # Identify people eligible for the booster campaign
-    # This uses boost.start and dose_type = "boost" inside get_ids_eligible_for_dose().
-    # vax1Time, vax2Time not required here
-    if (any(at == boost_start_vec)) {
-      
-      idsEligBoost <- get_ids_eligible_for_dose(
-        dose_row = dose_row,
-        dose_i = dose_i,
-        dose_type = "boost",
-        active = active,
-        status = status,
-        dxStatus = dxStatus,
-        dxTime = dxTime,
-        vax = vax,
-        vax.age.group = vax.age.group,
-        at = at
-      )
-      
-  
-      nEligBoost <- length(idsEligBoost) # number of people eligible 
-      
-      if (nEligBoost > 0) { #  only run allocation if at least one person is eligible
-      
-      # Pull age-specific booster uptake probabilities for this dose
-      boost_rate_vec <- dose_row$boost.rate[[1]]
-      
-      # For dose 1, both the daily supply cap and the cumulative first-dose cap apply.
-      # For later doses, only the daily supply cap applies.
-      effective_supply <- if (dose_i == 1) {
-        min(remaining_supply, remaining_firstdose)
-      } else {
-        remaining_supply
-      }
-      
-      # Select who receives the booster campaign dose using the allocation strategy
-      idsBoost <- allocation_strategy(
-        idsElig = idsEligBoost,
-        rate = boost_rate_vec,
-        vax.age.group = vax.age.group,
-        vax.strategy = vax.strategy,
-        degree_total = degree_total,
-        is_bridge = is_bridge,
-        n_layers_active = n_layers_active,
-        remaining_supply = effective_supply
-      )
-      
-      # Add eligible and vaccinated IDs to trackers
-      ids_elig_all <- c(ids_elig_all, idsEligBoost)
-      ids_newly_vaxed <- c(ids_newly_vaxed, idsBoost)
-      
-      # Count how many people received this booster dose.
-      nBoost <- length(idsBoost)
-      daily_boost_by_dose[dose_i] <- nBoost
-      
-      if (nBoost > 0) {
-        
-        # Update vaccine dose status.
-        # Booster campaign pathway moves people to the same dose level as the regular pathway
-        vax[idsBoost] <- dose_i
-        
-        # Record the time this dose was received.
-        if (dose_i == 1) {
-          vax1Time[idsBoost] <- at
-        } else if (dose_i == 2) {
-          vax2Time[idsBoost] <- at
-        } else if (dose_i == 3) {
-          vax3Time[idsBoost] <- at
-        } else {
-          stop("This version only supports dose_i = 1, 2, or 3.")
-        }
-        
-        # Subtract used doses from the remaining daily supply.
-        remaining_supply <- remaining_supply - nBoost
-        
-        # If these were first doses, also subtract from the first-dose cap.
-        if (dose_i == 1) {
-          remaining_firstdose <- remaining_firstdose - nBoost
-        }
-      }
-      }
-    }
-  }
-  ######## 2. regular doses initiated using start, interval ########
+
+  ######## sequential multiple-dose event (initiated using start and interval) ########
+  # Note: no parallel pathways (regular/boost) as in CorporateMix
   daily_vax_by_dose <- rep(0L, nrow(vax.schedule)) # length is the number of doses
   
   for (dose_i in seq_len(nrow(vax.schedule)) # for each (dose_i) dose
        ) {
-    
+
     dose_row <- vax.schedule[dose_i, , drop = FALSE] 
     
     idsElig <- get_ids_eligible_for_dose(
-      dose_row = dose_row,
+      dose_row = dose_row, # contains column in vax.schedule
       dose_i = dose_i,
-      dose_type = "regular",
       active = active,
       status = status,
       dxStatus = dxStatus,
@@ -179,7 +85,7 @@ vax_general <- function(dat, at) {
     
     if (nElig > 0) {
       
-    rate_vec <- dose_row$rate[[1]]
+    rate_vec <- dose_row$rate[[1]] # Uptake rate across age group per time step
     
     effective_supply <- if (dose_i == 1) {
       min(remaining_supply, remaining_firstdose)
@@ -236,11 +142,6 @@ vax_general <- function(dat, at) {
     dat <- set_epi(dat, paste0("nVax", dose_i), at, daily_vax_by_dose[dose_i])
   }
   
-  ## Number of booster/campaign doses received at this timestep
-  ### This is not in the old script
-  for (dose_i in seq_len(nrow(vax.schedule))) {
-    dat <- set_epi(dat, paste0("nBoost", dose_i), at, daily_boost_by_dose[dose_i])
-  }
   
   ## Age-specific vax coverage
   dat <- set_epi(dat, "cov_vax1_0to4", at, length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)))
@@ -301,7 +202,7 @@ vax_general <- function(dat, at) {
   dat <- set_epi(dat, "mean_n_layers_active_elig_not_selected", at, mean_n_layers_active_elig_not_selected)
   
   # acceptance check, Verified: with a cap of 0.005, daily vaccination count never exceeds 0.5% of population size
-  daily_vax_total <- sum(daily_vax_by_dose) + sum(daily_boost_by_dose)
+  daily_vax_total <- sum(daily_vax_by_dose) #+ sum(daily_boost_by_dose)
   # daily_vax_total <- nVax1 + nVax2 + nVax3 + nVax4 + # old syntax
   #   length(ids.vax1.boost) + length(ids.vax2.boost) +
   #   length(ids.vax3.boost) + length(ids.vax4.boost)
@@ -924,7 +825,6 @@ update_vax_waning_attrs <- function(dat, at, vax.schedule, vax, vax_times,
 
 get_ids_eligible_for_dose <- function(
     dose_row, dose_i, 
-    dose_type, # "regular" or "boost"
     active, status, dxStatus, dxTime,
     # For 3-dose COVID, only need vax1Time and vax2Time for eligibility checking, 
     # because dose 1 has no previous dose, dose 2 checks vax1Time, and dose 3 checks vax2Time. 
@@ -941,29 +841,6 @@ get_ids_eligible_for_dose <- function(
     !(status %in% c("ic", "h")) &
     !(dxStatus == 2 & (at - dxTime <= 10))
   
-  if (dose_type == "boost") {
-    
-    # Pull the age-specific booster campaign start times for this dose.
-    boost_start_vec <- dose_row$boost.start[[1]]
-    
-    # Identify people eligible for the booster/campaign pathway.
-    # base_eligible: active, not hospitalized/ICU, and not recently diagnosed.
-    # vax == dose_i - 1: person must have completed the previous dose level.
-    #   For dose_i = 1, this means vax == 0.
-    #   For dose_i = 2, this means vax == 1.
-    #   For dose_i = 3, this means vax == 2.
-    # at == boost_start_vec[vax.age.group]: booster is only offered on the
-    # exact age-specific campaign start day, matching the original script.
-    idsElig <- which(
-      base_eligible & # person must be generally eligible
-        vax == dose_i - 1 & # person must have completed the previous dose level (regular or boost)
-        at == boost_start_vec[vax.age.group] #  booster is only offered on the exact age-specific campaign start day
-    )
-    
-    return(idsElig)
-  }
-  
-  if (dose_type == "regular") {
   # Pull the age-specific start times for this dose from vax.schedule
   # start_vec has length of 5
   # Example: start_vec[1] is the start time for age group 0–4.
@@ -978,7 +855,7 @@ get_ids_eligible_for_dose <- function(
     
     idsElig <- which(
       base_eligible & # person must be generally eligible
-        vax == 0 & # have received no prior vaccine dose
+        vax == dose_i - 1 & # have received no prior vaccine dose
         at >= start_vec[vax.age.group]  # and have reached their age-specific dose 1 start time
     )
     
@@ -1007,7 +884,6 @@ get_ids_eligible_for_dose <- function(
   
   # Return IDs of eligible individuals for this dose at this time step.
   return(idsElig)
-  }
 }
 
 
