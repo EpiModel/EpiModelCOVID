@@ -1,4 +1,4 @@
-#' @rdname moduleset-common
+#' @rdname moduleset-gmc19
 #' @export
 vax_general <- function(dat, at) {
 
@@ -31,7 +31,11 @@ vax_general <- function(dat, at) {
   vax.supply.rate <- get_param(dat, "vax.supply.rate")
   vax.supply.total <- get_param(dat, "vax.supply.total")
 
-  vax.schedule <- get_param(dat, "vax.schedule") # data.frame containing vax-related details, replacing individual get_param for each par
+  vax.schedule <- get_param(dat, "vax.schedule") # data.frame containing vax-related details
+  # vax.schedule stores both dose-administration parameters and per-dose RR values.
+  # mod-vax.R only uses the administration columns: dose, start, interval, rate, annual.
+  # The rr.infect / rr.clinical / rr.hosp columns are consumed downstream in
+  # mod-infection.R and mod-progress.R through compute_vax_rr().
   
   n_pop <- sum(active == 1) # active nodes
   
@@ -119,7 +123,7 @@ vax_general <- function(dat, at) {
       } else if (dose_i == 3) {
         vax3Time[idsVax] <- at
       } else {
-        stop("This version only supports dose_i = 1, 2, or 3.")
+        stop("This version only supports dose_i = 1, 2, or 3.") # TODO: This needs to go as we have replaced dose-specific time attributes with a general dose-time structure
       }
       remaining_supply <- remaining_supply - nVax
       
@@ -143,7 +147,7 @@ vax_general <- function(dat, at) {
   }
   
   
-  ## Age-specific vax coverage
+  ## Age-specific vax coverage #TODO: this needs to be turned to loop like the above
   dat <- set_epi(dat, "cov_vax1_0to4", at, length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)))
   dat <- set_epi(dat, "cov_vax1_5to17", at, length(which(vax.age.group == 2 & vax >= 1)) / length(which(vax.age.group == 2)))
   dat <- set_epi(dat, "cov_vax1_18to64", at, length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 1)) / length(which(vax.age.group == 3 | vax.age.group == 4)))
@@ -202,11 +206,7 @@ vax_general <- function(dat, at) {
   dat <- set_epi(dat, "mean_n_layers_active_elig_not_selected", at, mean_n_layers_active_elig_not_selected)
   
   # acceptance check, Verified: with a cap of 0.005, daily vaccination count never exceeds 0.5% of population size
-  daily_vax_total <- sum(daily_vax_by_dose) #+ sum(daily_boost_by_dose)
-  # daily_vax_total <- nVax1 + nVax2 + nVax3 + nVax4 + # old syntax
-  #   length(ids.vax1.boost) + length(ids.vax2.boost) +
-  #   length(ids.vax3.boost) + length(ids.vax4.boost)
-  
+  daily_vax_total <- sum(daily_vax_by_dose)
   
   daily_vax_cap <- if (is.infinite(vax.supply.rate)) {
     Inf
@@ -753,76 +753,7 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
   return(ids.vax)
 }
 
-# function to calculation each person's current (at) vaccine-related relative risk
-update_vax_waning_attrs <- function(dat, at, vax.schedule, vax, vax_times,
-                                    vax.age.group, active) {
-  
-  # dat = EpiModel simulation object inside netsim
-  # at = current simulation time step
-  # vax.schedule = data frame defining dose schedule and VE parameters
-  # vax = each person's current highest dose received
-  # vax_times = list of vaccination time vectors, e.g., vax1Time, vax2Time
-  # vax.age.group = each person's vaccine age group
-  # active = whether each person is active in the simulation
-  
-  # Total number of people in the simulation
-  n <- length(vax)
-  
-  # Number of vaccine age groups
-  n_age <- max(vax.age.group, na.rm = TRUE)
-  
-  # Initialize everyone as having no vaccine protection
-  # rr_infect = 1 means no reduction in infection risk
-  rr_infect <- rep(1, n)
-  
-  # Loop over each dose row in vax.schedule
-  for (i in seq_len(nrow(vax.schedule))) {
-    
-    # Get the dose number for this schedule row
-    dose <- vax.schedule$dose[i]
-    
-    # Identify active people who received at least this dose
-    ids <- which(active == 1 & vax >= dose & vax_times[[dose]] > -Inf)
-    
-    # If nobody received this dose, skip to the next schedule row
-    if (length(ids) == 0) {
-      next
-    }
-    
-    # Extract age-specific peak VE for this dose
-    ve_peak <- sched_vec("ve.infect.peak", i, default = 0)
-    
-    # Extract age-specific VE half-life for this dose
-    ve_halflife <- sched_vec("ve.infect.halflife", i, default = Inf)
-    
-    # Extract age-specific VE floor for this dose
-    ve_floor <- sched_vec("ve.infect.floor", i, default = 0)
-    
-    # Calculate days since each selected person received this dose
-    t_since <- at - vax_times[[dose]][ids]
-    
-    # Calculate current VE for each selected person
-    ve_now <- ve_decay(
-      t_since = t_since,
-      ve.peak = ve_peak[vax.age.group[ids]],
-      ve.halflife = ve_halflife[vax.age.group[ids]],
-      ve.floor = ve_floor[vax.age.group[ids]]
-    )
-    
-    # Convert VE to relative risk:
-    # VE = 0.60 means relative risk = 0.40
-    # If multiple dose rows apply, keep the strongest protection
-    rr_infect[ids] <- pmin(rr_infect[ids], 1 - ve_now)
-  }
-  
-  # Store the current vaccine-related infection relative risk as a node attribute
-  dat <- set_attr(dat, "rr_infect_vax", rr_infect)
-  
-  # Return the updated dat object
-  return(dat)
-}
-
-
+# helper getting generally eligible for a dose
 get_ids_eligible_for_dose <- function(
     dose_row, dose_i, 
     active, status, dxStatus, dxTime,
@@ -849,7 +780,7 @@ get_ids_eligible_for_dose <- function(
   # Pull the minimum required interval since the previous dose.
   # NA for dose 1 because there is no previous dose.
   interval <- dose_row$interval
-
+  
   # Dose 1 eligibility
   if (dose_i == 1) {
     
@@ -884,50 +815,5 @@ get_ids_eligible_for_dose <- function(
   
   # Return IDs of eligible individuals for this dose at this time step.
   return(idsElig)
-}
-
-
-# Helper function to extract a schedule column as an age-specific vector
-sched_vec <- function(col, i, default = NA_real_) {
-  
-  # If the column does not exist, return the default value for all age groups
-  if (!col %in% names(vax.schedule)) {
-    return(rep(default, n_age))
-  }
-  
-  # If this column is a list-column, extract the vector from row i
-  x <- if (is.list(vax.schedule[[col]])) {
-    vax.schedule[[col]][[i]]
-    
-    # Otherwise, extract the single value from row i
-  } else {
-    vax.schedule[[col]][i]
-  }
-  
-  # If only one value is provided, recycle it to all age groups
-  if (length(x) == 1) {
-    rep(x, n_age)
-    
-    # If a vector is provided, use it directly
-  } else {
-    x
-  }
-}
-
-# Calculate vaccine effectiveness at a given time since vaccination
-ve_decay <- function(t_since, ve.peak, ve.halflife, ve.floor, delay = 14) {
-  
-  # t_since = number of days since the person received the dose
-  # ve.peak = maximum vaccine effectiveness after the dose
-  # ve.halflife = number of days for VE to decline by 50%
-  # ve.floor = minimum remaining VE after waning
-  # delay = days before full vaccine effect begins, default is 14 days
-  
-  # Before the delay period ends, treat effective waning time as 0
-  t_eff <- pmax(0, t_since - delay)
-  
-  # Exponential waning:
-  # VE starts near ve.peak and gradually declines toward ve.floor
-  ve.floor + (ve.peak - ve.floor) * 0.5^(t_eff / ve.halflife)
 }
 

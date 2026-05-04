@@ -1,5 +1,165 @@
 #' @rdname moduleset-corporate
 #' @export
+infect_general <- function(dat, at) {
+
+  ## Attributes ##
+  active <- get_attr(dat, "active")
+  status <- get_attr(dat, "status")
+  dxStatus <- get_attr(dat, "dxStatus")
+  isolate <- get_attr(dat, "isolate")
+
+  vax <- get_attr(dat, "vax")
+  vax1Time <- get_attr(dat, "vax1Time")
+  vax2Time <- get_attr(dat, "vax2Time")
+  vax3Time <- get_attr(dat, "vax3Time")
+  vax.age.breaks <- get_param(dat, "vax.age.breaks")
+  vax.age.group <- cut(
+    get_attr(dat, "age"),
+    breaks = vax.age.breaks,
+    right = FALSE,
+    labels = 1:5
+  ) |> as.character() |> as.integer()
+
+
+  ## Find infected nodes ##
+  idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
+
+  ## Common Parameters ##
+  inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr")
+  inf.add <- get_param(dat, "inf.add")
+  inf.sub <- get_param(dat, "inf.sub")
+  inf.boost.start <- get_param(dat, "inf.boost.start")
+  inf.boost.stop <- get_param(dat, "inf.boost.stop")
+  inf.supp.start <- get_param(dat, "inf.supp.start")
+  inf.supp.stop <- get_param(dat, "inf.supp.stop")
+  inf.prob.mask.rr <- get_param(dat, "inf.prob.mask.rr")
+  act.rate.iso.inter.time <- get_param(dat, "act.rate.iso.inter.time")
+  act.rate.iso.inter.rr <- get_param(dat, "act.rate.iso.inter.rr")
+  vax.schedule <- get_param(dat, "vax.schedule")
+
+  nLayers <- dat$num.nw
+  nInf <- rep(0, nLayers)
+ 
+  if (length(idsInf) > 0) {
+    for (layer in seq_len(nLayers)) {
+      ## Look up discordant edgelist ##
+      del <- discord_edgelist(dat, at, network = layer,
+                              infstat = c("a", "ic", "ip"))
+
+      ## If any discordant pairs, proceed ##
+      if (!(is.null(del))
+      ) {
+
+        ## Parameters ##
+        inf.prob <- get_param(dat, "inf.prob")[layer]
+        act.rate <- get_param(dat, "act.rate")[layer]
+        inf.prob.inter.rr <- get_param(dat, "inf.prob.inter.rr")[layer]
+        inf.prob.inter.time <- get_param(dat, "inf.prob.inter.time")[layer]
+        act.rate.inter.rr <- get_param(dat, "act.rate.inter.rr")[layer]
+        act.rate.inter.time <- get_param(dat, "act.rate.inter.time")[layer]
+
+        # Update inf.prob to account for seasonal variation
+        for (i in seq_along(inf.boost.start)) {
+          if (at >= inf.boost.start[i] & at <= inf.boost.stop[i]){
+            inf.prob <- inf.prob + inf.add[i]
+          }
+        }
+
+        for (i in seq_along(inf.supp.start)) {
+          if (at >= inf.supp.start[i] & at <= inf.supp.stop[i])
+            inf.prob <- inf.prob - inf.sub[i]
+        }
+
+        # Set parameters on discordant edgelist data frame
+        del$transProb <- inf.prob
+
+        # Vaccine effect on susceptibility/transmission
+        # Dose allocation is handled in mod-vax.R; this infection module only
+        # applies vaccine-derived protection when calculating per-edge transmission.
+        #
+        # compute_vax_rr() uses each susceptible node's current vaccine dose,
+        # dose timing, age group, and the VE parameters stored in vax.schedule
+        # to return the current relative risk for infection.
+        #
+        # rr = 1 means no vaccine-derived protection.
+        # rr < 1 reduces the susceptible node's transmission probability.
+        vax_eff <-
+          compute_vax_rr(
+            at = at,
+            ids = del$sus,
+            vax = vax,
+            vax1Time = vax1Time,
+            vax2Time = vax2Time,
+            vax3Time = vax3Time,
+            vax.schedule = vax.schedule,
+            outcome = "infect",
+            vax.age.group = vax.age.group)
+        # Store vaccination status and time since latest dose
+        del$vaxSus <- vax[del$sus]
+        del$latest.vax <- vax_eff$latest.vax
+        # Apply vaccine-derived susceptibility reduction to transmission probability for each discordant edge.
+        del$transProb <- del$transProb * vax_eff$rr
+
+
+        # Asymptomatic infection
+        del$stat <- status[del$inf]
+        del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *
+          inf.prob.a.rr
+
+        # Generic inf.prob and act.rate interventions
+        if (at >= inf.prob.inter.time) {
+          del$transProb <- del$transProb * inf.prob.inter.rr
+        }
+        del$actRate <- act.rate
+        if (at >= act.rate.inter.time) {
+          del$actRate <- del$actRate * act.rate.inter.rr
+        }
+
+        # Case isolation for those in isolation process
+        del$iso <- ifelse(!is.na(isolate[del$inf]),isolate[del$inf],0)
+        if (at >= act.rate.iso.inter.time) {
+          del$actRate[del$iso %in% c(1,2)] <- del$actRate[del$iso %in% c(1,2)] *
+            act.rate.iso.inter.rr
+        }
+
+        # Masking for those in isolation process
+        if (at >= act.rate.iso.inter.time) {
+          del$transProb[del$iso %in% c(1,2,3,4)] <- del$transProb[del$iso %in% c(1,2,3,4)] *
+            inf.prob.mask.rr
+        }
+
+        del$finalProb <- 1 - (1 - del$transProb)^del$actRate
+
+        # Stochastic transmission process
+        transmit <- rbinom(nrow(del), 1, del$finalProb)
+
+        # Keep rows where transmission occurred
+        del <- del[which(transmit == 1), , drop = FALSE]
+
+        # Look up new ids if any transmissions occurred
+        idsNewInf <- unique(del$sus)
+        nInf[layer] <- length(idsNewInf)
+
+        # Set new attributes for those newly infected
+        if (nInf[layer] > 0) {
+          dat <- set_attr(dat, "status", "e", idsNewInf)
+          dat <- set_attr(dat, "infTime", at, idsNewInf)
+          dat <- set_attr(dat, "statusTime", at, idsNewInf)
+        }
+      }
+    }
+  }
+
+  ## Summary statistics for incidence
+  dat$epi$se.flow[at] <- sum(nInf)
+  dat$epi$se.flow.l1[at] <- nInf[1]
+  dat$epi$se.flow.l2[at] <- nInf[2]
+  dat$epi$se.flow.l3[at] <- nInf[3]
+
+  return(dat)
+}
+
+
 infect_covid_corporate <- function(dat, at) { #maria's repo
   # if (at>30) browser()
   ## Attributes ##
@@ -147,106 +307,3 @@ infect_covid_corporate <- function(dat, at) { #maria's repo
   return(dat)
 }
 
-
-#' @rdname moduleset-corporate
-#' @export
-infect_covid_corporate_main <- function(dat, at) { # main module
-  #if (at>30) browser()
-  ## Attributes ##
-  active <- get_attr(dat, "active")
-  status <- get_attr(dat, "status")
-  vax <- get_attr(dat, "vax")
-
-  ## Find infected nodes ##
-  idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
-
-  ## Common Parameters ##
-  inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr") # relative risk multiplier for per-act infectiousness of asymptomatic infections.
-  act.rate.dx.inter.rr <- get_param(dat, "act.rate.dx.inter.rr") # relative change in act rate after diagnosis
-  act.rate.dx.inter.time <- get_param(dat, "act.rate.dx.inter.time") # time step when the diagnosis-based act-rate intervention turns on
-  act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr") # relative change in act rate for symptomatic infectious individuals
-  act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
-  vax1.rr.infect <- get_param(dat, "vax1.rr.infect")
-  vax2.rr.infect <- get_param(dat, "vax2.rr.infect")
-
-  nLayers <- dat$num.nw
-  nInf <- rep(0, nLayers)
-
-  if (length(idsInf) > 0) {
-    for (layer in seq_len(nLayers)) {
-      ## Look up discordant edgelist ##
-      del <- discord_edgelist(dat, at, network = layer,
-                              infstat = c("a", "ic", "ip"))
-
-      ## If any discordant pairs, proceed ##
-      if (!(is.null(del))) {
-
-        ## Parameters, layer specific ##
-        inf.prob <- get_param(dat, "inf.prob")[layer]
-        act.rate <- get_param(dat, "act.rate")[layer]
-        inf.prob.inter.rr <- get_param(dat, "inf.prob.inter.rr")[layer]
-        inf.prob.inter.time <- get_param(dat, "inf.prob.inter.time")[layer]
-        act.rate.inter.rr <- get_param(dat, "act.rate.inter.rr")[layer]
-        act.rate.inter.time <- get_param(dat, "act.rate.inter.time")[layer]
-
-        # Set parameters on discordant edgelist data frame
-        del$transProb <- inf.prob
-
-        # Vaccination
-        del$vaxSus <- vax[del$sus]
-        del$transProb[del$vaxSus %in% 2:3] <- del$transProb[del$vaxSus %in% 2:3] *
-                                          vax1.rr.infect
-        del$transProb[del$vaxSus == 4] <- del$transProb[del$vaxSus == 4] *
-                                          vax2.rr.infect
-
-        # Asymptomatic infection
-        del$stat <- status[del$inf]
-        del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *
-                                          inf.prob.a.rr
-
-        # Generic inf.prob and act.rate interventions
-        if (at >= inf.prob.inter.time) {
-          del$transProb <- del$transProb * inf.prob.inter.rr
-        }
-        del$actRate <- act.rate
-        if (at >= act.rate.inter.time) {
-          del$actRate <- del$actRate * act.rate.inter.rr
-        }
-
-        # Case isolation with diagnosed or symptomatic infection
-        if (at >= act.rate.dx.inter.time) {
-          del$actRate[del$dx == 2] <- del$actRate[del$dx == 2] *
-                                      act.rate.dx.inter.rr
-        }
-        if (at >= act.rate.sympt.inter.time) {
-          del$actRate[del$stat == "ic"] <- del$actRate[del$stat == "ic"] *
-                                           act.rate.sympt.inter.rr
-        }
-
-        del$finalProb <- 1 - (1 - del$transProb)^del$actRate
-
-        # Stochastic transmission process
-        transmit <- rbinom(nrow(del), 1, del$finalProb)
-
-        # Keep rows where transmission occurred
-        del <- del[which(transmit == 1), , drop = FALSE]
-
-        # Look up new ids if any transmissions occurred
-        idsNewInf <- unique(del$sus)
-        nInf[layer] <- length(idsNewInf)
-
-        # Set new attributes for those newly infected
-        if (nInf[layer] > 0) {
-          dat <- set_attr(dat, "status", "e", idsNewInf)
-          dat <- set_attr(dat, "infTime", at, idsNewInf)
-          dat <- set_attr(dat, "statusTime", at, idsNewInf)
-        }
-      }
-    }
-  }
-
-  ## Summary statistics for incidence
-  dat$epi$se.flow[at] <- sum(nInf)
-
-  return(dat)
-}
