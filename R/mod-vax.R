@@ -5,20 +5,13 @@ vax_general <- function(dat, at) {
   ######## extract attribute ########
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
-  age <- get_attr(dat, "age")
   vax <- get_attr(dat, "vax")
   vax1Time <- get_attr(dat, "vax1Time")
   vax2Time <- get_attr(dat, "vax2Time")
   vax3Time <- get_attr(dat, "vax3Time")
   
-  vax.age.breaks <- get_param(dat, "vax.age.breaks")
-  vax.age.group <- cut(
-    age,
-    breaks = vax.age.breaks,
-    right = FALSE,
-    labels = 1:5
-  ) |> as.character() |> as.integer()
-  
+  vax.age.group <-vax_age_group_for(dat)
+
   dxStatus <- get_attr(dat, "dxStatus")
   dxTime <- get_attr(dat, "dxTime")
   
@@ -35,7 +28,7 @@ vax_general <- function(dat, at) {
   # vax.schedule stores both dose-administration parameters and per-dose RR values.
   # mod-vax.R only uses the administration columns: dose, start, interval, rate, annual.
   # The rr.infect / rr.clinical / rr.hosp columns are consumed downstream in
-  # mod-infection.R and mod-progress.R through compute_vax_rr().
+  # mod-infection.R and mod-progress.R through compute_ve().
   
   n_pop <- sum(active == 1) # active nodes
   
@@ -123,7 +116,7 @@ vax_general <- function(dat, at) {
       } else if (dose_i == 3) {
         vax3Time[idsVax] <- at
       } else {
-        stop("This version only supports dose_i = 1, 2, or 3.") # TODO: This needs to go as we have replaced dose-specific time attributes with a general dose-time structure
+        stop("This version only supports dose_i = 1, 2, or 3.") # TODO: Remove once dose-specific time attributes are replaced by a general dose-time structure.
       }
       remaining_supply <- remaining_supply - nVax
       
@@ -816,4 +809,159 @@ get_ids_eligible_for_dose <- function(
   # Return IDs of eligible individuals for this dose at this time step.
   return(idsElig)
 }
+
+# Compute current vaccine relative risk for each node.
+# This helper is shared by mod-infection.R and mod-progress.R despite saved in mod-vax.R
+#
+# rr_col can be:
+#   "rr.infect"   for susceptibility / transmission risk
+#   "rr.clinical" for symptomatic disease risk
+#   "rr.hosp"     for hospitalization risk
+#' @rdname moduleset-gmc19
+#' @export
+compute_ve <- function(at, ids, vax,
+                       vax.age.group,
+                       vax1Time = NULL,
+                       vax2Time = NULL,
+                       vax3Time = NULL,
+                       vax.schedule,
+                       outcome = c("infect", "clinical", "hosp")) {
+  
+  outcome <- match.arg(outcome)
+  
+  # Column names expected in vax.schedule.
+  # Example for outcome = "infect":
+  #   ve.peak.infect
+  #   ve.halflife.infect
+  #   ve.floor.infect
+  #   ve.delay.infect
+  ve_peak_col <- paste0("ve.peak.", outcome)
+  ve_halflife_col <- paste0("ve.halflife.", outcome)
+  ve_floor_col <- paste0("ve.floor.", outcome)
+
+  
+  # Start everyone at no vaccine effect.
+  # rr = 1 means no reduction in risk.
+  rr <- rep(1, length(ids))
+  ve <- rep(0, length(ids))
+  time.since.last.dose <- rep(0, length(ids))
+  
+  # Current vaccine dose status for the selected individuals.
+  vax_ids <- vax[ids]
+  
+  # Current temporary 3-dose time structure.
+  # TODO: Replace vax1Time/vax2Time/vax3Time with a general n_nodes x n_doses
+  # dose-time matrix so any N-row vax.schedule can work.
+  vax_time_list <- list(vax1Time, vax2Time, vax3Time)
+  
+  for (dose_i in seq_len(nrow(vax.schedule))) {
+    
+    # Positions among ids whose current vaccine status equals this dose.
+    ids_this_dose_position <- which(vax_ids == dose_i)
+    
+    if (length(ids_this_dose_position) > 0) {
+      
+      if (dose_i > length(vax_time_list)) {
+        # TODO: Replace dose-specific time attributes with a general
+        # dose-time structure before supporting arbitrary N-dose schedules.
+        stop("This version only supports dose_i = 1, 2, or 3.")
+      }
+      
+      dose_time <- vax_time_list[[dose_i]] # vax time of dose i
+      
+      ids_this_dose <- ids[ids_this_dose_position] # ids of this dose
+      
+      time_since_dose <- at - dose_time[ids_this_dose]
+      if (any(is.na(time_since_dose))) {
+        stop("Missing dose time for vaccinated individuals in compute_ve().")
+      }
+      
+      age_group_this <- vax.age.group[ids_this_dose]
+      
+      ve_peak <- get_schedule_value(
+        vax.schedule, ve_peak_col, dose_i, age_group_this
+      )
+      
+      ve_halflife <- get_schedule_value(
+        vax.schedule, ve_halflife_col, dose_i, age_group_this
+      )
+      
+      ve_floor <- get_schedule_value(
+        vax.schedule, ve_floor_col, dose_i, age_group_this
+      )
+      
+      ve_delay <- get_schedule_value(
+        vax.schedule, "ve.delay", dose_i, age_group_this
+      )
+      
+      # Effective waning time.
+      # Before the delay period ends, treat effective waning time as 0.
+      t_eff <- pmax(0, time_since_dose - ve_delay)
+      
+      # Exponential waning:
+      # VE stays near ve_peak until delay days after vaccination,
+      # then decays toward ve_floor according to the half-life.
+      current_ve <- ve_floor +
+        (ve_peak - ve_floor) *
+        0.5^(t_eff / ve_halflife)
+      
+      if (any(current_ve < 0 | current_ve > 1)) {
+        warning(
+          "VE outside [0, 1] in compute_ve(). Check ve.peak, ve.floor, and ve.halflife in vax.schedule."
+        )
+      }
+      
+      ve[ids_this_dose_position] <- current_ve
+      rr[ids_this_dose_position] <- 1 - current_ve
+      time.since.last.dose[ids_this_dose_position] <- time_since_dose
+    }
+  }
+  
+  return(list(
+    rr = rr,
+    time.since.last.dose = time.since.last.dose
+  ))
+}
+
+# Helper to pull either scalar or age-specific schedule values
+get_schedule_value <- function(schedule, col, dose_i, age_group) {
+  
+  # If the schedule column is a list-column, each row may contain
+  # an age-specific vector, e.g., c(0.50, 0.50, 0.50, 0.50, 0.60).
+  if (is.list(schedule[[col]])) {
+    x <- schedule[[col]][[dose_i]]
+    
+  } else {
+    # Otherwise, the column is a regular vector with one scalar value per dose.
+    x <- schedule[[col]][dose_i]
+  }
+  
+  # If x is scalar, use the same value for everyone in ids.
+  if (length(x) == 1L) {
+    rep(x, length(age_group))
+    
+  } else {
+    # If x is age-specific, select the value matching each person's age group.
+    x[age_group]
+  }
+}
+
+# Helper to assign vaccine age groups using vax.age.breaks
+#' @rdname moduleset-gmc19
+#' @export
+vax_age_group_for <- function(dat) {
+  age <- get_attr(dat, "age")
+  vax.age.breaks <- get_param(dat, "vax.age.breaks")
+  
+  vax.age.group <- 
+    cut(
+      age,
+      breaks = vax.age.breaks,
+      right = FALSE,
+      labels = 1:5
+    ) |> as.character() |> as.integer()
+  
+  return(vax.age.group)
+}
+
 

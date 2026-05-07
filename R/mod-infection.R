@@ -1,4 +1,4 @@
-#' @rdname moduleset-corporate
+#' @rdname moduleset-gmc19
 #' @export
 infect_general <- function(dat, at) {
 
@@ -12,14 +12,7 @@ infect_general <- function(dat, at) {
   vax1Time <- get_attr(dat, "vax1Time")
   vax2Time <- get_attr(dat, "vax2Time")
   vax3Time <- get_attr(dat, "vax3Time")
-  vax.age.breaks <- get_param(dat, "vax.age.breaks")
-  vax.age.group <- cut(
-    get_attr(dat, "age"),
-    breaks = vax.age.breaks,
-    right = FALSE,
-    labels = 1:5
-  ) |> as.character() |> as.integer()
-
+  vax.age.group <- vax_age_group_for(dat)
 
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
@@ -77,14 +70,14 @@ infect_general <- function(dat, at) {
         # Dose allocation is handled in mod-vax.R; this infection module only
         # applies vaccine-derived protection when calculating per-edge transmission.
         #
-        # compute_vax_rr() uses each susceptible node's current vaccine dose,
+        # compute_ve() uses each susceptible node's current vaccine dose,
         # dose timing, age group, and the VE parameters stored in vax.schedule
         # to return the current relative risk for infection.
         #
         # rr = 1 means no vaccine-derived protection.
         # rr < 1 reduces the susceptible node's transmission probability.
         vax_eff <-
-          compute_vax_rr(
+          compute_ve(
             at = at,
             ids = del$sus,
             vax = vax,
