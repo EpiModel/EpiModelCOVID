@@ -24,7 +24,7 @@ vax_general <- function(dat, at) {
   vax.supply.rate <- get_param(dat, "vax.supply.rate")
   vax.supply.total <- get_param(dat, "vax.supply.total")
 
-  vax.schedule <- get_param(dat, "vax.schedule") # data.frame containing vax-related details
+  vax.schedule <- build_vax_schedule(dat, "covid") # data.frame containing vax-related details
   # vax.schedule stores both dose-administration parameters and per-dose RR values.
   # mod-vax.R only uses the administration columns: dose, start, interval, rate, annual.
   # The rr.infect / rr.clinical / rr.hosp columns are consumed downstream in
@@ -860,7 +860,6 @@ compute_ve <- function(at, ids, vax,
     ids_this_dose_position <- which(vax_ids == dose_i)
     
     if (length(ids_this_dose_position) > 0) {
-      
       if (dose_i > length(vax_time_list)) {
         # TODO: Replace dose-specific time attributes with a general
         # dose-time structure before supporting arbitrary N-dose schedules.
@@ -964,4 +963,48 @@ vax_age_group_for <- function(dat) {
   return(vax.age.group)
 }
 
+# Build dose-indexed vaccine schedule from model_parameters.csv
+build_vax_schedule <- function(dat, disease = "covid") {
+  
+  prefix <- paste0("vax.", disease, ".")
+  n_doses <- get_param(dat, paste0(prefix, "n.doses"))
+  
+  get_dose_param <- function(attr, dose_i) {
+    get_param(dat, paste0(prefix, attr, ".dose", dose_i))
+  }
+  
+  vax.schedule <- data.frame(
+    dose = seq_len(n_doses),
+    interval = sapply(seq_len(n_doses), function(i) get_dose_param("interval", i)),
+    annual = sapply(seq_len(n_doses), function(i) get_dose_param("annual", i)),
+    
+    rr.infect = sapply(seq_len(n_doses), function(i) get_dose_param("rr.infect", i)),
+    rr.clinical = sapply(seq_len(n_doses), function(i) get_dose_param("rr.clinical", i)),
+    rr.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("rr.hosp", i)),
+    
+    ve.peak.infect = sapply(seq_len(n_doses), function(i) get_dose_param("ve.peak.infect", i)),
+    ve.halflife.infect = sapply(seq_len(n_doses), function(i) get_dose_param("ve.halflife.infect", i)),
+    ve.floor.infect = sapply(seq_len(n_doses), function(i) get_dose_param("ve.floor.infect", i)),
+    
+    ve.peak.clinical = sapply(seq_len(n_doses), function(i) get_dose_param("ve.peak.clinical", i)),
+    ve.halflife.clinical = sapply(seq_len(n_doses), function(i) get_dose_param("ve.halflife.clinical", i)),
+    ve.floor.clinical = sapply(seq_len(n_doses), function(i) get_dose_param("ve.floor.clinical", i)),
+    
+    ve.peak.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("ve.peak.hosp", i)),
+    ve.halflife.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("ve.halflife.hosp", i)),
+    ve.floor.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("ve.floor.hosp", i)),
+    
+    ve.delay = sapply(seq_len(n_doses), function(i) get_dose_param("ve.delay", i))
+  )
+  
+  vax.schedule$start <- I(lapply(seq_len(n_doses), function(i) {
+    get_dose_param("start", i)
+  }))
+  
+  vax.schedule$rate <- I(lapply(seq_len(n_doses), function(i) {
+    get_dose_param("rate", i)
+  }))
+  
+  return(vax.schedule)
+}
 

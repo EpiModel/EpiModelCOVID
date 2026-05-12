@@ -28,7 +28,7 @@ infect_general <- function(dat, at) {
   inf.prob.mask.rr <- get_param(dat, "inf.prob.mask.rr")
   act.rate.iso.inter.time <- get_param(dat, "act.rate.iso.inter.time")
   act.rate.iso.inter.rr <- get_param(dat, "act.rate.iso.inter.rr")
-  vax.schedule <- get_param(dat, "vax.schedule")
+  vax.schedule <- build_vax_schedule(dat, "covid")
 
   nLayers <- dat$num.nw
   nInf <- rep(0, nLayers)
@@ -122,7 +122,19 @@ infect_general <- function(dat, at) {
         }
 
         del$finalProb <- 1 - (1 - del$transProb)^del$actRate
-
+        
+        # debug warning message: In rbinom(nrow(del), 1, del$finalProb) : NAs produced
+        bad <- which(is.na(del$finalProb) | del$finalProb < 0 | del$finalProb > 1)
+        if (length(bad) > 0) {
+          print(table(is.na(del$transProb), useNA = "ifany"))
+          print(table(is.na(del$actRate), useNA = "ifany"))
+          print(summary(del$transProb))
+          print(summary(del$actRate))
+          print(summary(del$finalProb))
+          
+          browser()
+        }
+        
         # Stochastic transmission process
         transmit <- rbinom(nrow(del), 1, del$finalProb)
 
@@ -154,7 +166,6 @@ infect_general <- function(dat, at) {
 
 
 infect_covid_corporate <- function(dat, at) { #maria's repo
-  # if (at>30) browser()
   ## Attributes ##
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
