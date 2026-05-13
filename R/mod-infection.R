@@ -89,7 +89,6 @@ infect_general <- function(dat, at) {
             vax.age.group = vax.age.group)
         # Store vaccination status and time since latest dose
         del$vaxSus <- vax[del$sus]
-        del$latest.vax <- vax_eff$latest.vax
         # Apply vaccine-derived susceptibility reduction to transmission probability for each discordant edge.
         del$transProb <- del$transProb * vax_eff$rr
 

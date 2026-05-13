@@ -10,7 +10,7 @@ vax_general <- function(dat, at) {
   vax2Time <- get_attr(dat, "vax2Time")
   vax3Time <- get_attr(dat, "vax3Time")
   
-  vax.age.group <-vax_age_group_for(dat)
+  vax.age.group <- vax_age_group_for(dat)
 
   dxStatus <- get_attr(dat, "dxStatus")
   dxTime <- get_attr(dat, "dxTime")

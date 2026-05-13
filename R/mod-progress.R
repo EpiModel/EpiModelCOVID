@@ -1,8 +1,7 @@
 #' @rdname moduleset-common
 #' @export
 progress_general <- function(dat, at) {
-  #if (at>=10) browser()
-  
+
   ## Attributes
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
@@ -11,12 +10,7 @@ progress_general <- function(dat, at) {
   hospit <- get_attr(dat, "hospit")
   age <- get_attr(dat, "age")
   vax.age.breaks <- get_param(dat, "vax.age.breaks")
-  vax.age.group <- cut( # vax age groups with 5 categories
-    age,
-    breaks = vax.age.breaks,
-    right = FALSE,
-    labels = 1:5
-  ) |> as.character() |> as.integer()
+  vax.age.group <- vax_age_group_for(dat)
   vax <- get_attr(dat, "vax")
   vax1Time <- get_attr(dat, "vax1Time")
   vax2Time <- get_attr(dat, "vax2Time")
@@ -64,13 +58,13 @@ progress_general <- function(dat, at) {
     # Dose allocation is handled in mod-vax.R. Here, mod-progress.R only
     # applies vaccine-derived protection to the probability of becoming clinical.
     #
-    # compute_vax_rr() uses each newly infected node's current vaccine dose,
+    # compute_ve() uses each newly infected node's current vaccine dose,
     # dose timing, vaccination age group, and the VE parameters stored in
     # vax.schedule to return the current relative risk for clinical disease.
     #
     # rr = 1 means no vaccine-derived protection.
     # rr < 1 reduces the probability of clinical disease.
-    vax_eff_clinical <- compute_vax_rr(
+    vax_eff_clinical <- compute_ve(
       at = at,
       ids = ids.newInf,
       vax = vax,
@@ -172,13 +166,13 @@ progress_general <- function(dat, at) {
     # Dose allocation is handled in mod-vax.R. Here, mod-progress.R only
     # applies vaccine-derived protection to the probability of hospitalization.
     #
-    # compute_vax_rr() uses each clinical infectious node's current vaccine dose,
+    # compute_ve() uses each clinical infectious node's current vaccine dose,
     # dose timing, vaccination age group, and the VE parameters stored in
     # vax.schedule to return the current relative risk for hospitalization.
     #
     # rr = 1 means no vaccine-derived protection.
     # rr < 1 reduces the probability of hospitalization.
-    vax_eff_hosp <- compute_vax_rr(
+    vax_eff_hosp <- compute_ve(
       at = at,
       ids = ids.newIc,
       vax = vax,
