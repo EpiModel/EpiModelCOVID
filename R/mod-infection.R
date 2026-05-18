@@ -45,7 +45,7 @@ infect_general <- function(dat, at) {
 
         ## Parameters ##
         inf.prob <- get_param(dat, "inf.prob")[layer]
-        act.rate <- get_param(dat, "act.rate")[layer]
+        act.rate <- get_param(dat, "exposure.rate")[layer]
         inf.prob.inter.rr <- get_param(dat, "inf.prob.inter.rr")[layer]
         inf.prob.inter.time <- get_param(dat, "inf.prob.inter.time")[layer]
         act.rate.inter.rr <- get_param(dat, "act.rate.inter.rr")[layer]
@@ -131,7 +131,7 @@ infect_general <- function(dat, at) {
           print(summary(del$actRate))
           print(summary(del$finalProb))
           
-          browser()
+          #browser()
         }
         
         # Stochastic transmission process
