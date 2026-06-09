@@ -32,6 +32,7 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     vax2Time= NA,
     vax3Time= NA,
     vax4Time= NA,
+    last.dose.time = NA,
     isolate= NA,
     isoTime= NA
    

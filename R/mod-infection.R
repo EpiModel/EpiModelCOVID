@@ -9,9 +9,7 @@ infect_general <- function(dat, at) {
   isolate <- get_attr(dat, "isolate")
 
   vax <- get_attr(dat, "vax")
-  vax1Time <- get_attr(dat, "vax1Time")
-  vax2Time <- get_attr(dat, "vax2Time")
-  vax3Time <- get_attr(dat, "vax3Time")
+  last.dose.time <- get_attr(dat, "last.dose.time")
   vax.age.group <- vax_age_group_for(dat)
 
   ## Find infected nodes ##
@@ -81,9 +79,7 @@ infect_general <- function(dat, at) {
             at = at,
             ids = del$sus,
             vax = vax,
-            vax1Time = vax1Time,
-            vax2Time = vax2Time,
-            vax3Time = vax3Time,
+            last.dose.time = last.dose.time,
             vax.schedule = vax.schedule,
             outcome = "infect",
             vax.age.group = vax.age.group)

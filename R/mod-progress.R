@@ -12,9 +12,7 @@ progress_general <- function(dat, at) {
   vax.age.breaks <- get_param(dat, "vax.age.breaks")
   vax.age.group <- vax_age_group_for(dat)
   vax <- get_attr(dat, "vax")
-  vax1Time <- get_attr(dat, "vax1Time")
-  vax2Time <- get_attr(dat, "vax2Time")
-  vax3Time <- get_attr(dat, "vax3Time")
+  last.dose.time <- get_attr(dat, "last.dose.time")
   dxStatus <- get_attr(dat, "dxStatus")
   deg_work <- get_attr(dat, "deg_work")
   non.office <- ifelse(deg_work > 0, 0, 1)  # 0=office, 1=non-office
@@ -68,9 +66,7 @@ progress_general <- function(dat, at) {
       at = at,
       ids = ids.newInf,
       vax = vax,
-      vax1Time = vax1Time,
-      vax2Time = vax2Time,
-      vax3Time = vax3Time,
+      last.dose.time = last.dose.time,
       vax.schedule = vax.schedule,
       outcome = "clinical",
       vax.age.group = vax.age.group
@@ -176,9 +172,7 @@ progress_general <- function(dat, at) {
       at = at,
       ids = ids.newIc,
       vax = vax,
-      vax1Time = vax1Time,
-      vax2Time = vax2Time,
-      vax3Time = vax3Time,
+      last.dose.time = last.dose.time,
       vax.schedule = vax.schedule,
       outcome = "hosp",
       vax.age.group = vax.age.group

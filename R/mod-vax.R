@@ -6,10 +6,8 @@ vax_general <- function(dat, at) {
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
   vax <- get_attr(dat, "vax")
-  vax1Time <- get_attr(dat, "vax1Time")
-  vax2Time <- get_attr(dat, "vax2Time")
-  vax3Time <- get_attr(dat, "vax3Time")
-  
+  last.dose.time <- get_attr(dat, "last.dose.time") # timestep of each node's most recent dose
+
   vax.age.group <- vax_age_group_for(dat)
 
   dxStatus <- get_attr(dat, "dxStatus")
@@ -23,6 +21,8 @@ vax_general <- function(dat, at) {
   vax.strategy <- get_param(dat, "vax.strategy") # determine which stategy to use
   vax.supply.rate <- get_param(dat, "vax.supply.rate")
   vax.supply.total <- get_param(dat, "vax.supply.total")
+  season.length <- get_param(dat, "vax.season.length", override.null.error = TRUE)
+  if (is.null(season.length)) season.length <- 364  # days per annual vaccination season
 
   vax.schedule <- build_vax_schedule(dat, get_pathogen(dat)) # data.frame containing vax-related details
   # vax.schedule stores both dose-administration parameters and per-dose RR values.
@@ -72,10 +72,10 @@ vax_general <- function(dat, at) {
       dxStatus = dxStatus,
       dxTime = dxTime,
       vax = vax,
-      vax1Time = vax1Time,
-      vax2Time = vax2Time,
+      last.dose.time = last.dose.time,
       vax.age.group = vax.age.group,
-      at = at
+      at = at,
+      season.length = season.length
     )
     
     nElig <- length(idsElig)
@@ -109,15 +109,7 @@ vax_general <- function(dat, at) {
     
     if (nVax > 0) {
       vax[idsVax] <- dose_i
-      if (dose_i == 1) {
-        vax1Time[idsVax] <- at
-      } else if (dose_i == 2) {
-        vax2Time[idsVax] <- at
-      } else if (dose_i == 3) {
-        vax3Time[idsVax] <- at
-      } else {
-        stop("This version only supports dose_i = 1, 2, or 3.") # TODO: Remove once dose-specific time attributes are replaced by a general dose-time structure.
-      }
+      last.dose.time[idsVax] <- at # record the timestep of this (most recent) dose
       remaining_supply <- remaining_supply - nVax
       
       if (dose_i == 1) {
@@ -129,9 +121,7 @@ vax_general <- function(dat, at) {
   
   # Replace attr
   dat <- set_attr(dat, "vax", vax)
-  dat <- set_attr(dat, "vax1Time", vax1Time)
-  dat <- set_attr(dat, "vax2Time", vax2Time)
-  dat <- set_attr(dat, "vax3Time", vax3Time)
+  dat <- set_attr(dat, "last.dose.time", last.dose.time)
   
   # Summary statistics 
   ## Number of regular doses received at this timestep
@@ -748,65 +738,60 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
 
 # helper getting generally eligible for a dose
 get_ids_eligible_for_dose <- function(
-    dose_row, dose_i, 
+    dose_row, dose_i,
     active, status, dxStatus, dxTime,
-    # For 3-dose COVID, only need vax1Time and vax2Time for eligibility checking, 
-    # because dose 1 has no previous dose, dose 2 checks vax1Time, and dose 3 checks vax2Time. 
-    vax, 
-    vax1Time = NULL, 
-    vax2Time = NULL, 
-    vax.age.group, at
+    vax,
+    last.dose.time = NULL,
+    vax.age.group, at,
+    season.length = 364
 ) {
-  # Define people who are generally eligible for vaccination, regardless of dose number.
-  # active == 1: person is active in the simulation.
-  # status not in c("ic", "h"): exclude severe individuals.
-  # ! dxStatus == 2 and recent dxTime: exclude recently diagnosed people.
+  # Generally eligible: active, not severe (ic/h), not recently diagnosed.
   base_eligible <- active == 1 &
     !(status %in% c("ic", "h")) &
     !(dxStatus == 2 & (at - dxTime <= 10))
-  
-  # Pull the age-specific start times for this dose from vax.schedule
-  # start_vec has length of 5
-  # Example: start_vec[1] is the start time for age group 0–4.
+
+  # Age-specific start time for this dose (length 5; indexed by vax.age.group).
   start_vec <- dose_row$start[[1]]
-  
-  # Pull the minimum required interval since the previous dose.
-  # NA for dose 1 because there is no previous dose.
+  start_age <- start_vec[vax.age.group]
+
+  # Minimum interval since the previous dose (NA for dose 1).
   interval <- dose_row$interval
-  
-  # Dose 1 eligibility
-  if (dose_i == 1) {
-    
+
+  annual <- isTRUE(dose_row$annual)
+
+  if (annual) {
+    # Annual (seasonal) revaccination: eligible once per season, reopening each
+    # year. Seasons recur every season.length days from the age-specific start;
+    # a node is eligible if the current season's campaign has opened and it has
+    # not been dosed since it opened (so prior-season vaccinees re-up).
+    seasons_elapsed <- pmax(0, floor((at - start_age) / season.length))
+    season_start <- start_age + seasons_elapsed * season.length
     idsElig <- which(
-      base_eligible & # person must be generally eligible
-        vax == dose_i - 1 & # have received no prior vaccine dose
-        at >= start_vec[vax.age.group]  # and have reached their age-specific dose 1 start time
+      base_eligible &
+        at >= season_start &
+        (is.na(last.dose.time) | last.dose.time < season_start)
     )
-    
-  } else { # Dose 2 or 3 eligibility determination
-    
-    # For dose 2 or dose 3, identify the previous dose time.
-    # If dose_i == 2, previous dose is dose 1.
-    # If dose_i == 3, previous dose is dose 2.
-    prev_time <- if (dose_i == 2) {
-      vax1Time
-    } else if (dose_i == 3) {
-      vax2Time
-    } else {
-      stop("This version only supports dose_i = 1, 2, or 3.")
-    }
-    
-    # Dose 2 or 3 eligibility
+
+  } else if (dose_i == 1) {
     idsElig <- which(
-      base_eligible &  # person must be generally eligible
-        vax == dose_i - 1 & # have received exactly the previous dose (regular or boost)
-        !is.na(prev_time) & # have a recorded previous dose time
-        (at - prev_time >= interval) & # have waited long enough since the previous dose
-        at >= start_vec[vax.age.group]  # and have reached their age-specific start time for this dose
+      base_eligible &
+        vax == 0 &
+        at >= start_age
+    )
+
+  } else {
+    # Dose 2+: needs exactly the previous dose, the interval elapsed since it
+    # (last.dose.time is the previous dose for a node with vax == dose_i - 1),
+    # and the age-specific start time reached.
+    idsElig <- which(
+      base_eligible &
+        vax == dose_i - 1 &
+        !is.na(last.dose.time) &
+        (at - last.dose.time >= interval) &
+        at >= start_age
     )
   }
-  
-  # Return IDs of eligible individuals for this dose at this time step.
+
   return(idsElig)
 }
 
@@ -821,101 +806,61 @@ get_ids_eligible_for_dose <- function(
 #' @export
 compute_ve <- function(at, ids, vax,
                        vax.age.group,
-                       vax1Time = NULL,
-                       vax2Time = NULL,
-                       vax3Time = NULL,
+                       last.dose.time = NULL,
                        vax.schedule,
                        outcome = c("infect", "clinical", "hosp")) {
-  
+
   outcome <- match.arg(outcome)
-  
-  # Column names expected in vax.schedule.
-  # Example for outcome = "infect":
-  #   ve.peak.infect
-  #   ve.halflife.infect
-  #   ve.floor.infect
-  #   ve.delay.infect
+
   ve_peak_col <- paste0("ve.peak.", outcome)
   ve_halflife_col <- paste0("ve.halflife.", outcome)
   ve_floor_col <- paste0("ve.floor.", outcome)
 
-  
-  # Start everyone at no vaccine effect.
-  # rr = 1 means no reduction in risk.
+  # Start everyone at no vaccine effect (rr = 1).
   rr <- rep(1, length(ids))
   ve <- rep(0, length(ids))
   time.since.last.dose <- rep(0, length(ids))
-  
-  # Current vaccine dose status for the selected individuals.
+
   vax_ids <- vax[ids]
-  
-  # Current temporary 3-dose time structure.
-  # TODO: Replace vax1Time/vax2Time/vax3Time with a general n_nodes x n_doses
-  # dose-time matrix so any N-row vax.schedule can work.
-  vax_time_list <- list(vax1Time, vax2Time, vax3Time)
-  
+
+  # A node's protection is set by its most recent dose: last.dose.time is the
+  # timestep of that dose and vax (the dose count) selects which dose row's VE
+  # profile applies. Supports any number of doses and annual revaccination.
   for (dose_i in seq_len(nrow(vax.schedule))) {
-    
-    # Positions among ids whose current vaccine status equals this dose.
+
     ids_this_dose_position <- which(vax_ids == dose_i)
-    
+
     if (length(ids_this_dose_position) > 0) {
-      if (dose_i > length(vax_time_list)) {
-        # TODO: Replace dose-specific time attributes with a general
-        # dose-time structure before supporting arbitrary N-dose schedules.
-        stop("This version only supports dose_i = 1, 2, or 3.")
-      }
-      
-      dose_time <- vax_time_list[[dose_i]] # vax time of dose i
-      
-      ids_this_dose <- ids[ids_this_dose_position] # ids of this dose
-      
-      time_since_dose <- at - dose_time[ids_this_dose]
+
+      ids_this_dose <- ids[ids_this_dose_position]
+
+      time_since_dose <- at - last.dose.time[ids_this_dose]
       if (any(is.na(time_since_dose))) {
         stop("Missing dose time for vaccinated individuals in compute_ve().")
       }
-      
+
       age_group_this <- vax.age.group[ids_this_dose]
-      
-      ve_peak <- get_schedule_value(
-        vax.schedule, ve_peak_col, dose_i, age_group_this
-      )
-      
-      ve_halflife <- get_schedule_value(
-        vax.schedule, ve_halflife_col, dose_i, age_group_this
-      )
-      
-      ve_floor <- get_schedule_value(
-        vax.schedule, ve_floor_col, dose_i, age_group_this
-      )
-      
-      ve_delay <- get_schedule_value(
-        vax.schedule, "ve.delay", dose_i, age_group_this
-      )
-      
-      # Effective waning time.
-      # Before the delay period ends, treat effective waning time as 0.
+
+      ve_peak <- get_schedule_value(vax.schedule, ve_peak_col, dose_i, age_group_this)
+      ve_halflife <- get_schedule_value(vax.schedule, ve_halflife_col, dose_i, age_group_this)
+      ve_floor <- get_schedule_value(vax.schedule, ve_floor_col, dose_i, age_group_this)
+      ve_delay <- get_schedule_value(vax.schedule, "ve.delay", dose_i, age_group_this)
+
+      # VE holds near peak until ve_delay days post-dose, then decays toward the
+      # floor by the half-life.
       t_eff <- pmax(0, time_since_dose - ve_delay)
-      
-      # Exponential waning:
-      # VE stays near ve_peak until delay days after vaccination,
-      # then decays toward ve_floor according to the half-life.
-      current_ve <- ve_floor +
-        (ve_peak - ve_floor) *
-        0.5^(t_eff / ve_halflife)
-      
+      current_ve <- ve_floor + (ve_peak - ve_floor) * 0.5^(t_eff / ve_halflife)
+
       if (any(current_ve < 0 | current_ve > 1)) {
-        warning(
-          "VE outside [0, 1] in compute_ve(). Check ve.peak, ve.floor, and ve.halflife in vax.schedule."
-        )
+        warning("VE outside [0, 1] in compute_ve(). Check ve.peak, ve.floor, and ve.halflife in vax.schedule.")
       }
-      
+
       ve[ids_this_dose_position] <- current_ve
       rr[ids_this_dose_position] <- 1 - current_ve
       time.since.last.dose[ids_this_dose_position] <- time_since_dose
     }
   }
-  
+
   return(list(
     rr = rr,
     time.since.last.dose = time.since.last.dose
