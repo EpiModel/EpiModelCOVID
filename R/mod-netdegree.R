@@ -13,7 +13,16 @@ netdegree <- function(dat, at) {
              )
 
   degree_total <- degree_work + degree_school + degree_nonhome + degree_hh
-  
+
+  # cross-layer (non-household) degree: prioritization metrics that exclude the
+  # dense household clique, so "degree" is not dominated by household size.
+  degree_xlayer <- degree_work + degree_school + degree_nonhome
+
+  # degree quartile (rank-based, 4 equal-size groups) for outcome stratification
+  n_nodes_deg <- length(degree_total)
+  degree_quartile <- pmin(pmax(
+    ceiling(rank(degree_total, ties.method = "first") / n_nodes_deg * 4), 1L), 4L)
+
   # cross-layer bridging
   n_layers_active <- (degree_work > 0) + (degree_school > 0) + (degree_nonhome > 0) + (degree_hh > 0) # bridge count
   is_bridge <- n_layers_active >= 2 # bridge indicator
@@ -37,6 +46,8 @@ netdegree <- function(dat, at) {
   dat <- set_attr(dat, "degree_nonhome", degree_nonhome)
   dat <- set_attr(dat, "degree_hh", degree_hh)
   dat <- set_attr(dat, "degree_total", degree_total)
+  dat <- set_attr(dat, "degree_xlayer", degree_xlayer)
+  dat <- set_attr(dat, "degree_quartile", degree_quartile)
   dat <- set_attr(dat, "is_bridge", is_bridge)
   dat <- set_attr(dat, "n_layers_active", n_layers_active)
   

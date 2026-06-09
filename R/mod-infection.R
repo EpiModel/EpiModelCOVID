@@ -28,8 +28,17 @@ infect_general <- function(dat, at) {
   act.rate.iso.inter.rr <- get_param(dat, "act.rate.iso.inter.rr")
   vax.schedule <- build_vax_schedule(dat, get_pathogen(dat))
 
+  # Seasonal forcing of transmission (issue #26): a sinusoidal annual multiplier on
+  # inf.prob. Defaults to no forcing (amplitude 0) when the params are unset.
+  seasonal.amp <- get_param(dat, "seasonal.amp", override.null.error = TRUE)
+  seasonal.phase <- get_param(dat, "seasonal.phase", override.null.error = TRUE)
+  if (is.null(seasonal.amp)) seasonal.amp <- 0
+  if (is.null(seasonal.phase)) seasonal.phase <- 0
+  season_mult <- 1 + seasonal.amp * cos(2 * pi * (at - seasonal.phase) / 364)
+
   nLayers <- dat$num.nw
   nInf <- rep(0, nLayers)
+  allNewInf <- integer(0)  # newly infected across all layers + imports, for stratified incidence
  
   if (length(idsInf) > 0) {
     for (layer in seq_len(nLayers)) {
@@ -61,8 +70,8 @@ infect_general <- function(dat, at) {
             inf.prob <- inf.prob - inf.sub[i]
         }
 
-        # Set parameters on discordant edgelist data frame
-        del$transProb <- inf.prob
+        # Set parameters on discordant edgelist data frame (seasonally forced)
+        del$transProb <- inf.prob * season_mult
 
         # Vaccine effect on susceptibility/transmission
         # Dose allocation is handled in mod-vax.R; this infection module only
@@ -145,16 +154,63 @@ infect_general <- function(dat, at) {
           dat <- set_attr(dat, "status", "e", idsNewInf)
           dat <- set_attr(dat, "infTime", at, idsNewInf)
           dat <- set_attr(dat, "statusTime", at, idsNewInf)
+          allNewInf <- c(allNewInf, idsNewInf)
         }
       }
     }
   }
 
-  ## Summary statistics for incidence
-  dat$epi$se.flow[at] <- sum(nInf)
-  dat$epi$se.flow.l1[at] <- nInf[1]
-  dat$epi$se.flow.l2[at] <- nInf[2]
-  dat$epi$se.flow.l3[at] <- nInf[3]
+  ## External re-importation (seasonal): a small per-step hazard of infection from
+  ## outside the modeled population, so seasonal epidemics can re-ignite and zero
+  ## prevalence is not absorbing. Defaults to 0 (off) when import.rate is unset.
+  import.rate <- get_param(dat, "import.rate", override.null.error = TRUE)
+  nImport <- 0L
+  if (!is.null(import.rate) && import.rate > 0) {
+    status_now <- get_attr(dat, "status")
+    idsSus <- which(active == 1 & status_now == "s")
+    if (length(idsSus) > 0) {
+      import_prob <- min(1, import.rate * season_mult)
+      idsImp <- idsSus[runif(length(idsSus)) < import_prob]
+      if (length(idsImp) > 0) {
+        dat <- set_attr(dat, "status", "e", idsImp)
+        dat <- set_attr(dat, "infTime", at, idsImp)
+        dat <- set_attr(dat, "statusTime", at, idsImp)
+        nImport <- length(idsImp)
+        allNewInf <- c(allNewInf, idsImp)
+      }
+    }
+  }
+  allNewInf <- unique(allNewInf)
+
+  ## Summary statistics for incidence (network by layer + imports)
+  dat <- set_epi(dat, "se.flow", at, sum(nInf) + nImport)
+  dat <- set_epi(dat, "se.flow.l1", at, nInf[1])
+  dat <- set_epi(dat, "se.flow.l2", at, nInf[2])
+  dat <- set_epi(dat, "se.flow.l3", at, nInf[3])
+  dat <- set_epi(dat, "se.flow.l4", at, if (length(nInf) >= 4) nInf[4] else 0)  # household layer
+  dat <- set_epi(dat, "se.import.flow", at, nImport)
+
+  ## Stratified incidence: by age group, vaccination status, and network position
+  age <- get_attr(dat, "age")
+  age.breaks <- get_param(dat, "age.breaks")
+  ag <- cut(age[allNewInf], age.breaks, labels = FALSE, right = FALSE)
+  for (g in seq_len(length(age.breaks) - 1)) {
+    dat <- set_epi(dat, paste0("se.flow.age", g), at, sum(ag == g, na.rm = TRUE))
+  }
+  vaxed_new <- vax[allNewInf] >= 1
+  dat <- set_epi(dat, "se.flow.vax", at, sum(vaxed_new, na.rm = TRUE))
+  dat <- set_epi(dat, "se.flow.unvax", at, sum(!vaxed_new, na.rm = TRUE))
+  degree_quartile <- get_attr(dat, "degree_quartile")
+  if (!is.null(degree_quartile)) {
+    dq_new <- degree_quartile[allNewInf]
+    for (q in 1:4) dat <- set_epi(dat, paste0("se.flow.degQ", q), at, sum(dq_new == q, na.rm = TRUE))
+  }
+  is_bridge <- get_attr(dat, "is_bridge")
+  if (!is.null(is_bridge)) {
+    br_new <- is_bridge[allNewInf]
+    dat <- set_epi(dat, "se.flow.bridge", at, sum(br_new, na.rm = TRUE))
+    dat <- set_epi(dat, "se.flow.nonbridge", at, sum(!br_new, na.rm = TRUE))
+  }
 
   return(dat)
 }

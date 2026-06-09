@@ -11,6 +11,8 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     degree_nonhome=0,
     degree_hh=0,
     degree_total=0,
+    degree_xlayer=0,
+    degree_quartile=NA,
     # cross-layer bridge indicators
     is_bridge = FALSE,
     n_layers_active =0,
