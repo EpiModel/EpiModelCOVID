@@ -38,7 +38,7 @@ progress_general <- function(dat, at) {
   hr.rate <- get_param(dat, "hr.rate")
   rs.rate <- get_param(dat, "rs.rate")
   age.breaks<- get_param(dat, "age.breaks")
-  vax.schedule <- build_vax_schedule(dat, "covid") # get vaccination schedule
+  vax.schedule <- build_vax_schedule(dat, get_pathogen(dat)) # get vaccination schedule
   
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))

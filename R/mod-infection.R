@@ -28,7 +28,7 @@ infect_general <- function(dat, at) {
   inf.prob.mask.rr <- get_param(dat, "inf.prob.mask.rr")
   act.rate.iso.inter.time <- get_param(dat, "act.rate.iso.inter.time")
   act.rate.iso.inter.rr <- get_param(dat, "act.rate.iso.inter.rr")
-  vax.schedule <- build_vax_schedule(dat, "covid")
+  vax.schedule <- build_vax_schedule(dat, get_pathogen(dat))
 
   nLayers <- dat$num.nw
   nInf <- rep(0, nLayers)

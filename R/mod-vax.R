@@ -24,7 +24,7 @@ vax_general <- function(dat, at) {
   vax.supply.rate <- get_param(dat, "vax.supply.rate")
   vax.supply.total <- get_param(dat, "vax.supply.total")
 
-  vax.schedule <- build_vax_schedule(dat, "covid") # data.frame containing vax-related details
+  vax.schedule <- build_vax_schedule(dat, get_pathogen(dat)) # data.frame containing vax-related details
   # vax.schedule stores both dose-administration parameters and per-dose RR values.
   # mod-vax.R only uses the administration columns: dose, start, interval, rate, annual.
   # The rr.infect / rr.clinical / rr.hosp columns are consumed downstream in
@@ -961,6 +961,14 @@ vax_age_group_for <- function(dat) {
     ) |> as.character() |> as.integer()
   
   return(vax.age.group)
+}
+
+# Resolve the active pathogen for disease-specific vaccine-schedule selection.
+# Defaults to "covid" when the `pathogen` parameter is absent, preserving
+# backward compatibility for models that predate multi-pathogen support.
+get_pathogen <- function(dat) {
+  pathogen <- get_param(dat, "pathogen", override.null.error = TRUE)
+  if (is.null(pathogen) || length(pathogen) == 0) "covid" else pathogen
 }
 
 # Build dose-indexed vaccine schedule from model_parameters.csv
