@@ -8,12 +8,13 @@ arrival <- function(dat, at) {
   ## Input
   # Attributes
   
-  # Parameters
-  a.rate   <- get_param(dat, "a.rate")
-  
   ## Process
-  num <- get_epi(dat, "num", at = 1)
-  nNew <- rpois(1, a.rate * num) 
+  # Stationary-population demography: replace this step's departures so the
+  # population size stays constant. The age-structured death rate makes a fixed
+  # per-capita a.rate drift (Phase 2 review), so arrivals track departures, which
+  # the departures module records as d.flow before this module runs.
+  nDep <- get_epi(dat, "d.flow", at = at)
+  nNew <- if (is.null(nDep) || is.na(nDep)) 0L else as.integer(nDep)
   
   
 
