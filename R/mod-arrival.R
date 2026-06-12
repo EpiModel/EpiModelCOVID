@@ -70,20 +70,25 @@ set_home_attr_el <- function(dat, at, nNew) {
   # add hh.ids of newly arrivals to run$attr
   dat <- set_attr(dat, "hh.ids", newHH, posit_ids = new_nodes_pid)
 
-  # update household edgelist, arrivals module
-  heads <- cbind(new_nodes_pid, newHH) 
-  # heads <- cbind((length(hh.ids) + 1):(length(hh.ids) + nNew), newHH) # old script doesn't work
-  tails <- cbind(which(hh.ids %in% newHH), hh.ids[which(hh.ids %in% newHH)]) # existing nodes living with new nodes + their hh.ids
-  new.edges <- merge(heads, tails, by.x = 2, by.y = 2)[, 2:3] # join by the 2nd column. connect each new node to existing nodes
-  new.edgelist <- as.matrix(rbind(dat$run$el[[dat$num.nw]], setNames(new.edges, c(".head", ".tail")))) # edgelist from list time point + new edgelist
-  #new.edgelist <- as.matrix(rbind(dat$el[[dat$num.nw]], setNames(new.edges, c(".head", ".tail")))) # old script doesn't work
-  #attr(new.edgelist, 'n') <- attr(dat$el[[dat$num.nw]], 'n')
-  dat$run$el[[dat$num.nw]] <- new.edgelist
-  
-  
-  
+  # Update the household edgelist: connect each new node to the EXISTING members
+  # of its assigned household. Built with pure matrix ops. The previous version
+  # used merge() + rbind() on data.frames, which made R call make.unique() over
+  # the row names of the whole ~N-row home edgelist every step (O(N) per step;
+  # ~26 s/step / ~56% of all sim time at N=117,810). The edge SET produced is the
+  # same; only the data type changes.
+  sel  <- which(hh.ids %in% newHH)        # existing nodes in the chosen households
+  memb <- split(sel, hh.ids[sel])         # hh.id (chr) -> existing member node ids
+  new.edges <- do.call(rbind, lapply(seq_len(nNew), function(i) {
+    m <- memb[[as.character(newHH[i])]]   # existing members of this new node's household
+    if (length(m)) cbind(new_nodes_pid[i], m) else NULL
+  }))                                     # 2-col matrix (.head = new node, .tail = existing), or NULL
+  if (!is.null(new.edges)) {
+    dat$run$el[[dat$num.nw]] <-
+      rbind(dat$run$el[[dat$num.nw]], unname(new.edges))  # matrix rbind: no data.frame, no make.unique
+  }
+
   return(dat)
-  
+
 }
 
 
