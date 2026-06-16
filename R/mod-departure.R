@@ -9,10 +9,16 @@ deaths_covid_gmc19 <- function(dat, at) {
 
   ## Parameters
   mort.rates <- get_param(dat, "mort.rates")
-  mort.dis.mult <- get_param(dat, "mort.dis.mult", override.null.error = TRUE)
-  if (is.null(mort.dis.mult)) mort.dis.mult <- 1   # 1 = no excess disease mortality
   age.breaks <- get_param(dat, "age.breaks")
   nAgeGrp <- length(age.breaks) - 1
+  # Direct disease-death hazard for symptomatic cases (clinical "ic" or hospitalized
+  # "h"), by age group, set per-pathogen via the scenario. Decoupled from
+  # hospitalization so the IFR is hit directly while prop.hospit stays a literal
+  # hospitalization rate; this captures out-of-hospital disease mortality (which
+  # dominates for flu/RSV). The daily hazard is calibrated to age-specific IFR
+  # targets (dis.death.rate_1..6 in scenarios_pathogen.csv). Absent -> no excess.
+  dis.death.rate <- get_param(dat, "dis.death.rate", override.null.error = TRUE)
+  if (is.null(dis.death.rate)) dis.death.rate <- rep(0, nAgeGrp)
 
   idsElig <- which(as.logical(active))
 
@@ -23,24 +29,28 @@ deaths_covid_gmc19 <- function(dat, at) {
   if (length(idsElig) > 0) {
     # Age-indexed background mortality (ages >= 86y use index 86).
     age_idx_elig <- pmin(ceiling(age[idsElig]), 86)
-    death_rates <- mort.rates[age_idx_elig]
+    bg_rates <- mort.rates[age_idx_elig]
 
-    # Excess disease mortality for severe (hospitalized) cases: daily death
-    # probability is the background age rate scaled by mort.dis.mult (capped at 1).
-    # This is the infection -> hospitalization -> death pathway; the mort.dis.mult
-    # magnitude is a calibration target (HFR/IFR by age).
-    severe <- status[idsElig] == "h"
-    death_rates[severe] <- pmin(1, death_rates[severe] * mort.dis.mult)
+    # Disease-death hazard applies to symptomatic cases only (ic or h), indexed by
+    # model age group (not hospitalization status).
+    age_grp_elig <- cut(age[idsElig], age.breaks, labels = FALSE, right = FALSE)
+    sympt <- status[idsElig] %in% c("ic", "h")
+    dis_rates <- numeric(length(idsElig))
+    dis_rates[sympt] <- pmin(1, dis.death.rate[age_grp_elig[sympt]])
 
-    dep_local <- which(runif(length(death_rates)) < death_rates)
-    idsDep <- idsElig[dep_local]
+    # Background and disease deaths are independent competing draws; a node that
+    # draws a disease death is counted as a disease death regardless of background.
+    bg_dep  <- runif(length(idsElig)) < bg_rates
+    dis_dep <- runif(length(idsElig)) < dis_rates
+    dep_mask <- bg_dep | dis_dep
+    idsDep <- idsElig[dep_mask]
 
     if (length(idsDep) > 0) {
-      dis_dep <- severe[dep_local]          # which departures were disease deaths
+      is_dis <- dis_dep[dep_mask]           # which departures were disease deaths
       nDeaths <- length(idsDep)
-      nDisDeaths <- sum(dis_dep)
+      nDisDeaths <- sum(is_dis)
       if (nDisDeaths > 0) {
-        age_grp_disdep <- cut(age[idsDep[dis_dep]], age.breaks,
+        age_grp_disdep <- cut(age[idsDep[is_dis]], age.breaks,
                               labels = FALSE, right = FALSE)
       }
       dat <- set_attr(dat, "active", 0, posit_ids = idsDep)
