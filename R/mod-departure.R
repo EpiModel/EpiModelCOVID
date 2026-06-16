@@ -6,6 +6,7 @@ deaths_covid_gmc19 <- function(dat, at) {
   active <- get_attr(dat, "active")
   age <- get_attr(dat, "age")
   status <- get_attr(dat, "status")
+  vax <- get_attr(dat, "vax")
 
   ## Parameters
   mort.rates <- get_param(dat, "mort.rates")
@@ -25,6 +26,7 @@ deaths_covid_gmc19 <- function(dat, at) {
   nDeaths <- 0L
   nDisDeaths <- 0L
   age_grp_disdep <- integer(0)
+  vax_disdep <- logical(0)
 
   if (length(idsElig) > 0) {
     # Age-indexed background mortality (ages >= 86y use index 86).
@@ -50,8 +52,9 @@ deaths_covid_gmc19 <- function(dat, at) {
       nDeaths <- length(idsDep)
       nDisDeaths <- sum(is_dis)
       if (nDisDeaths > 0) {
-        age_grp_disdep <- cut(age[idsDep[is_dis]], age.breaks,
-                              labels = FALSE, right = FALSE)
+        dd <- idsDep[is_dis]
+        age_grp_disdep <- cut(age[dd], age.breaks, labels = FALSE, right = FALSE)
+        vax_disdep <- vax[dd] >= 1   # vaccinated at death?
       }
       dat <- set_attr(dat, "active", 0, posit_ids = idsDep)
       dat <- depart_nodes(dat, departures = idsDep)
@@ -62,12 +65,20 @@ deaths_covid_gmc19 <- function(dat, at) {
     }
   }
 
-  ## Summary output: total departures, disease deaths, disease deaths by age group
+  ## Summary output: total departures, disease deaths, disease deaths by age group,
+  ## and by vaccination status (incl age x vax cross-tab). The deaths-by-vax split
+  ## is what lets the strategy comparison distinguish "vaccinated cases protected"
+  ## from "fewer cases overall" and read direct vs indirect mortality protection;
+  ## the age marginal alone cannot.
   dat <- set_epi(dat, "d.flow", at, nDeaths)
   dat <- set_epi(dat, "d.dis.flow", at, nDisDeaths)
+  dat <- set_epi(dat, "d.dis.flow.vax", at, sum(vax_disdep, na.rm = TRUE))
+  dat <- set_epi(dat, "d.dis.flow.unvax", at, sum(!vax_disdep, na.rm = TRUE))
   for (g in seq_len(nAgeGrp)) {
     dat <- set_epi(dat, paste0("d.dis.flow.age", g), at,
                    sum(age_grp_disdep == g, na.rm = TRUE))
+    dat <- set_epi(dat, paste0("d.dis.flow.unvax.age", g), at,
+                   sum(age_grp_disdep == g & !vax_disdep, na.rm = TRUE))
   }
 
   return(dat)

@@ -146,7 +146,22 @@ vax_general <- function(dat, at) {
   dat <- set_epi(dat, "cov_vax3_18to49", at, length(which(vax.age.group == 3 & vax >= 3)) / length(which(vax.age.group == 3)))
   dat <- set_epi(dat, "cov_vax3_50to64", at, length(which(vax.age.group == 4 & vax >= 3)) / length(which(vax.age.group == 4)))
   dat <- set_epi(dat, "cov_vax3_65p", at, length(which(vax.age.group == 5 & vax >= 3)) / length(which(vax.age.group == 5)))
-  
+
+  ## Dose-1 coverage by NETWORK POSITION (fixed degree_quartile / is_bridge attrs).
+  ## Verifies the network strategies actually reach high-degree / bridge nodes
+  ## (the degree-strategy acceptance criterion, Q4 > Q1; closes issue #21).
+  degree_quartile <- get_attr(dat, "degree_quartile")
+  if (!is.null(degree_quartile)) {
+    for (q in 1:4) dat <- set_epi(dat, paste0("cov_vax1_degQ", q), at,
+      length(which(degree_quartile == q & vax >= 1)) / max(1, length(which(degree_quartile == q))))
+  }
+  if (!is.null(is_bridge)) {
+    dat <- set_epi(dat, "cov_vax1_bridge", at,
+      length(which(is_bridge == 1 & vax >= 1)) / max(1, length(which(is_bridge == 1))))
+    dat <- set_epi(dat, "cov_vax1_nonbridge", at,
+      length(which(is_bridge == 0 & vax >= 1)) / max(1, length(which(is_bridge == 0))))
+  }
+
   # mean deg and num of bridge in those ever vaccinated and never vaccinated
   ## individual ever vaccinated and never vaccinated
   vaccinated_ids <- which(active == 1 & vax >= 1)
@@ -704,10 +719,24 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     
   } else if (vax.strategy == "random") {
     # First uniformly rank eligible people at random
-    ids_ranked <- sample(idsElig, nElig) 
-    
-  } else { 
-    stop("Unknown vax.strategy: ", vax.strategy) 
+    ids_ranked <- sample(idsElig, nElig)
+
+  } else if (vax.strategy == "age_then_degree") {
+    # Two-stage hybrid: vaccinate the oldest first (vax age groups 4-5, ~50+) to
+    # protect the vulnerable, then give any remaining supply to the highest-degree
+    # of everyone else to cut transmission. Aims to capture BOTH the mortality
+    # benefit of age-targeting and the infection benefit of network-targeting,
+    # which no single pure strategy can (the corners of the supply/objective frontier).
+    vag <- vax.age.group[idsElig]
+    is_old <- vag >= 4
+    old <- idsElig[is_old]; old_age <- vag[is_old]
+    rest <- idsElig[!is_old]; rest_deg <- degree_total[rest]
+    old_ord  <- old[order(-old_age, runif(length(old)))]                          # 65+ before 50-64
+    rest_ord <- rest[order(-(rest_deg + runif(length(rest), 0, 1e-8)))]           # then by degree
+    ids_ranked <- c(old_ord, rest_ord)
+
+  } else {
+    stop("Unknown vax.strategy: ", vax.strategy)
   }
   
   # Second step: determine vaccination allocation

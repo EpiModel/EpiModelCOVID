@@ -200,6 +200,14 @@ infect_general <- function(dat, at) {
   vaxed_new <- vax[allNewInf] >= 1
   dat <- set_epi(dat, "se.flow.vax", at, sum(vaxed_new, na.rm = TRUE))
   dat <- set_epi(dat, "se.flow.unvax", at, sum(!vaxed_new, na.rm = TRUE))
+  # Age x vaccination-status cross-tab. The paper's indirect-protection claim
+  # (vaccinating network hubs cuts infection among the UNVACCINATED vulnerable)
+  # cannot be read from the age and vax marginals alone, so emit incidence among
+  # the unvaccinated (and vaccinated) within each age group.
+  for (g in seq_len(length(age.breaks) - 1)) {
+    dat <- set_epi(dat, paste0("se.flow.unvax.age", g), at, sum(ag == g & !vaxed_new, na.rm = TRUE))
+    dat <- set_epi(dat, paste0("se.flow.vax.age", g),   at, sum(ag == g &  vaxed_new, na.rm = TRUE))
+  }
   degree_quartile <- get_attr(dat, "degree_quartile")
   if (!is.null(degree_quartile)) {
     dq_new <- degree_quartile[allNewInf]
