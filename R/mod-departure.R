@@ -40,6 +40,18 @@ deaths_covid_gmc19 <- function(dat, at) {
     dis_rates <- numeric(length(idsElig))
     dis_rates[sympt] <- pmin(1, dis.death.rate[age_grp_elig[sympt]])
 
+    # Direct severity/mortality protection: a vaccinated symptomatic case dies at
+    # the VE-reduced rate (death-VE), the dominant arm of the real vaccines and the
+    # mechanism by which directly vaccinating high-IFR groups averts their deaths.
+    if (any(sympt)) {
+      ve_death <- compute_ve(at = at, ids = idsElig[sympt], vax = vax,
+        vax.age.group = vax_age_group_for(dat),
+        last.dose.time = get_attr(dat, "last.dose.time"),
+        vax.schedule = build_vax_schedule(dat, get_pathogen(dat)),
+        outcome = "death")
+      dis_rates[sympt] <- dis_rates[sympt] * ve_death$rr
+    }
+
     # Background and disease deaths are independent competing draws; a node that
     # draws a disease death is counted as a disease death regardless of background.
     bg_dep  <- runif(length(idsElig)) < bg_rates

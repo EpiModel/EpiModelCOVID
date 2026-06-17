@@ -837,7 +837,7 @@ compute_ve <- function(at, ids, vax,
                        vax.age.group,
                        last.dose.time = NULL,
                        vax.schedule,
-                       outcome = c("infect", "clinical", "hosp")) {
+                       outcome = c("infect", "clinical", "hosp", "death")) {
 
   outcome <- match.arg(outcome)
 
@@ -975,7 +975,15 @@ build_vax_schedule <- function(dat, disease = "covid") {
     ve.peak.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("ve.peak.hosp", i)),
     ve.halflife.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("ve.halflife.hosp", i)),
     ve.floor.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("ve.floor.hosp", i)),
-    
+
+    # Direct severity/mortality protection (death-VE): reduces the disease-death
+    # hazard for a vaccinated case who still develops severe disease. This is the
+    # dominant, durable arm of the real vaccines (covid death-VE ~0.85, rsv ~0.80,
+    # flu ~0.40) and is what lets age-targeting directly protect high-IFR groups.
+    ve.peak.death = sapply(seq_len(n_doses), function(i) get_dose_param("ve.peak.death", i)),
+    ve.halflife.death = sapply(seq_len(n_doses), function(i) get_dose_param("ve.halflife.death", i)),
+    ve.floor.death = sapply(seq_len(n_doses), function(i) get_dose_param("ve.floor.death", i)),
+
     ve.delay = sapply(seq_len(n_doses), function(i) get_dose_param("ve.delay", i))
   )
   
