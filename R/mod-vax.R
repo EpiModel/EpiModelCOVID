@@ -16,7 +16,9 @@ vax_general <- function(dat, at) {
   degree_total <- get_attr(dat, "degree_total") # total nodal degree
   is_bridge <- get_attr(dat, "is_bridge")
   n_layers_active <- get_attr(dat, "n_layers_active")
-  
+  hh.ids <- get_attr(dat, "hh.ids")             # household id (parent-targeting)
+  is_infant <- get_attr(dat, "is_infant")       # infant flag (parent-targeting)
+
   ######## extract parameters ########
   vax.strategy <- get_param(dat, "vax.strategy") # determine which stategy to use
   vax.supply.rate <- get_param(dat, "vax.supply.rate")
@@ -98,7 +100,9 @@ vax_general <- function(dat, at) {
       degree_total = degree_total,
       is_bridge = is_bridge,
       n_layers_active = n_layers_active,
-      remaining_supply = effective_supply
+      remaining_supply = effective_supply,
+      hh.ids = hh.ids,
+      is_infant = is_infant
     )
     
     ids_elig_all <- c(ids_elig_all, idsElig)
@@ -671,7 +675,11 @@ vax_covid_corporate <- function(dat, at) {
 allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
                                 degree_total, # argument for degree strategy
                                 is_bridge, n_layers_active,
-                                remaining_supply) {
+                                remaining_supply,
+                                hh.ids = NULL, is_infant = NULL) {
+                                # hh.ids + is_infant default NULL so existing call
+                                # sites (vax_covid_corporate) are unaffected; only
+                                # the "infant_hh" parent-targeting branch needs them.
   nElig <- length(idsElig) # number of eligible people 
   
   if (nElig == 0) { # if nobody is eligible, return an empty vector, meaning nobody is eligible and exit the function
@@ -735,6 +743,25 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     rest_ord <- rest[order(-(rest_deg + runif(length(rest), 0, 1e-8)))]           # then by degree
     ids_ranked <- c(old_ord, rest_ord)
 
+  } else if (vax.strategy == "infant_hh") {
+    # Parent-targeting (issue #23, RSV): infants are network-peripheral (household
+    # only) and cannot be reached by degree/bridge targeting, but the ADULTS who
+    # share their household can. Rank eligible co-residents of an infant household
+    # first (the "parents"), by their age-specific rate, then everyone else by the
+    # same rate. Household membership comes from hh.ids; infant households are
+    # those containing ANY infant (infants themselves are not vax-eligible).
+    if (is.null(hh.ids) || is.null(is_infant)) {
+      stop("vax.strategy 'infant_hh' requires hh.ids and is_infant")
+    }
+    hh_with_infant <- unique(hh.ids[which(is_infant)])
+    in_infant_hh   <- hh.ids[idsElig] %in% hh_with_infant
+    age_priority   <- rate[vax.age.group[idsElig]] + runif(nElig, 0, 1e-8)
+    parents <- idsElig[in_infant_hh]
+    others  <- idsElig[!in_infant_hh]
+    parents_ord <- parents[order(-age_priority[in_infant_hh])]
+    others_ord  <- others[order(-age_priority[!in_infant_hh])]
+    ids_ranked  <- c(parents_ord, others_ord)
+
   } else {
     stop("Unknown vax.strategy: ", vax.strategy)
   }
@@ -743,7 +770,7 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
   ## Get each ranked eligible person's age-specific vax probability.
   rate_person <- rate[vax.age.group[ids_ranked]]
 
-  if (vax.strategy %in% c("degree", "bridge")) {
+  if (vax.strategy %in% c("degree", "bridge", "infant_hh")) {
     ## For network-based priority strategies: stochastic demand (driven by
     ## age-specific rates) determines how many get vaccinated each timestep;
     ## the priority ranking determines who.  This ensures high-priority

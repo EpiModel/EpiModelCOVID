@@ -219,6 +219,16 @@ infect_general <- function(dat, at) {
     dat <- set_epi(dat, "se.flow.bridge", at, sum(br_new, na.rm = TRUE))
     dat <- set_epi(dat, "se.flow.nonbridge", at, sum(!br_new, na.rm = TRUE))
   }
+  # Infant incidence (issue #23): reported separately (and by vax status) so the
+  # infant burden and the indirect protection of infants by parent-targeting are
+  # not diluted in the coarse youngest age band.
+  is_infant <- get_attr(dat, "is_infant")
+  if (!is.null(is_infant)) {
+    inf_new <- is_infant[allNewInf]
+    dat <- set_epi(dat, "se.flow.infant", at, sum(inf_new, na.rm = TRUE))
+    dat <- set_epi(dat, "se.flow.infant.unvax", at, sum(inf_new & !vaxed_new, na.rm = TRUE))
+    dat <- set_epi(dat, "se.flow.infant.vax", at, sum(inf_new & vaxed_new, na.rm = TRUE))
+  }
 
   return(dat)
 }

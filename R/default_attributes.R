@@ -79,14 +79,23 @@ make_computed_attrs <- function(dat, n_new, post_init) {
   age <- get_attr(dat, "age", posit_ids = new_nodes_pid)
   age.breaks <- get_param(dat, "age.breaks")
   age.grps <- get_param(dat, "age.grps")
-  
-  
+
+  # Infant flag: an age-resolution refinement (issue #23) that does NOT re-bin the
+  # network age groups. Infants stay in the youngest contact band (their contacts
+  # are household-dominated) but are flagged so the disease modules can apply
+  # infant-specific severity (RSV) and the outputs can report the infant burden
+  # separately rather than diluting it across the coarse youngest band. Absent
+  # param -> infant.age.max = 1 year. Recomputed for arrivals so it stays correct.
+  infant.age.max <- get_param(dat, "infant.age.max", override.null.error = TRUE)
+  if (is.null(infant.age.max)) infant.age.max <- 1
+
   n_attr <- c(n_attr, list(
-    age.grp     =   cut(age, 
-                        age.breaks, 
-                        labels = age.grps, 
+    age.grp     =   cut(age,
+                        age.breaks,
+                        labels = age.grps,
                         right = FALSE
-                        ) |> as.character()
+                        ) |> as.character(),
+    is_infant   =   age < infant.age.max
   ))
   
   for (attr_name in names(n_attr)) {

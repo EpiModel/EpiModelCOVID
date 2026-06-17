@@ -20,6 +20,12 @@ deaths_covid_gmc19 <- function(dat, at) {
   # targets (dis.death.rate_1..6 in scenarios_pathogen.csv). Absent -> no excess.
   dis.death.rate <- get_param(dat, "dis.death.rate", override.null.error = TRUE)
   if (is.null(dis.death.rate)) dis.death.rate <- rep(0, nAgeGrp)
+  # Infant-specific disease-death hazard (issue #23): infants sit in the coarse
+  # youngest age group but, for RSV, carry a much higher severity. When set (per
+  # pathogen in scenarios_pathogen.csv) it overrides the age-group rate for
+  # is_infant symptomatic cases; absent (covid/flu) -> infants use the band rate.
+  dis.death.rate.infant <- get_param(dat, "dis.death.rate.infant", override.null.error = TRUE)
+  is_infant <- get_attr(dat, "is_infant")
 
   idsElig <- which(as.logical(active))
 
@@ -27,6 +33,7 @@ deaths_covid_gmc19 <- function(dat, at) {
   nDisDeaths <- 0L
   age_grp_disdep <- integer(0)
   vax_disdep <- logical(0)
+  infant_disdep <- logical(0)
 
   if (length(idsElig) > 0) {
     # Age-indexed background mortality (ages >= 86y use index 86).
@@ -39,6 +46,14 @@ deaths_covid_gmc19 <- function(dat, at) {
     sympt <- status[idsElig] %in% c("ic", "h")
     dis_rates <- numeric(length(idsElig))
     dis_rates[sympt] <- pmin(1, dis.death.rate[age_grp_elig[sympt]])
+    # Infant override (before death-VE): symptomatic is_infant cases take the
+    # infant-specific hazard. Applied to the base rate so a (rare) vaccinated
+    # infant still gets the death-VE reduction below.
+    if (!is.null(dis.death.rate.infant) && !is.na(dis.death.rate.infant) &&
+        dis.death.rate.infant > 0 && !is.null(is_infant)) {
+      inf_sympt <- sympt & is_infant[idsElig]
+      dis_rates[inf_sympt] <- pmin(1, dis.death.rate.infant)
+    }
 
     # Direct severity/mortality protection: a vaccinated symptomatic case dies at
     # the VE-reduced rate (death-VE), the dominant arm of the real vaccines and the
@@ -67,6 +82,7 @@ deaths_covid_gmc19 <- function(dat, at) {
         dd <- idsDep[is_dis]
         age_grp_disdep <- cut(age[dd], age.breaks, labels = FALSE, right = FALSE)
         vax_disdep <- vax[dd] >= 1   # vaccinated at death?
+        if (!is.null(is_infant)) infant_disdep <- is_infant[dd]
       }
       dat <- set_attr(dat, "active", 0, posit_ids = idsDep)
       dat <- depart_nodes(dat, departures = idsDep)
@@ -86,6 +102,9 @@ deaths_covid_gmc19 <- function(dat, at) {
   dat <- set_epi(dat, "d.dis.flow", at, nDisDeaths)
   dat <- set_epi(dat, "d.dis.flow.vax", at, sum(vax_disdep, na.rm = TRUE))
   dat <- set_epi(dat, "d.dis.flow.unvax", at, sum(!vax_disdep, na.rm = TRUE))
+  # Infant disease deaths, reported separately so the infant burden (RSV) is not
+  # diluted in the coarse youngest age band (d.dis.flow.age1).
+  dat <- set_epi(dat, "d.dis.flow.infant", at, sum(infant_disdep, na.rm = TRUE))
   for (g in seq_len(nAgeGrp)) {
     dat <- set_epi(dat, paste0("d.dis.flow.age", g), at,
                    sum(age_grp_disdep == g, na.rm = TRUE))
