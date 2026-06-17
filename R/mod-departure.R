@@ -20,11 +20,13 @@ deaths_covid_gmc19 <- function(dat, at) {
   # targets (dis.death.rate_1..6 in scenarios_pathogen.csv). Absent -> no excess.
   dis.death.rate <- get_param(dat, "dis.death.rate", override.null.error = TRUE)
   if (is.null(dis.death.rate)) dis.death.rate <- rep(0, nAgeGrp)
-  # Infant-specific disease-death hazard (issue #23): infants sit in the coarse
-  # youngest age group but, for RSV, carry a much higher severity. When set (per
-  # pathogen in scenarios_pathogen.csv) it overrides the age-group rate for
-  # is_infant symptomatic cases; absent (covid/flu) -> infants use the band rate.
-  dis.death.rate.infant <- get_param(dat, "dis.death.rate.infant", override.null.error = TRUE)
+  # Infant-specific disease-death hazard (issue #23), graded by sub-age because
+  # RSV severity is sharply front-loaded: 0-6mo carries ~64-80% of infant burden
+  # (dis.death.rate.infant), 6-12mo is intermediate (dis.death.rate.infant6).
+  # Both set per pathogen in scenarios_pathogen.csv; absent (covid/flu) -> infants
+  # use the age-band rate.
+  dis.death.rate.infant  <- get_param(dat, "dis.death.rate.infant", override.null.error = TRUE)
+  dis.death.rate.infant6 <- get_param(dat, "dis.death.rate.infant6", override.null.error = TRUE)
   is_infant <- get_attr(dat, "is_infant")
 
   idsElig <- which(as.logical(active))
@@ -46,13 +48,17 @@ deaths_covid_gmc19 <- function(dat, at) {
     sympt <- status[idsElig] %in% c("ic", "h")
     dis_rates <- numeric(length(idsElig))
     dis_rates[sympt] <- pmin(1, dis.death.rate[age_grp_elig[sympt]])
-    # Infant override (before death-VE): symptomatic is_infant cases take the
-    # infant-specific hazard. Applied to the base rate so a (rare) vaccinated
-    # infant still gets the death-VE reduction below.
-    if (!is.null(dis.death.rate.infant) && !is.na(dis.death.rate.infant) &&
-        dis.death.rate.infant > 0 && !is.null(is_infant)) {
-      inf_sympt <- sympt & is_infant[idsElig]
-      dis_rates[inf_sympt] <- pmin(1, dis.death.rate.infant)
+    # Infant override (before death-VE), graded by sub-age: 0-6mo (age < 0.5) take
+    # the higher dis.death.rate.infant, 6-12mo take dis.death.rate.infant6. Applied
+    # to the base rate so a (rare) vaccinated infant still gets the death-VE
+    # reduction below.
+    .ok <- function(x) !is.null(x) && !is.na(x) && x > 0
+    if (!is.null(is_infant) && (.ok(dis.death.rate.infant) || .ok(dis.death.rate.infant6))) {
+      inf <- is_infant[idsElig]
+      young <- sympt & inf & age[idsElig] <  0.5    # 0-6 months
+      older <- sympt & inf & age[idsElig] >= 0.5    # 6-12 months
+      if (.ok(dis.death.rate.infant))  dis_rates[young] <- pmin(1, dis.death.rate.infant)
+      if (.ok(dis.death.rate.infant6)) dis_rates[older] <- pmin(1, dis.death.rate.infant6)
     }
 
     # Direct severity/mortality protection: a vaccinated symptomatic case dies at

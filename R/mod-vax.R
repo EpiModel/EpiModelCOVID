@@ -23,6 +23,14 @@ vax_general <- function(dat, at) {
   vax.strategy <- get_param(dat, "vax.strategy") # determine which stategy to use
   vax.supply.rate <- get_param(dat, "vax.supply.rate")
   vax.supply.total <- get_param(dat, "vax.supply.total")
+  # Infant eligibility for the (adult, actively-administered) vaccine. For RSV the
+  # adult vaccine is never given to infants (they are protected only by passive
+  # maternal/monoclonal products and indirectly via household contacts), so
+  # vax.infant.eligible = FALSE removes is_infant nodes from the eligible pool.
+  # Default TRUE preserves covid/flu behaviour. infant_hh still targets the adult
+  # co-residents of infants, so gating infants here does not affect it.
+  vax.infant.eligible <- get_param(dat, "vax.infant.eligible", override.null.error = TRUE)
+  if (is.null(vax.infant.eligible)) vax.infant.eligible <- TRUE
   season.length <- get_param(dat, "vax.season.length", override.null.error = TRUE)
   if (is.null(season.length)) season.length <- 364  # days per annual vaccination season
 
@@ -79,7 +87,14 @@ vax_general <- function(dat, at) {
       at = at,
       season.length = season.length
     )
-    
+
+    # Infants are not eligible for the adult vaccine when vax.infant.eligible is
+    # FALSE (RSV); they are protected only indirectly (household) or by separate
+    # passive products not modelled in this allocation.
+    if (!vax.infant.eligible && !is.null(is_infant) && length(idsElig) > 0) {
+      idsElig <- idsElig[!is_infant[idsElig]]
+    }
+
     nElig <- length(idsElig)
     
     if (nElig > 0) {

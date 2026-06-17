@@ -21,10 +21,11 @@ progress_general <- function(dat, at) {
   ## Parameters
   prop.clinical <- get_param(dat, "prop.clinical")
   prop.hospit <- get_param(dat, "prop.hospit")
-  # Infant-specific hospitalization (issue #23): for RSV, infants carry a much
-  # higher hospitalization probability than the youngest age-band average. When
-  # set (per pathogen) it overrides prop.hospit for is_infant clinical cases.
-  prop.hospit.infant <- get_param(dat, "prop.hospit.infant", override.null.error = TRUE)
+  # Infant-specific hospitalization (issue #23), graded by sub-age: 0-6mo via
+  # prop.hospit.infant (highest), 6-12mo via prop.hospit.infant6 (intermediate).
+  # Set per pathogen; absent (covid/flu) -> infants use the age-band value.
+  prop.hospit.infant  <- get_param(dat, "prop.hospit.infant", override.null.error = TRUE)
+  prop.hospit.infant6 <- get_param(dat, "prop.hospit.infant6", override.null.error = TRUE)
   is_infant <- get_attr(dat, "is_infant")
   hosp.boost.mult <- get_param(dat, "hosp.boost.mult")
   hosp.boost.start <- get_param(dat, "hosp.boost.start")
@@ -161,9 +162,11 @@ progress_general <- function(dat, at) {
         
       ) |> as.character() |> as.integer()
     prop.hosp.vec <- prop.hospit[age.group]
-    if (!is.null(prop.hospit.infant) && !is.na(prop.hospit.infant) &&
-        prop.hospit.infant > 0 && !is.null(is_infant)) {
-      prop.hosp.vec[is_infant[ids.newIc]] <- prop.hospit.infant
+    .okh <- function(x) !is.null(x) && !is.na(x) && x > 0
+    if (!is.null(is_infant) && (.okh(prop.hospit.infant) || .okh(prop.hospit.infant6))) {
+      inf <- is_infant[ids.newIc]; a <- age[ids.newIc]
+      if (.okh(prop.hospit.infant))  prop.hosp.vec[inf & a <  0.5] <- prop.hospit.infant
+      if (.okh(prop.hospit.infant6)) prop.hosp.vec[inf & a >= 0.5] <- prop.hospit.infant6
     }
     if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
 
