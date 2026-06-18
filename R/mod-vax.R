@@ -33,6 +33,39 @@ vax_general <- function(dat, at) {
   if (is.null(vax.infant.eligible)) vax.infant.eligible <- TRUE
   season.length <- get_param(dat, "vax.season.length", override.null.error = TRUE)
   if (is.null(season.length)) season.length <- 364  # days per annual vaccination season
+  # Imperfect hub-targeting (issue #40 / degraded-uptake arm): fraction of doses
+  # that reach the intended top-ranked targets under a ranked network strategy;
+  # the remainder are mis-allocated to random eligibles. Default 1 = perfect
+  # targeting (unchanged behaviour).
+  vax.target.uptake <- get_param(dat, "vax.target.uptake", override.null.error = TRUE)
+  if (is.null(vax.target.uptake)) vax.target.uptake <- 1
+
+  # Field-deployable proxy score (issue #40), computed once per call from cheaply
+  # observable covariates only (NOT the true contact degree). NULL for every
+  # non-proxy strategy. proxy_hh ranks by active household size; proxy_fit ranks
+  # by the predicted degree from a regression of true degree on household size,
+  # school enrollment and employment (the best linear proxy a planner could fit
+  # from survey data, then apply using only the observables).
+  proxy_score <- NULL
+  if (vax.strategy %in% c("proxy_hh", "proxy_fit")) {
+    active_hh <- hh.ids[active == 1]
+    hh_counts <- table(active_hh)
+    hh_size <- as.numeric(hh_counts[match(hh.ids, names(hh_counts))]) # active co-residents
+    if (vax.strategy == "proxy_hh") {
+      proxy_score <- hh_size
+    } else {
+      degree_school <- get_attr(dat, "degree_school")
+      degree_work   <- get_attr(dat, "degree_work")
+      student  <- as.integer(degree_school > 0)  # enrolled (observable)
+      employed <- as.integer(degree_work > 0)    # employed (observable)
+      fit_df <- data.frame(deg = degree_total, hh_size = hh_size,
+                           student = student, employed = employed)
+      ok <- active == 1 & is.finite(degree_total) & is.finite(hh_size)
+      proxy_lm <- stats::lm(deg ~ hh_size + student + employed,
+                            data = fit_df[ok, , drop = FALSE])
+      proxy_score <- as.numeric(stats::predict(proxy_lm, newdata = fit_df))
+    }
+  }
 
   vax.schedule <- build_vax_schedule(dat, get_pathogen(dat)) # data.frame containing vax-related details
   # vax.schedule stores both dose-administration parameters and per-dose RR values.
@@ -117,9 +150,11 @@ vax_general <- function(dat, at) {
       n_layers_active = n_layers_active,
       remaining_supply = effective_supply,
       hh.ids = hh.ids,
-      is_infant = is_infant
+      is_infant = is_infant,
+      proxy_score = proxy_score,
+      vax.target.uptake = vax.target.uptake
     )
-    
+
     ids_elig_all <- c(ids_elig_all, idsElig)
     ids_newly_vaxed <- c(ids_newly_vaxed, idsVax)
     
@@ -691,10 +726,16 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
                                 degree_total, # argument for degree strategy
                                 is_bridge, n_layers_active,
                                 remaining_supply,
-                                hh.ids = NULL, is_infant = NULL) {
+                                hh.ids = NULL, is_infant = NULL,
+                                proxy_score = NULL, vax.target.uptake = 1) {
                                 # hh.ids + is_infant default NULL so existing call
                                 # sites (vax_covid_corporate) are unaffected; only
                                 # the "infant_hh" parent-targeting branch needs them.
+                                # proxy_score (issue #40) is the field-observable
+                                # ranking score for the proxy_* strategies, precomputed
+                                # by the caller; vax.target.uptake (<1) degrades
+                                # hub-targeting precision. Both default to the
+                                # unchanged behaviour.
   nElig <- length(idsElig) # number of eligible people 
   
   if (nElig == 0) { # if nobody is eligible, return an empty vector, meaning nobody is eligible and exit the function
@@ -777,6 +818,20 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     others_ord  <- others[order(-age_priority[!in_infant_hh])]
     ids_ranked  <- c(parents_ord, others_ord)
 
+  } else if (vax.strategy %in% c("proxy_hh", "proxy_fit")) {
+    # Field-deployable proxy (issue #40): rank by a score built ONLY from cheaply
+    # observable covariates (household size for proxy_hh; a fitted predicted-degree
+    # composite of household size, school enrollment and employment for proxy_fit),
+    # NOT by the true, field-unobservable contact degree. proxy_score is precomputed
+    # by the caller from those observables. Measures how much of degree-targeting's
+    # gain a deployable proxy recovers.
+    if (is.null(proxy_score)) {
+      stop("vax.strategy '", vax.strategy, "' requires proxy_score")
+    }
+    score <- proxy_score[idsElig] + runif(nElig, 0, 1e-8) # tiny noise breaks ties
+    names(score) <- idsElig
+    ids_ranked <- as.integer(names(sort(score, decreasing = TRUE)))
+
   } else {
     stop("Unknown vax.strategy: ", vax.strategy)
   }
@@ -785,7 +840,7 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
   ## Get each ranked eligible person's age-specific vax probability.
   rate_person <- rate[vax.age.group[ids_ranked]]
 
-  if (vax.strategy %in% c("degree", "bridge", "infant_hh")) {
+  if (vax.strategy %in% c("degree", "bridge", "infant_hh", "proxy_hh", "proxy_fit")) {
     ## For network-based priority strategies: stochastic demand (driven by
     ## age-specific rates) determines how many get vaccinated each timestep;
     ## the priority ranking determines who.  This ensures high-priority
@@ -793,7 +848,26 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     n_willing <- sum(rbinom(nElig, size = 1, prob = rate_person))
     if (n_willing == 0) return(integer(0))
     n_take <- min(remaining_supply, n_willing)
-    ids.vax <- ids_ranked[1:n_take]
+    if (vax.target.uptake < 1 &&
+        vax.strategy %in% c("degree", "bridge", "proxy_hh", "proxy_fit")) {
+      ## Imperfect hub-targeting (degraded-uptake arm): only a fraction
+      ## (vax.target.uptake) of the doses reach the intended top-ranked targets;
+      ## the rest are mis-allocated to random eligibles. Total doses (coverage)
+      ## are unchanged, so this isolates targeting PRECISION, interpolating from
+      ## the pure network strategy (uptake = 1) toward random (uptake = 0). age,
+      ## random and infant_hh are excluded: their targets are trivially
+      ## identifiable in the field.
+      n_targeted <- round(vax.target.uptake * n_take)
+      ids_top <- ids_ranked[seq_len(n_targeted)]
+      pool <- setdiff(idsElig, ids_top)
+      n_rand <- n_take - n_targeted
+      ids_rand <- if (n_rand > 0 && length(pool) > 0) {
+        pool[sample.int(length(pool), min(n_rand, length(pool)))]
+      } else integer(0)
+      ids.vax <- c(ids_top, ids_rand)
+    } else {
+      ids.vax <- ids_ranked[seq_len(n_take)]
+    }
   } else {
     ## For random/age strategies: individual show-up filter then cap by supply
     show_up <- rbinom(nElig, size = 1, prob = rate_person) == 1
