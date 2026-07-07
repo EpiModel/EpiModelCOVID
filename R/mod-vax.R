@@ -40,6 +40,14 @@ vax_general <- function(dat, at) {
   vax.target.uptake <- get_param(dat, "vax.target.uptake", override.null.error = TRUE)
   if (is.null(vax.target.uptake)) vax.target.uptake <- 1
 
+  # Parallel multi-criteria hybrid (issue #41 / age_plus_* arms): fraction `f` of
+  # each timestep's doses reserved for the 65+ elderly, with the remaining 1-f
+  # allocated by the transmission criterion (the field proxy for age_plus_proxy,
+  # the idealized true degree for the age_plus_degree ceiling). Default 0 = no
+  # reserve, which leaves every non-hybrid strategy unchanged.
+  vax.hybrid.frac <- get_param(dat, "vax.hybrid.frac", override.null.error = TRUE)
+  if (is.null(vax.hybrid.frac)) vax.hybrid.frac <- 0
+
   # Field-deployable proxy score (issue #40), computed once per call from cheaply
   # observable covariates only (NOT the true contact degree). NULL for every
   # non-proxy strategy. proxy_hh ranks by active household size; proxy_fit ranks
@@ -47,7 +55,7 @@ vax_general <- function(dat, at) {
   # school enrollment and employment (the best linear proxy a planner could fit
   # from survey data, then apply using only the observables).
   proxy_score <- NULL
-  if (vax.strategy %in% c("proxy_hh", "proxy_fit")) {
+  if (vax.strategy %in% c("proxy_hh", "proxy_fit", "age_plus_proxy")) {
     active_hh <- hh.ids[active == 1]
     hh_counts <- table(active_hh)
     hh_size <- as.numeric(hh_counts[match(hh.ids, names(hh_counts))]) # active co-residents
@@ -152,7 +160,8 @@ vax_general <- function(dat, at) {
       hh.ids = hh.ids,
       is_infant = is_infant,
       proxy_score = proxy_score,
-      vax.target.uptake = vax.target.uptake
+      vax.target.uptake = vax.target.uptake,
+      vax.hybrid.frac = vax.hybrid.frac
     )
 
     ids_elig_all <- c(ids_elig_all, idsElig)
@@ -727,7 +736,8 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
                                 is_bridge, n_layers_active,
                                 remaining_supply,
                                 hh.ids = NULL, is_infant = NULL,
-                                proxy_score = NULL, vax.target.uptake = 1) {
+                                proxy_score = NULL, vax.target.uptake = 1,
+                                vax.hybrid.frac = 0) {
                                 # hh.ids + is_infant default NULL so existing call
                                 # sites (vax_covid_corporate) are unaffected; only
                                 # the "infant_hh" parent-targeting branch needs them.
@@ -832,6 +842,84 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     names(score) <- idsElig
     ids_ranked <- as.integer(names(sort(score, decreasing = TRUE)))
 
+  } else if (vax.strategy %in% c("age_plus_proxy", "age_plus_degree")) {
+    # Parallel multi-criteria hybrid (issue #41): reserve a fraction `f`
+    # (vax.hybrid.frac) of each timestep's doses for the 65+ elderly and allocate
+    # the remaining 1-f by a transmission criterion, the field-deployable proxy
+    # (age_plus_proxy) or the idealized true degree (age_plus_degree ceiling).
+    # Unlike the sequential age_then_degree, which fills all 50+ first and, because
+    # that band is large relative to 5-20% supply, exhausts the budget before the
+    # network stage, this splits EVERY step's supply so both criteria get doses.
+    # The split is at allocation, so this branch returns its doses directly.
+    if (vax.strategy == "age_plus_proxy" && is.null(proxy_score)) {
+      stop("vax.strategy 'age_plus_proxy' requires proxy_score")
+    }
+    # Stochastic daily demand throttled by supply (same model as the network arms).
+    rate_person <- rate[vax.age.group[idsElig]]
+    n_willing <- sum(rbinom(nElig, size = 1, prob = rate_person))
+    if (n_willing == 0) return(integer(0))
+    n_take <- min(remaining_supply, n_willing)
+    n_age  <- floor(vax.hybrid.frac * n_take)
+
+    # Age reserve: 65+ (vax age band 5), random order within the band (rate + jitter).
+    age_pool   <- idsElig[vax.age.group[idsElig] == 5]
+    age_ranked <- age_pool[order(-(rate[vax.age.group[age_pool]] +
+                                     runif(length(age_pool), 0, 1e-8)))]
+    ids_age    <- utils::head(age_ranked, n_age)
+
+    # Transmission remainder: everyone NOT taken for the reserve, ranked by the
+    # field proxy (age_plus_proxy) or true degree (age_plus_degree). n_proxy takes
+    # ALL leftover doses, so a short 65+ pool spills into the remainder and the
+    # total handed out is always min(n_take, nElig).
+    n_proxy    <- n_take - length(ids_age)
+    trans_all  <- if (vax.strategy == "age_plus_proxy") proxy_score else degree_total
+    proxy_pool <- setdiff(idsElig, ids_age)
+    proxy_rank <- proxy_pool[order(-(trans_all[proxy_pool] +
+                                      runif(length(proxy_pool), 0, 1e-8)))]
+    ids_proxy  <- utils::head(proxy_rank, n_proxy)
+
+    return(c(ids_age, ids_proxy))
+
+  } else if (vax.strategy == "infant_direct") {
+    # Direct infant product (issue #41, RSV): a nirsevimab-like monoclonal or
+    # maternal-derived protection applied to the infant itself, so it requires
+    # vax.infant.eligible = TRUE on these rows (set per-scenario in the grid) to
+    # keep infants in the eligible pool. Only infants receive it, so allocation is
+    # CAPPED at the infant pool: no spillover to adults even when the nominal
+    # supply cap exceeds the number of infants (infants are ~1% of the population,
+    # supply is 5-20%). Infants are network-peripheral, so this protects the infant
+    # directly with little herd effect; the modelled value is a clean direct-vs-
+    # cocooning comparison, not a transmission change.
+    if (is.null(is_infant)) {
+      stop("vax.strategy 'infant_direct' requires is_infant")
+    }
+    inf_ids <- idsElig[is_infant[idsElig]]
+    if (length(inf_ids) == 0) return(integer(0))
+    rate_inf <- rate[vax.age.group[inf_ids]]
+    n_willing <- sum(rbinom(length(inf_ids), size = 1, prob = rate_inf))
+    if (n_willing == 0) return(integer(0))
+    n_take <- min(remaining_supply, n_willing, length(inf_ids))
+    return(inf_ids[sample.int(length(inf_ids), n_take)]) # infants are equivalent targets
+
+  } else if (vax.strategy == "infant_direct_cocoon") {
+    # Direct product PLUS household cocooning (issue #41): dose infants first
+    # (the direct product), then their eligible adult co-residents (the infant_hh
+    # cocooning logic), then everyone else. Tests cocooning as a public complement
+    # to a private monoclonal. Falls through to the network-style cap, so once
+    # infants and infant-household adults are covered any remaining supply spills
+    # to the general population exactly as infant_hh does, keeping adult coverage
+    # comparable at matched supply.
+    if (is.null(hh.ids) || is.null(is_infant)) {
+      stop("vax.strategy 'infant_direct_cocoon' requires hh.ids and is_infant")
+    }
+    hh_with_infant <- unique(hh.ids[which(is_infant)])
+    is_inf_elig    <- is_infant[idsElig]
+    in_infant_hh   <- hh.ids[idsElig] %in% hh_with_infant
+    age_priority   <- rate[vax.age.group[idsElig]] + runif(nElig, 0, 1e-8)
+    # tier 2 = infants themselves; tier 1 = adult co-residents of infants; tier 0 = rest
+    tier <- ifelse(is_inf_elig, 2L, ifelse(in_infant_hh, 1L, 0L))
+    ids_ranked <- idsElig[order(-tier, -age_priority)]
+
   } else {
     stop("Unknown vax.strategy: ", vax.strategy)
   }
@@ -840,7 +928,8 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
   ## Get each ranked eligible person's age-specific vax probability.
   rate_person <- rate[vax.age.group[ids_ranked]]
 
-  if (vax.strategy %in% c("degree", "bridge", "infant_hh", "proxy_hh", "proxy_fit")) {
+  if (vax.strategy %in% c("degree", "bridge", "infant_hh", "proxy_hh", "proxy_fit",
+                          "infant_direct_cocoon")) {
     ## For network-based priority strategies: stochastic demand (driven by
     ## age-specific rates) determines how many get vaccinated each timestep;
     ## the priority ranking determines who.  This ensures high-priority

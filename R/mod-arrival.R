@@ -59,14 +59,24 @@ set_home_attr_el <- function(dat, at, nNew) {
   hh.ids <- get_attr(dat, "hh.ids" #  hh.ids, 0 for new nodes
                         )
 
-  # correspond to all new nodes, for each of these nodes, randomly assign hh.ids
-  newHH <- 
-    sample(
-      hh.ids[which(age.grp == "0-9y")], # existing hh.ids with nodes in "0-9y"
-      nNew , # total number of new nodes in particular age grp
-      replace = TRUE
-      )
-  
+  # Existing households that contain a young (0-9y) member; new arrivals (age 0)
+  # are placed into one of these. Guard the degenerate case (issue #39): if no
+  # 0-9y node exists the pool is empty and base sample() would error, and with a
+  # length-1 pool it would silently trigger the one-argument sample() gotcha and
+  # draw from 1:value. Not a concern for the India networks (~14k 0-9y nodes in
+  # each) but a latent assumption worth failing safe on: skip the household wiring
+  # this step and leave the new nodes at their default hh.ids rather than
+  # misassigning them.
+  hh_pool <- hh.ids[which(age.grp == "0-9y")] # existing hh.ids with nodes in "0-9y"
+  if (length(hh_pool) == 0) {
+    return(dat)
+  }
+
+  # correspond to all new nodes, for each of these nodes, randomly assign hh.ids.
+  # Index via sample.int so a length-1 pool is drawn from correctly (base sample()
+  # would treat a single numeric value as 1:value).
+  newHH <- hh_pool[sample.int(length(hh_pool), nNew, replace = TRUE)]
+
   # add hh.ids of newly arrivals to run$attr
   dat <- set_attr(dat, "hh.ids", newHH, posit_ids = new_nodes_pid)
 

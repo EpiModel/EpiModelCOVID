@@ -12,6 +12,15 @@ infect_general <- function(dat, at) {
   last.dose.time <- get_attr(dat, "last.dose.time")
   vax.age.group <- vax_age_group_for(dat)
 
+  # Direct infant product (issue #41): when TRUE (the RSV infant_direct /
+  # infant_direct_cocoon arms) a nirsevimab/maternal-like product is severity-
+  # dominant, so dosed infants receive NO infection-VE (little effect on
+  # acquisition) while their severity VE still applies downstream in mod-progress
+  # and mod-departure. Default FALSE leaves every other arm unchanged.
+  is_infant <- get_attr(dat, "is_infant")
+  vax.infant.product <- get_param(dat, "vax.infant.product", override.null.error = TRUE)
+  if (is.null(vax.infant.product)) vax.infant.product <- FALSE
+
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
 
@@ -94,6 +103,14 @@ infect_general <- function(dat, at) {
             vax.age.group = vax.age.group)
         # Store vaccination status and time since latest dose
         del$vaxSus <- vax[del$sus]
+        # Direct infant product (issue #41): strip infection-VE for dosed infants,
+        # so a severity-dominant monoclonal/maternal product does not spuriously
+        # cut infant acquisition; adult recipients (e.g. the cocooning co-residents)
+        # keep their normal infection VE.
+        if (isTRUE(vax.infant.product) && !is.null(is_infant)) {
+          inf_sus <- which(is_infant[del$sus])
+          if (length(inf_sus) > 0) vax_eff$rr[inf_sus] <- 1
+        }
         # Apply vaccine-derived susceptibility reduction to transmission probability for each discordant edge.
         del$transProb <- del$transProb * vax_eff$rr
 
