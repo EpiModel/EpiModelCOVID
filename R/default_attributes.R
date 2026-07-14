@@ -5,6 +5,12 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     deg_work=0,
     deg_school=0,
     deg_nonhome=0,
+    # non-home structural-isolate flag (issue #43): drives the fixed
+    # offset(nodefactor("no.contact")) in the non-home netest, so it must be
+    # maintained for new arrivals or resim_nets desyncs. New arrivals are infants,
+    # which have no non-home contact, hence no.contact = 1 (consistent with
+    # deg_nonhome = 0 above; no.contact == 1 - deg_nonhome).
+    no.contact=1,
     # network attributes, integer
     degree_work=0,
     degree_school=0,

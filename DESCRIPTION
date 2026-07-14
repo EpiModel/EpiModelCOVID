@@ -1,6 +1,6 @@
 Package: EpiModelCOVID
-Version: 1.2.1
-Date: 2026-07-07
+Version: 1.2.2
+Date: 2026-07-14
 Title: Model Extensions to EpiModel for the Network-Based Modeling of COVID-19
 Authors@R: c(person("Samuel M.", "Jenness",
                     role = c("aut", "cre"),
