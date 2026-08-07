@@ -42,8 +42,17 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     vax4Time= NA,
     last.dose.time = NA,
     isolate= NA,
-    isoTime= NA
-   
+    isoTime= NA,
+    # Person-level cumulative flags (issue #46). Everything else the model emits
+    # is an episode flow, so with reinfection on (`rs.rate` non-zero) the per-100
+    # infection numbers exceed the number of infected PEOPLE and cannot be
+    # compared to any seroprevalence or cohort attack rate. These two make the
+    # person the unit: ever.inf is set once on a node's first S->E transition and
+    # never cleared, ever.sympt once on its first entry to "ic". New arrivals
+    # start at 0, which is correct: they are born into the simulation susceptible.
+    ever.inf = 0,
+    ever.sympt = 0
+
   )
 }
 

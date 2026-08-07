@@ -15,9 +15,18 @@ deaths_covid_gmc19 <- function(dat, at) {
   # Direct disease-death hazard for symptomatic cases (clinical "ic" or hospitalized
   # "h"), by age group, set per-pathogen via the scenario. Decoupled from
   # hospitalization so the IFR is hit directly while prop.hospit stays a literal
-  # hospitalization rate; this captures out-of-hospital disease mortality (which
-  # dominates for flu/RSV). The daily hazard is calibrated to age-specific IFR
+  # hospitalization rate. The daily hazard is calibrated to age-specific IFR
   # targets (dis.death.rate_1..6 in scenarios_pathogen.csv). Absent -> no excess.
+  #
+  # ISSUE #49, resolved 2026-08-06: this is the WHOLE IFR, not an out-of-hospital
+  # residual. The `sympt` mask below is `status %in% c("ic", "h")`, so
+  # hospitalized and non-hospitalized symptomatic cases draw the SAME hazard, and
+  # there is no hospital case-fatality anywhere in the model ("h" transitions
+  # only to "r" in mod-progress.R). `prop.hospit` is a severity marker that
+  # carries no mortality of its own. An earlier version of this comment said the
+  # hazard "captures out-of-hospital disease mortality", which contradicted the
+  # line it sat above; the distinction matters because reading it that way
+  # inflates the implied elderly IFR by roughly 55%.
   dis.death.rate <- get_param(dat, "dis.death.rate", override.null.error = TRUE)
   if (is.null(dis.death.rate)) dis.death.rate <- rep(0, nAgeGrp)
   # Infant-specific disease-death hazard (issue #23), graded by sub-age because
@@ -34,6 +43,7 @@ deaths_covid_gmc19 <- function(dat, at) {
   nDeaths <- 0L
   nDisDeaths <- 0L
   age_grp_disdep <- integer(0)
+  age_disdep <- numeric(0)
   vax_disdep <- logical(0)
   infant_disdep <- logical(0)
 
@@ -89,6 +99,7 @@ deaths_covid_gmc19 <- function(dat, at) {
         age_grp_disdep <- cut(age[dd], age.breaks, labels = FALSE, right = FALSE)
         vax_disdep <- vax[dd] >= 1   # vaccinated at death?
         if (!is.null(is_infant)) infant_disdep <- is_infant[dd]
+        age_disdep <- age[dd]   # issue #46: for the infant 0-6 / 6-12mo split
       }
       dat <- set_attr(dat, "active", 0, posit_ids = idsDep)
       dat <- depart_nodes(dat, departures = idsDep)
@@ -111,6 +122,14 @@ deaths_covid_gmc19 <- function(dat, at) {
   # Infant disease deaths, reported separately so the infant burden (RSV) is not
   # diluted in the coarse youngest age band (d.dis.flow.age1).
   dat <- set_epi(dat, "d.dis.flow.infant", at, sum(infant_disdep, na.rm = TRUE))
+  # Issue #46: infant deaths split at 6 months, matching the graded severity
+  # inputs (dis.death.rate.infant / .infant6). Pooling under 1y hid the fact
+  # that 0-6mo carries most of the RSV burden, which is exactly the quantity the
+  # direct-infant-product arms are meant to move.
+  dat <- set_epi(dat, "d.dis.flow.infant.young", at,
+                 sum(infant_disdep & age_disdep <  0.5, na.rm = TRUE))
+  dat <- set_epi(dat, "d.dis.flow.infant.old", at,
+                 sum(infant_disdep & age_disdep >= 0.5, na.rm = TRUE))
   for (g in seq_len(nAgeGrp)) {
     dat <- set_epi(dat, paste0("d.dis.flow.age", g), at,
                    sum(age_grp_disdep == g, na.rm = TRUE))

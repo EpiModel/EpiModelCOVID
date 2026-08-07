@@ -11,6 +11,9 @@ infect_general <- function(dat, at) {
   vax <- get_attr(dat, "vax")
   last.dose.time <- get_attr(dat, "last.dose.time")
   vax.age.group <- vax_age_group_for(dat)
+  # Fetched here rather than after the transmission loop because the issue #45
+  # age-specific susceptibility knob needs it per discordant edge.
+  age <- get_attr(dat, "age")
 
   # Direct infant product (issue #41): when TRUE (the RSV infant_direct /
   # infant_direct_cocoon arms) a nirsevimab/maternal-like product is severity-
@@ -114,6 +117,28 @@ infect_general <- function(dat, at) {
         # Apply vaccine-derived susceptibility reduction to transmission probability for each discordant edge.
         del$transProb <- del$transProb * vax_eff$rr
 
+        # Age-specific susceptibility (issue #45 trajectory knob). A relative
+        # risk on the SUSCEPTIBLE node's age group, applied multiplicatively to
+        # the per-contact transmission probability. Absent, all-NA or all-ones
+        # means no effect, which is the current behaviour, so this stays inert
+        # unless a scenario sets it.
+        #
+        # It exists because the model's influenza age gradient is emergent from
+        # network structure alone: rural flu incidence peaks in 10-19y because
+        # that is where the school layer concentrates contact, whereas Krishnan
+        # 2018, Sullender 2019 and PHIRST all give the opposite ordering. There
+        # was no other lever on that gradient, since inf.prob is per-layer and
+        # carries no age dimension. Sweeping susc.age.rr from all-ones to a
+        # monotone decline is the "corrected" arm of that axis.
+        susc.age.rr <- get_param(dat, "susc.age.rr", override.null.error = TRUE)
+        if (!is.null(susc.age.rr) && !all(is.na(susc.age.rr)) &&
+            any(susc.age.rr != 1, na.rm = TRUE)) {
+          ag_sus <- cut(age[del$sus], get_param(dat, "age.breaks"),
+                        labels = FALSE, right = FALSE)
+          rr_sus <- susc.age.rr[ag_sus]
+          rr_sus[is.na(rr_sus)] <- 1
+          del$transProb <- del$transProb * rr_sus
+        }
 
         # Asymptomatic infection
         del$stat <- status[del$inf]
@@ -245,6 +270,48 @@ infect_general <- function(dat, at) {
     dat <- set_epi(dat, "se.flow.infant", at, sum(inf_new, na.rm = TRUE))
     dat <- set_epi(dat, "se.flow.infant.unvax", at, sum(inf_new & !vaxed_new, na.rm = TRUE))
     dat <- set_epi(dat, "se.flow.infant.vax", at, sum(inf_new & vaxed_new, na.rm = TRUE))
+    # Infant severity is sharply front-loaded, so the RSV infant contrast has to
+    # be readable at the 0-6 / 6-12 month split rather than pooled under 1y
+    # (issue #46). Deaths and hospitalisations already split this way; incidence
+    # did not, which left the infant comparison undecomposable into its
+    # attack-rate and severity parts.
+    a_new <- age[allNewInf]
+    dat <- set_epi(dat, "se.flow.infant.young", at, sum(inf_new & a_new <  0.5, na.rm = TRUE))
+    dat <- set_epi(dat, "se.flow.infant.old",   at, sum(inf_new & a_new >= 0.5, na.rm = TRUE))
+  }
+
+  ## Person-level cumulative infection (issue #46) ------------------------------
+  ## `se.flow` counts S->E transitions, i.e. EPISODES. With reinfection on, a
+  ## cumulative per-100 built from it can and does exceed 100, which is not an
+  ## attack rate and cannot be set against any seroprevalence or cohort estimate.
+  ## `ever.inf` makes the person the unit: set once, never cleared, so summing it
+  ## over the living population is the number of people ever infected.
+  ever.inf <- get_attr(dat, "ever.inf")
+  if (!is.null(ever.inf) && length(allNewInf) > 0) {
+    ever.inf[allNewInf] <- 1
+    dat <- set_attr(dat, "ever.inf", ever.inf)
+  }
+
+  ## Household secondary attack rate (issue #46) --------------------------------
+  ## The one external anchor that survived the validation review is the PHIRST
+  ## cross-pathogen household ordering, which is a per-person risk among exposed
+  ## household contacts. `se.flow.l4` is the numerator already (layer 4 is the
+  ## household layer), but with no denominator it is a count, not a rate.
+  ##
+  ## Denominator: susceptible nodes sharing a household with at least one
+  ## infectious node at this step. Summing numerator and denominator over the
+  ## epidemic and dividing gives a household SAR directly comparable to a cohort
+  ## study's. Emitted as two series rather than a ratio so the analysis can
+  ## aggregate before dividing; a per-step ratio would be undefined whenever no
+  ## household is exposed.
+  hh.ids <- get_attr(dat, "hh.ids")
+  if (!is.null(hh.ids)) {
+    status_now <- get_attr(dat, "status")
+    hh_infectious <- unique(hh.ids[active == 1 & status_now %in% c("a", "ip", "ic", "h")])
+    exposed_sus <- active == 1 & status_now == "s" & hh.ids %in% hh_infectious
+    dat <- set_epi(dat, "hh.sar.den", at, sum(exposed_sus, na.rm = TRUE))
+    dat <- set_epi(dat, "hh.sar.num", at, if (length(nInf) >= 4) nInf[4] else 0)
+    dat <- set_epi(dat, "hh.exposed.n", at, length(hh_infectious))
   }
 
   return(dat)

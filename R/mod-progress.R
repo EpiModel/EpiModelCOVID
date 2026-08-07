@@ -146,6 +146,27 @@ progress_general <- function(dat, at) {
       ids.new.Ic.other <- intersect(ids.new.Ic,which(non.office == 1))
       ids.new.Ic.office <- intersect(ids.new.Ic,which(non.office == 0))
       num.new.IptoIc.w <- length(ids.new.Ic.office)
+      ## Issue #46. Every surveillance number we could be compared against is a
+      ## count of symptomatic care-seeking PEOPLE, while `prop.clinical` was an
+      ## input that never surfaced as an output. Flag the first symptomatic
+      ## episode per person and emit onset by age band, so the clinical fraction
+      ## becomes observable and the age distribution of symptomatic disease is
+      ## readable rather than inferred from total incidence.
+      ever.sympt <- get_attr(dat, "ever.sympt")
+      if (!is.null(ever.sympt)) {
+        ever.sympt[ids.new.Ic] <- 1
+        dat <- set_attr(dat, "ever.sympt", ever.sympt)
+      }
+      ag_ic <- cut(age[ids.new.Ic], age.breaks, labels = FALSE, right = FALSE)
+      for (g in seq_len(length(age.breaks) - 1)) {
+        dat <- set_epi(dat, paste0("ipic.flow.age", g), at, sum(ag_ic == g, na.rm = TRUE))
+      }
+      if (!is.null(is_infant)) {
+        i_ic <- is_infant[ids.new.Ic]; a_ic <- age[ids.new.Ic]
+        dat <- set_epi(dat, "ipic.flow.infant", at, sum(i_ic, na.rm = TRUE))
+        dat <- set_epi(dat, "ipic.flow.infant.young", at, sum(i_ic & a_ic <  0.5, na.rm = TRUE))
+        dat <- set_epi(dat, "ipic.flow.infant.old",   at, sum(i_ic & a_ic >= 0.5, na.rm = TRUE))
+      }
     }
   }
   
@@ -221,6 +242,21 @@ progress_general <- function(dat, at) {
       statusTime[ids.new.H] <- at
       ids.new.H.w <- intersect(ids.new.H, which(non.office==0))
       num.new.IctoH.w <- length(ids.new.H.w)
+      ## Issue #46: hospitalisation by age band and infant sub-band. `ich.flow`
+      ## was a single pooled count, so `cum_hosp` could not be expressed as the
+      ## per-100,000 per-season age-specific rate that every hospital-based
+      ## surveillance series reports. The denominators come from the n.age*
+      ## series emitted in mod-prevalence.R.
+      ag_h <- cut(age[ids.new.H], age.breaks, labels = FALSE, right = FALSE)
+      for (g in seq_len(length(age.breaks) - 1)) {
+        dat <- set_epi(dat, paste0("ich.flow.age", g), at, sum(ag_h == g, na.rm = TRUE))
+      }
+      if (!is.null(is_infant)) {
+        i_h <- is_infant[ids.new.H]; a_h <- age[ids.new.H]
+        dat <- set_epi(dat, "ich.flow.infant", at, sum(i_h, na.rm = TRUE))
+        dat <- set_epi(dat, "ich.flow.infant.young", at, sum(i_h & a_h <  0.5, na.rm = TRUE))
+        dat <- set_epi(dat, "ich.flow.infant.old",   at, sum(i_h & a_h >= 0.5, na.rm = TRUE))
+      }
     }
   }
   
