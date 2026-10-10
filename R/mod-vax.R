@@ -10,9 +10,6 @@ vax_general <- function(dat, at) {
 
   vax.age.group <- vax_age_group_for(dat)
 
-  dxStatus <- get_attr(dat, "dxStatus")
-  dxTime <- get_attr(dat, "dxTime")
-  
   degree_total <- get_attr(dat, "degree_total") # total nodal degree
   is_bridge <- get_attr(dat, "is_bridge")
   n_layers_active <- get_attr(dat, "n_layers_active")
@@ -121,8 +118,6 @@ vax_general <- function(dat, at) {
       dose_i = dose_i,
       active = active,
       status = status,
-      dxStatus = dxStatus,
-      dxTime = dxTime,
       vax = vax,
       last.dose.time = last.dose.time,
       vax.age.group = vax.age.group,
@@ -974,16 +969,19 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
 # helper getting generally eligible for a dose
 get_ids_eligible_for_dose <- function(
     dose_row, dose_i,
-    active, status, dxStatus, dxTime,
+    active, status,
     vax,
     last.dose.time = NULL,
     vax.age.group, at,
     season.length = 364
 ) {
-  # Generally eligible: active, not severe (ic/h), not recently diagnosed.
+  # Generally eligible: active and not severe (ic/h). There is no testing in
+  # this model (GlobalMix India #66), so no "recently diagnosed" exclusion. That
+  # exclusion also dropped people who had returned from R to S: that step set
+  # dxStatus to NA, which made the condition NA unless the last test was more
+  # than 10 days earlier, and which() reads NA as ineligible.
   base_eligible <- active == 1 &
-    !(status %in% c("ic", "h")) &
-    !(dxStatus == 2 & (at - dxTime <= 10))
+    !(status %in% c("ic", "h"))
 
   # Age-specific start time for this dose (length 5; indexed by vax.age.group).
   start_vec <- dose_row$start[[1]]

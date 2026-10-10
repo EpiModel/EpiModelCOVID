@@ -13,7 +13,6 @@ progress_general <- function(dat, at) {
   vax.age.group <- vax_age_group_for(dat)
   vax <- get_attr(dat, "vax")
   last.dose.time <- get_attr(dat, "last.dose.time")
-  dxStatus <- get_attr(dat, "dxStatus")
   deg_work <- get_attr(dat, "deg_work")
   non.office <- ifelse(deg_work > 0, 0, 1)  # 0=office, 1=non-office
   
@@ -27,12 +26,6 @@ progress_general <- function(dat, at) {
   prop.hospit.infant  <- get_param(dat, "prop.hospit.infant", override.null.error = TRUE)
   prop.hospit.infant6 <- get_param(dat, "prop.hospit.infant6", override.null.error = TRUE)
   is_infant <- get_attr(dat, "is_infant")
-  hosp.boost.mult <- get_param(dat, "hosp.boost.mult")
-  hosp.boost.start <- get_param(dat, "hosp.boost.start")
-  hosp.boost.stop <- get_param(dat, "hosp.boost.stop")
-  hosp.supp.mult <- get_param(dat, "hosp.supp.mult")
-  hosp.supp.start <- get_param(dat, "hosp.supp.start")
-  hosp.supp.stop <- get_param(dat, "hosp.supp.stop")
   ea.rate <- get_param(dat, "ea.rate")
   ar.rate <- get_param(dat, "ar.rate")
   eip.rate <- get_param(dat, "eip.rate")
@@ -212,15 +205,11 @@ progress_general <- function(dat, at) {
     )
     
     prop.hosp.vec <- prop.hosp.vec * vax_eff_hosp$rr
-    
-    if (at >= hosp.boost.start & at <= hosp.boost.stop) {
-      prop.hosp.vec <- prop.hosp.vec * hosp.boost.mult
-    }
-    
-    if (at >= hosp.supp.start & at <= hosp.supp.stop) {
-      prop.hosp.vec <- prop.hosp.vec * hosp.supp.mult
-    }
-    
+
+    # prop.hospit is the admission probability per symptomatic onset and
+    # nothing else scales it. The CorporateMix window that multiplied it by
+    # hosp.boost.mult (5) from day 211 is removed (GlobalMix India #66).
+
     #Set pathway
     if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
@@ -305,7 +294,6 @@ progress_general <- function(dat, at) {
       num.new.RtoS <- length(ids.new.RS)
       status[ids.new.RS] <- "s"
       statusTime[ids.new.RS] <- at
-      dxStatus[ids.new.RS] <- NA
     }
   }
   
@@ -316,7 +304,6 @@ progress_general <- function(dat, at) {
   dat <- set_attr(dat, "statusTime", statusTime)
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "hospit", hospit)
-  dat <- set_attr(dat, "dxStatus", dxStatus)
   
   ## Save summary statistics
   dat <- set_epi(dat, "ea.flow", at, num.new.EtoA)

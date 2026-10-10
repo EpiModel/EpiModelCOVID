@@ -34,16 +34,12 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     clinical= NA,
     hospit= NA,
     status="s",
-    dxStatus= 0,
-    dxTime= NA,
     vax= 0,
     vax1Time= NA,
     vax2Time= NA,
     vax3Time= NA,
     vax4Time= NA,
     last.dose.time = NA,
-    isolate= NA,
-    isoTime= NA,
     # Person-level cumulative flags (issue #46). Everything else the model emits
     # is an episode flow, so with reinfection on (`rs.rate` non-zero) the per-100
     # infection numbers exceed the number of infected PEOPLE and cannot be

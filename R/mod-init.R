@@ -17,6 +17,11 @@ init_gmc19 <- function(x, param, init, control, s) {
   ## network and stats initialization
   dat <- init_nets(dat, x)   
 
+  # GlobalMix India #66: no retired CorporateMix parameter in the table, and
+  # the per-layer parameters line up with the layers passed to netsim()
+  check_retired_params(dat)
+  dat <- check_layer_params(dat)
+
   
   ## Initialize all remaining attributes in default values
   dat <- init_attrs(dat)
@@ -60,6 +65,94 @@ hh_layer <- function(dat) {
     identical(get_nwparam(dat, network = network)$group.attr, "hh.ids")
   }, logical(1)))
   if (length(hh) == 0) NA_integer_ else hh[1]
+}
+
+# Per-layer parameters (GlobalMix India #66). A vector such as inf.prob is
+# read by position, one value per layer, and positions carry no meaning of
+# their own: these values came from the CorporateMix settings, where layer 1
+# was a different layer, and the school layer inherited 5 acts per day. So the
+# parameter table names its layers (layer.names), the run stops unless those
+# are the names of the layer list passed to netsim(), in that order, and every
+# per-layer vector is then named by layer.
+layer_params <- c("inf.prob", "exposure.rate")
+
+layer_names <- function(dat) {
+  names(if (!is.null(dat$run$el)) dat$run$el else dat$run$nw)
+}
+
+check_layer_params <- function(dat) {
+  layers <- layer_names(dat)
+  if (is.null(layers) || any(layers == "") || anyDuplicated(layers) > 0) {
+    stop("name every layer in the list passed to netsim(), e.g. ",
+         "list(school = ..., work = ..., nonhome = ..., home = ...), so the ",
+         "per-layer parameters can be checked against it", call. = FALSE)
+  }
+  declared <- get_param(dat, "layer.names", override.null.error = TRUE)
+  if (is.null(declared)) {
+    stop("the parameters have no layer.names; set it to the names of the ",
+         "layers passed to netsim(), in order (", toString(layers), ")",
+         call. = FALSE)
+  }
+  if (!identical(as.character(declared), layers)) {
+    stop("layer.names in the parameters (", toString(declared), ") are not ",
+         "the layers passed to netsim() (", toString(layers), ")", call. = FALSE)
+  }
+  for (name in layer_params) {
+    dat <- set_param(dat, name, layer_param(dat, name))
+  }
+  dat
+}
+
+# A per-layer parameter with one value per layer, named by layer. An unnamed
+# vector is read in layer order (check_layer_params() matched layer.names to the
+# layers at initialization); a named one must name the layers in order. Called
+# on every step, so a parameter updater cannot misalign a vector either.
+layer_param <- function(dat, name) {
+  value <- get_param(dat, name)
+  layers <- layer_names(dat)
+  if (length(value) != length(layers)) {
+    stop("`", name, "` has ", length(value), " values for ", length(layers),
+         " layers (", toString(layers), ")", call. = FALSE)
+  }
+  if (is.null(names(value))) {
+    names(value) <- layers
+  } else if (!identical(names(value), layers)) {
+    stop("`", name, "` is named ", toString(names(value)), " but the layers ",
+         "are ", toString(layers), call. = FALSE)
+  }
+  value
+}
+
+# Parameters of the CorporateMix modifiers removed from the GMC19 modules
+# (GlobalMix India #66): the inf.prob windows on days 40-80 and 120-160, the
+# 40% transmission cut from day 15, the hospitalization multiplier from day 211,
+# and the testing and isolation pathway (the dx and isolate modules, whose
+# attributes the model no longer carries). Nothing reads them now, so a table
+# or updater that still sets one would run as if it had an effect.
+retired_params <- c(
+  "inf.add", "inf.sub", "inf.boost.start", "inf.boost.stop",
+  "inf.supp.start", "inf.supp.stop",
+  "inf.prob.inter.rr", "inf.prob.inter.time",
+  "act.rate.inter.rr", "act.rate.inter.time",
+  "hosp.boost.mult", "hosp.boost.start", "hosp.boost.stop",
+  "hosp.supp.mult", "hosp.supp.start", "hosp.supp.stop",
+  "dx.rate.sympt", "dx.rate.other", "pcr.sens", "allow.rescreen",
+  "iso.prob.office", "iso.prob.other", "notif.prob",
+  "act.rate.iso.inter.rr", "act.rate.iso.inter.time", "inf.prob.mask.rr",
+  "act.rate.dx.inter.rr", "act.rate.dx.inter.time",
+  "act.rate.sympt.inter.rr", "act.rate.sympt.inter.time"
+)
+
+check_retired_params <- function(dat) {
+  updated <- unlist(lapply(dat$param$.param.updater.list,
+                           function(u) names(u$param)))
+  found <- intersect(retired_params, c(names(dat$param), updated))
+  if (length(found) > 0) {
+    stop("the model no longer reads ", toString(found), ": the CorporateMix ",
+         "modifiers they set were removed (GlobalMix India #66). Remove them ",
+         "from the parameters.", call. = FALSE)
+  }
+  invisible(TRUE)
 }
 
 init_attrs <- function(dat) { 

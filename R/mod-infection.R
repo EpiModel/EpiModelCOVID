@@ -5,8 +5,6 @@ infect_general <- function(dat, at) {
   ## Attributes ##
   active <- get_attr(dat, "active")
   status <- get_attr(dat, "status")
-  dxStatus <- get_attr(dat, "dxStatus")
-  isolate <- get_attr(dat, "isolate")
 
   vax <- get_attr(dat, "vax")
   last.dose.time <- get_attr(dat, "last.dose.time")
@@ -29,16 +27,12 @@ infect_general <- function(dat, at) {
 
   ## Common Parameters ##
   inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr")
-  inf.add <- get_param(dat, "inf.add")
-  inf.sub <- get_param(dat, "inf.sub")
-  inf.boost.start <- get_param(dat, "inf.boost.start")
-  inf.boost.stop <- get_param(dat, "inf.boost.stop")
-  inf.supp.start <- get_param(dat, "inf.supp.start")
-  inf.supp.stop <- get_param(dat, "inf.supp.stop")
-  inf.prob.mask.rr <- get_param(dat, "inf.prob.mask.rr")
-  act.rate.iso.inter.time <- get_param(dat, "act.rate.iso.inter.time")
-  act.rate.iso.inter.rr <- get_param(dat, "act.rate.iso.inter.rr")
   vax.schedule <- build_vax_schedule(dat, get_pathogen(dat))
+
+  # Per-layer parameters, one value per layer and named by layer. layer_param()
+  # stops if a vector no longer lines up with the layers, e.g. after an updater.
+  inf.prob <- layer_param(dat, "inf.prob")
+  exposure.rate <- layer_param(dat, "exposure.rate")
 
   # Seasonal forcing of transmission (issue #26): a sinusoidal annual multiplier on
   # inf.prob. Defaults to no forcing (amplitude 0) when the params are unset.
@@ -62,28 +56,14 @@ infect_general <- function(dat, at) {
       if (!(is.null(del))
       ) {
 
-        ## Parameters ##
-        inf.prob <- get_param(dat, "inf.prob")[layer]
-        act.rate <- get_param(dat, "exposure.rate")[layer]
-        inf.prob.inter.rr <- get_param(dat, "inf.prob.inter.rr")[layer]
-        inf.prob.inter.time <- get_param(dat, "inf.prob.inter.time")[layer]
-        act.rate.inter.rr <- get_param(dat, "act.rate.inter.rr")[layer]
-        act.rate.inter.time <- get_param(dat, "act.rate.inter.time")[layer]
-
-        # Update inf.prob to account for seasonal variation
-        for (i in seq_along(inf.boost.start)) {
-          if (at >= inf.boost.start[i] & at <= inf.boost.stop[i]){
-            inf.prob <- inf.prob + inf.add[i]
-          }
-        }
-
-        for (i in seq_along(inf.supp.start)) {
-          if (at >= inf.supp.start[i] & at <= inf.supp.stop[i])
-            inf.prob <- inf.prob - inf.sub[i]
-        }
-
-        # Set parameters on discordant edgelist data frame (seasonally forced)
-        del$transProb <- inf.prob * season_mult
+        # Per-act transmission probability on this layer (seasonally forced).
+        # inf.prob and exposure.rate are the only terms that depend on the layer,
+        # so when both are equal across layers every tie carries the same daily
+        # hazard. The CorporateMix modifiers that used to sit in this loop are
+        # removed (GlobalMix India #66): inf.add/inf.sub windows on days 40-80
+        # and 120-160, a 40% cut from day 15 on every layer but the first, and
+        # isolation and masking of cases found by the testing module.
+        del$transProb <- inf.prob[[layer]] * season_mult
 
         # Vaccine effect on susceptibility/transmission
         # Dose allocation is handled in mod-vax.R; this infection module only
@@ -145,42 +125,20 @@ infect_general <- function(dat, at) {
         del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *
           inf.prob.a.rr
 
-        # Generic inf.prob and act.rate interventions
-        if (at >= inf.prob.inter.time) {
-          del$transProb <- del$transProb * inf.prob.inter.rr
-        }
-        del$actRate <- act.rate
-        if (at >= act.rate.inter.time) {
-          del$actRate <- del$actRate * act.rate.inter.rr
+        # Daily probability over exposure.rate acts on the tie
+        del$finalProb <- 1 - (1 - del$transProb)^exposure.rate[[layer]]
+
+        # rbinom() would turn these into NAs with only a warning, and the NA
+        # draws would then drop out of the which() below as non-transmissions
+        bad <- is.na(del$finalProb) | del$finalProb < 0 | del$finalProb > 1
+        if (any(bad)) {
+          stop("infect_general: ", sum(bad), " of ", nrow(del),
+               " transmission probabilities on layer `", names(inf.prob)[layer],
+               "` at step ", at, " are NA or outside [0, 1] (per-act range ",
+               toString(signif(range(del$transProb), 3)), ", exposure.rate ",
+               exposure.rate[[layer]], ")", call. = FALSE)
         }
 
-        # Case isolation for those in isolation process
-        del$iso <- ifelse(!is.na(isolate[del$inf]),isolate[del$inf],0)
-        if (at >= act.rate.iso.inter.time) {
-          del$actRate[del$iso %in% c(1,2)] <- del$actRate[del$iso %in% c(1,2)] *
-            act.rate.iso.inter.rr
-        }
-
-        # Masking for those in isolation process
-        if (at >= act.rate.iso.inter.time) {
-          del$transProb[del$iso %in% c(1,2,3,4)] <- del$transProb[del$iso %in% c(1,2,3,4)] *
-            inf.prob.mask.rr
-        }
-
-        del$finalProb <- 1 - (1 - del$transProb)^del$actRate
-        
-        # debug warning message: In rbinom(nrow(del), 1, del$finalProb) : NAs produced
-        bad <- which(is.na(del$finalProb) | del$finalProb < 0 | del$finalProb > 1)
-        if (length(bad) > 0) {
-          print(table(is.na(del$transProb), useNA = "ifany"))
-          print(table(is.na(del$actRate), useNA = "ifany"))
-          print(summary(del$transProb))
-          print(summary(del$actRate))
-          print(summary(del$finalProb))
-          
-          #browser()
-        }
-        
         # Stochastic transmission process
         transmit <- rbinom(nrow(del), 1, del$finalProb)
 
