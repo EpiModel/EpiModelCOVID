@@ -19,10 +19,11 @@ arrival <- function(dat, at) {
   
 
   
-  # Update Attr. The new nodes join the networks in nwupdate.FUN, which runs
-  # after this module, so this module only appends their attributes. On the
-  # household clique layer, nwupdate.FUN places them with the layer's arrival
-  # rule (hh_join_young) and connects them to their co-residents.
+  # Update Attr. The new nodes join the networks in nwupdate.FUN (EpiModel's
+  # nwupdate.net), which runs after this module, so this module only appends
+  # their attributes. On the household clique layer, nwupdate.FUN places them
+  # with the layer's arrival rule (hh_join_young) and connects them to their
+  # co-residents.
   if (nNew > 0) {
    dat <- init_new_nodes_attrs(dat, nNew)
   }
@@ -44,6 +45,15 @@ init_new_nodes_attrs <- function(dat, n_new) {
     dat <- append_attr(dat, attr_name, def_attrs[[attr_name]], n_new)
   }
   dat <- make_computed_attrs(dat, n_new, post_init = TRUE)
+
+  # Every attribute must get a value here. nwupdate.net() would otherwise fill
+  # a missing one by drawing from its current distribution, with no error.
+  attr_lengths <- lengths(get_attr_list(dat))
+  short <- names(attr_lengths)[attr_lengths < attr_lengths[["active"]]]
+  if (length(short) > 0) {
+    stop("no value set for new nodes for attribute(s) ",
+         paste(short, collapse = ", "), "; add a default in get_default_attrs()")
+  }
   return(dat)
 }
 

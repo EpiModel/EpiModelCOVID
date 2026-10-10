@@ -32,7 +32,7 @@ dat_at_start <- function(x = list(est_com, est_hh)) {
 
 # One step of the engine's vital dynamics without the disease modules: mark
 # `dead` (departures module), append `n_new` newborns (arrivals module), then
-# nwupdate_gmc19()
+# EpiModel's nwupdate.net()
 vital_step <- function(dat, at, dead, n_new) {
   dat <- set_current_timestep(dat, at)
   dat <- set_attr(dat, "active", 0, posit_ids = dead)
@@ -48,7 +48,7 @@ vital_step <- function(dat, at, dead, n_new) {
       }
     }
   }
-  nwupdate_gmc19(dat, at)
+  nwupdate.net(dat, at)
 }
 
 pairs_of <- function(el) {
@@ -80,7 +80,7 @@ test_that("hh_join_young draws only living, existing 0-9y members' households", 
   expect_equal(hh_join_young(dat, 2, new_ids, 2), rep(NA, 3))
 })
 
-test_that("nwupdate_gmc19 removes the dead and wires newborns into full cliques", {
+test_that("nwupdate.net removes the dead and wires newborns into full cliques", {
   dat <- dat_at_start()
   # Every 0-9y member dies except household 5's (hh5[1]), so household 5 is the
   # only one newborns can join and all three are same-day siblings there. One
@@ -109,9 +109,21 @@ test_that("nwupdate_gmc19 removes the dead and wires newborns into full cliques"
                pairs_of(EpiModel:::group_edgelist(hh1)))
 })
 
-test_that("nwupdate_gmc19 stops when an attribute was not set for newborns", {
+test_that("init_new_nodes_attrs stops when an attribute was not set for newborns", {
   dat <- dat_at_start()
   dat <- set_current_timestep(dat, 2)
-  dat <- append_core_attr(dat, 2, 1)
-  expect_error(nwupdate_gmc19(dat, 2), "unequal lengths")
+  defaults <- list(age.grp = "0-9y", hh.ids = NA, status = "s", infTime = NA)
+  local_mocked_bindings(
+    get_default_attrs = function(dat) defaults,
+    make_computed_attrs = function(dat, n_new, post_init) dat,
+    .package = "EpiModelCOVID"
+  )
+  dat2 <- EpiModelCOVID:::init_new_nodes_attrs(dat, 2)
+  expect_equal(unique(lengths(get_attr_list(dat2))), N + 2)
+
+  # nwupdate.net would draw a missing attribute from its current distribution
+  # rather than stop, so the arrivals module stops instead
+  defaults$hh.ids <- NULL
+  expect_error(EpiModelCOVID:::init_new_nodes_attrs(dat, 2),
+               "attribute\\(s\\) hh.ids; add a default")
 })
