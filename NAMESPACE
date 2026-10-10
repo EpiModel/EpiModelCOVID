@@ -9,6 +9,7 @@ export(infect_general)
 export(init_gmc19)
 export(isolate_covid_corporate)
 export(netdegree)
+export(nwupdate_gmc19)
 export(prevalence_covid_corporate)
 export(prevalence_covid_ship)
 export(progress_general)
@@ -20,7 +21,9 @@ import(network)
 import(tergm)
 importFrom(networkLite,networkLite)
 importFrom(statnet.common,NVL)
-importFrom(stats,rbinom)
-importFrom(stats,rpois)
-importFrom(stats,simulate)
+importFrom(stats,
+  rbinom,
+  rpois,
+  simulate
+)
 importFrom(utils,tail)

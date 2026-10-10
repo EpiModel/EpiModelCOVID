@@ -19,18 +19,15 @@ arrival <- function(dat, at) {
   
 
   
-  # Update Attr
+  # Update Attr. The new nodes join the networks in nwupdate.FUN, which runs
+  # after this module, so this module only appends their attributes.
   if (nNew > 0) {
    dat <- init_new_nodes_attrs(dat, nNew)
    # After the default above, add houshold id to new nodes and create home edgelists
    dat <- set_home_attr_el(dat, at, nNew)
 
   }
-  
-  # Update Networks
-  dat <- arrive_nodes(dat, nNew)
 
-  
   ## Output
   dat <- set_epi(dat, "nNew", at, nNew)
   
@@ -58,6 +55,9 @@ set_home_attr_el <- function(dat, at, nNew) {
   age.grp <- get_attr(dat, "age.grp") # age of all nodes, include the new nodes (0)
   hh.ids <- get_attr(dat, "hh.ids" #  hh.ids, 0 for new nodes
                         )
+  # This step's deaths are still in the attribute list (nwupdate.FUN removes
+  # them after this module), so draw and wire living nodes only.
+  active <- get_attr(dat, "active")
 
   # Existing households that contain a young (0-9y) member; new arrivals (age 0)
   # are placed into one of these. Guard the degenerate case (issue #39): if no
@@ -67,7 +67,7 @@ set_home_attr_el <- function(dat, at, nNew) {
   # each) but a latent assumption worth failing safe on: skip the household wiring
   # this step and leave the new nodes at their default hh.ids rather than
   # misassigning them.
-  hh_pool <- hh.ids[which(age.grp == "0-9y")] # existing hh.ids with nodes in "0-9y"
+  hh_pool <- hh.ids[which(active == 1 & age.grp == "0-9y")] # existing hh.ids with nodes in "0-9y"
   if (length(hh_pool) == 0) {
     return(dat)
   }
@@ -86,7 +86,7 @@ set_home_attr_el <- function(dat, at, nNew) {
   # the row names of the whole ~N-row home edgelist every step (O(N) per step;
   # ~26 s/step / ~56% of all sim time at N=117,810). The edge SET produced is the
   # same; only the data type changes.
-  sel  <- which(hh.ids %in% newHH)        # existing nodes in the chosen households
+  sel  <- which(active == 1 & hh.ids %in% newHH) # existing nodes in the chosen households
   memb <- split(sel, hh.ids[sel])         # hh.id (chr) -> existing member node ids
   new.edges <- do.call(rbind, lapply(seq_len(nNew), function(i) {
     m <- memb[[as.character(newHH[i])]]   # existing members of this new node's household

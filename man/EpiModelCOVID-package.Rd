@@ -18,5 +18,10 @@
 \author{
 \strong{Maintainer}: Samuel M. Jenness \email{samuel.m.jenness@emory.edu}
 
+Authors:
+\itemize{
+  \item Samuel M. Jenness \email{samuel.m.jenness@emory.edu}
+}
+
 }
 \keyword{package}

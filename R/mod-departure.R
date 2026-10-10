@@ -101,12 +101,11 @@ deaths_covid_gmc19 <- function(dat, at) {
         if (!is.null(is_infant)) infant_disdep <- is_infant[dd]
         age_disdep <- age[dd]   # issue #46: for the infant 0-6 / 6-12mo split
       }
+      # Mark the dead only. nwupdate.FUN removes them from every layer after
+      # the arrivals module has run (EpiModel's convention), so a module that
+      # runs between here and nwupdate.FUN must skip active == 0.
       dat <- set_attr(dat, "active", 0, posit_ids = idsDep)
-      dat <- depart_nodes(dat, departures = idsDep)
-      attr.length <- unique(vapply(get_attr_list(dat), length, numeric(1)))
-      if (attr.length != attributes(dat$run$el[[1]])[["n"]]) {
-        stop("mismatch between el and attr length in departures mod")
-      }
+      dat <- set_attr(dat, "exitTime", at, posit_ids = idsDep)
     }
   }
 
