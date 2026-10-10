@@ -5,6 +5,7 @@
 \name{moduleset-gmc19}
 \alias{moduleset-gmc19}
 \alias{arrival}
+\alias{hh_join_young}
 \alias{deaths_covid_gmc19}
 \alias{infect_general}
 \alias{init_gmc19}
@@ -16,6 +17,8 @@
 \title{EpiModel Module Set for GMC-19 India Model}
 \usage{
 arrival(dat, at)
+
+hh_join_young(dat, at, new_ids, network)
 
 deaths_covid_gmc19(dat, at)
 
@@ -46,6 +49,10 @@ vax_age_group_for(dat)
 
 \item{at}{Current time step.}
 
+\item{new_ids}{Positional ids of the nodes arriving at this time step.}
+
+\item{network}{Index of the household clique layer.}
+
 \item{x}{An \code{EpiModel} object of class `netest`.}
 
 \item{param}{An \code{EpiModel} object of class `param.net`.}
@@ -59,4 +66,12 @@ vax_age_group_for(dat)
 \description{
 This set of functions is associated with the EpiModel study of
              COVID in the India GMC-19 model.
+}
+\details{
+\code{hh_join_young} is the \code{arrivals.FUN} of the household layer, built
+with \code{netclique(nw, "hh.ids", arrivals = "join", arrivals.FUN =
+hh_join_young)}. Each newborn joins the household of a uniformly drawn
+existing 0-9y member, so households are drawn in proportion to their number
+of 0-9y members. EpiModel then connects the newborn to every active member of
+that household, including other newborns placed there in the same step.
 }

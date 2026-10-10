@@ -7,10 +7,8 @@ netdegree <- function(dat, at) {
   degree_school  <- get_degree(dat$run$el[["school"]])
   degree_nonhome <- get_degree(dat$run$el[["nonhome"]])
   
-  degree_hh <-
-    tabulate(c(dat$run$el[[4]][,1], dat$run$el[[4]][,2]),
-             nbins=attr(dat$run$el$school, "n") # number of active nodes at this time step, pulled from school layer
-             )
+  hh <- hh_layer(dat)
+  degree_hh      <- if (is.na(hh)) 0 * degree_school else get_degree(dat$run$el[[hh]])
 
   degree_total <- degree_work + degree_school + degree_nonhome + degree_hh
 

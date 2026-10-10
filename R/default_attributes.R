@@ -22,8 +22,9 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     # cross-layer bridge indicators
     is_bridge = FALSE,
     n_layers_active =0,
-    # houshold id and age
-    hh.ids =0, 
+    # household id and age. NA is "in no household"; the household clique
+    # layer's arrival rule (hh_join_young) sets it for new nodes.
+    hh.ids = NA,
     age = get_param(dat, "arrival.age"), 
     age.grp = NA,
     # disease-related attributes

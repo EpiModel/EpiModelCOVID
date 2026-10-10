@@ -295,8 +295,8 @@ infect_general <- function(dat, at) {
   ## Household secondary attack rate (issue #46) --------------------------------
   ## The one external anchor that survived the validation review is the PHIRST
   ## cross-pathogen household ordering, which is a per-person risk among exposed
-  ## household contacts. `se.flow.l4` is the numerator already (layer 4 is the
-  ## household layer), but with no denominator it is a count, not a rate.
+  ## household contacts. The household-layer incidence is the numerator already,
+  ## but with no denominator it is a count, not a rate.
   ##
   ## Denominator: susceptible nodes sharing a household with at least one
   ## infectious node at this step. Summing numerator and denominator over the
@@ -307,10 +307,13 @@ infect_general <- function(dat, at) {
   hh.ids <- get_attr(dat, "hh.ids")
   if (!is.null(hh.ids)) {
     status_now <- get_attr(dat, "status")
-    hh_infectious <- unique(hh.ids[active == 1 & status_now %in% c("a", "ip", "ic", "h")])
+    # NA is "in no household", not a household, so it never matches
+    hh_infectious <- unique(hh.ids[active == 1 & status_now %in% c("a", "ip", "ic", "h") &
+                                     !is.na(hh.ids)])
     exposed_sus <- active == 1 & status_now == "s" & hh.ids %in% hh_infectious
     dat <- set_epi(dat, "hh.sar.den", at, sum(exposed_sus, na.rm = TRUE))
-    dat <- set_epi(dat, "hh.sar.num", at, if (length(nInf) >= 4) nInf[4] else 0)
+    hh <- hh_layer(dat)
+    dat <- set_epi(dat, "hh.sar.num", at, if (is.na(hh)) 0 else nInf[hh])
     dat <- set_epi(dat, "hh.exposed.n", at, length(hh_infectious))
   }
 

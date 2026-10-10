@@ -6,6 +6,14 @@ init_gmc19 <- function(x, param, init, control, s) {
   ## Master Data List Setup ##
   dat <- create_dat_object(param, init, control)
 
+  # The household layer used to be an edgelist passed as hh.pairs and appended
+  # here; it is now a netclique layer in `x` (GlobalMix India #85). Stop rather
+  # than run without households if a caller still passes the old form.
+  if (!is.null(get_param(dat, "hh.pairs", override.null.error = TRUE))) {
+    stop("hh.pairs is no longer read: pass the household layer to netsim() as ",
+         "netclique(nw, \"hh.ids\", arrivals = \"join\", arrivals.FUN = hh_join_young)")
+  }
+
   ## network and stats initialization
   dat <- init_nets(dat, x)   
 
@@ -17,22 +25,11 @@ init_gmc19 <- function(x, param, init, control, s) {
   # # Infection status and related
   # dat <- init_status_gmc19(dat)
   
-  # Add household network edgelist
-  ## network index
-  dat$num.nw <- dat$num.nw + 1
-  ## edgelist 
-  dat$run$el[[dat$num.nw]] <- as.matrix(dat$param$hh.pairs) 
-  ## net_attr
-  dat$run$net_attr[[dat$num.nw]] <- list() 
-  dat$run$net_attr[[dat$num.nw]][["n"]] <- dat$run$num
-  ## control
-  dat$control[["tergmLite.track.duration"]][[dat$num.nw]] <- FALSE
-  
-  # simulate first time step
-  dat$num.nw <- 3
+  # simulate first time step. The household layer is a netclique layer in the
+  # list passed to netsim(), which sim_nets_t1() and summary_nets() handle
+  # themselves: it has no network model to simulate.
   dat <- sim_nets_t1(dat)
   dat <- summary_nets(dat, at = 1L)
-  dat$num.nw <- 4
   
   num <- sum(get_attr(dat, "active") == 1)
   
@@ -54,6 +51,16 @@ init_gmc19 <- function(x, param, init, control, s) {
 
  }
 
+
+# Index of the household layer: the netclique layer grouped by hh.ids. Found by
+# its grouping attribute rather than its position, so the layer list passed to
+# netsim() may be in any order. NA when the model has no household layer.
+hh_layer <- function(dat) {
+  hh <- which(vapply(seq_len(dat$num.nw), function(network) {
+    identical(get_nwparam(dat, network = network)$group.attr, "hh.ids")
+  }, logical(1)))
+  if (length(hh) == 0) NA_integer_ else hh[1]
+}
 
 init_attrs <- function(dat) { 
   

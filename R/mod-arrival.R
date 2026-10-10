@@ -20,12 +20,11 @@ arrival <- function(dat, at) {
 
   
   # Update Attr. The new nodes join the networks in nwupdate.FUN, which runs
-  # after this module, so this module only appends their attributes.
+  # after this module, so this module only appends their attributes. On the
+  # household clique layer, nwupdate.FUN places them with the layer's arrival
+  # rule (hh_join_young) and connects them to their co-residents.
   if (nNew > 0) {
    dat <- init_new_nodes_attrs(dat, nNew)
-   # After the default above, add houshold id to new nodes and create home edgelists
-   dat <- set_home_attr_el(dat, at, nNew)
-
   }
 
   ## Output
@@ -48,57 +47,38 @@ init_new_nodes_attrs <- function(dat, n_new) {
   return(dat)
 }
 
-# Assign new nodes to households and create home edgelist for these nodes, run in arrivals module
-set_home_attr_el <- function(dat, at, nNew) {
-  new_nodes_pid <- length(get_attr(dat, "active")) - nNew + seq_len(nNew) # data frame position of new nodes
-  
-  age.grp <- get_attr(dat, "age.grp") # age of all nodes, include the new nodes (0)
-  hh.ids <- get_attr(dat, "hh.ids" #  hh.ids, 0 for new nodes
-                        )
-  # This step's deaths are still in the attribute list (nwupdate.FUN removes
-  # them after this module), so draw and wire living nodes only.
+#' @param new_ids Positional ids of the nodes arriving at this time step.
+#' @param network Index of the household clique layer.
+#'
+#' @details
+#' \code{hh_join_young} is the \code{arrivals.FUN} of the household layer, built
+#' with \code{netclique(nw, "hh.ids", arrivals = "join", arrivals.FUN =
+#' hh_join_young)}. Each newborn joins the household of a uniformly drawn
+#' existing 0-9y member, so households are drawn in proportion to their number
+#' of 0-9y members. EpiModel then connects the newborn to every active member of
+#' that household, including other newborns placed there in the same step.
+#'
+#' @rdname moduleset-gmc19
+#' @export
+hh_join_young <- function(dat, at, new_ids, network) {
   active <- get_attr(dat, "active")
+  age.grp <- get_attr(dat, "age.grp")
+  hh.ids <- get_attr(dat, "hh.ids")
 
   # Existing households that contain a young (0-9y) member; new arrivals (age 0)
-  # are placed into one of these. Guard the degenerate case (issue #39): if no
-  # 0-9y node exists the pool is empty and base sample() would error, and with a
-  # length-1 pool it would silently trigger the one-argument sample() gotcha and
-  # draw from 1:value. Not a concern for the India networks (~14k 0-9y nodes in
-  # each) but a latent assumption worth failing safe on: skip the household wiring
-  # this step and leave the new nodes at their default hh.ids rather than
-  # misassigning them.
-  hh_pool <- hh.ids[which(active == 1 & age.grp == "0-9y")] # existing hh.ids with nodes in "0-9y"
+  # are placed into one of these. The pool leaves out this step's newborns
+  # (their hh.ids is not set yet) and this step's dead, who are still in the
+  # attribute list until nwupdate.FUN removes them after this call. Guard the
+  # degenerate case (issue #39): if no 0-9y node exists the pool is empty, so
+  # return NA and leave the new nodes in no household (isolates on the layer)
+  # rather than misassigning them. Index via sample.int so a length-1 pool is
+  # drawn from correctly (base sample() would treat a single numeric value as
+  # 1:value).
+  existing <- active == 1
+  existing[new_ids] <- FALSE
+  hh_pool <- hh.ids[existing & age.grp == "0-9y" & !is.na(hh.ids)]
   if (length(hh_pool) == 0) {
-    return(dat)
+    return(rep(NA, length(new_ids)))
   }
-
-  # correspond to all new nodes, for each of these nodes, randomly assign hh.ids.
-  # Index via sample.int so a length-1 pool is drawn from correctly (base sample()
-  # would treat a single numeric value as 1:value).
-  newHH <- hh_pool[sample.int(length(hh_pool), nNew, replace = TRUE)]
-
-  # add hh.ids of newly arrivals to run$attr
-  dat <- set_attr(dat, "hh.ids", newHH, posit_ids = new_nodes_pid)
-
-  # Update the household edgelist: connect each new node to the EXISTING members
-  # of its assigned household. Built with pure matrix ops. The previous version
-  # used merge() + rbind() on data.frames, which made R call make.unique() over
-  # the row names of the whole ~N-row home edgelist every step (O(N) per step;
-  # ~26 s/step / ~56% of all sim time at N=117,810). The edge SET produced is the
-  # same; only the data type changes.
-  sel  <- which(active == 1 & hh.ids %in% newHH) # existing nodes in the chosen households
-  memb <- split(sel, hh.ids[sel])         # hh.id (chr) -> existing member node ids
-  new.edges <- do.call(rbind, lapply(seq_len(nNew), function(i) {
-    m <- memb[[as.character(newHH[i])]]   # existing members of this new node's household
-    if (length(m)) cbind(new_nodes_pid[i], m) else NULL
-  }))                                     # 2-col matrix (.head = new node, .tail = existing), or NULL
-  if (!is.null(new.edges)) {
-    dat$run$el[[dat$num.nw]] <-
-      rbind(dat$run$el[[dat$num.nw]], unname(new.edges))  # matrix rbind: no data.frame, no make.unique
-  }
-
-  return(dat)
-
+  hh_pool[sample.int(length(hh_pool), length(new_ids), replace = TRUE)]
 }
-
-

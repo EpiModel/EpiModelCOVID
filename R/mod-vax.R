@@ -59,6 +59,7 @@ vax_general <- function(dat, at) {
     active_hh <- hh.ids[active == 1]
     hh_counts <- table(active_hh)
     hh_size <- as.numeric(hh_counts[match(hh.ids, names(hh_counts))]) # active co-residents
+    hh_size[is.na(hh.ids)] <- 1 # in no household: lives alone
     if (vax.strategy == "proxy_hh") {
       proxy_score <- hh_size
     } else {
@@ -819,7 +820,7 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     if (is.null(hh.ids) || is.null(is_infant)) {
       stop("vax.strategy 'infant_hh' requires hh.ids and is_infant")
     }
-    hh_with_infant <- unique(hh.ids[which(is_infant)])
+    hh_with_infant <- unique(hh.ids[which(is_infant & !is.na(hh.ids))])
     in_infant_hh   <- hh.ids[idsElig] %in% hh_with_infant
     age_priority   <- rate[vax.age.group[idsElig]] + runif(nElig, 0, 1e-8)
     parents <- idsElig[in_infant_hh]
@@ -912,7 +913,7 @@ allocation_strategy <- function(idsElig, rate, vax.age.group, vax.strategy,
     if (is.null(hh.ids) || is.null(is_infant)) {
       stop("vax.strategy 'infant_direct_cocoon' requires hh.ids and is_infant")
     }
-    hh_with_infant <- unique(hh.ids[which(is_infant)])
+    hh_with_infant <- unique(hh.ids[which(is_infant & !is.na(hh.ids))])
     is_inf_elig    <- is_infant[idsElig]
     in_infant_hh   <- hh.ids[idsElig] %in% hh_with_infant
     age_priority   <- rate[vax.age.group[idsElig]] + runif(nElig, 0, 1e-8)
