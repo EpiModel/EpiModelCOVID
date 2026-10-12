@@ -4,7 +4,18 @@
 \alias{activate_day}
 \title{The day's out-of-home contacts}
 \usage{
-activate_day(el_freq, el_infreq, uid, band, out, live, pars, episode, N_b)
+activate_day(
+  el_freq,
+  el_infreq,
+  uid,
+  band,
+  out,
+  live,
+  pars,
+  episode,
+  N_b,
+  aN = NULL
+)
 }
 \arguments{
 \item{el_freq, el_infreq}{Edgelists of the two relationship networks
@@ -23,6 +34,8 @@ activate_day(el_freq, el_infreq, uid, band, out, live, pars, episode, N_b)
 \item{episode}{Previous day's episode state (list with key and on), or NULL.}
 
 \item{N_b}{Number of people in each band (for the new-contact rate).}
+
+\item{aN}{Each node's propensity for new contacts (mean 1), or NULL for none.}
 }
 \value{
 A list: freq, infreq and new edgelists of the contacts met today,

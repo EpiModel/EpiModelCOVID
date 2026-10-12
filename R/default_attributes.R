@@ -25,6 +25,7 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     never = 0,
     log_aF = 0,
     log_aI = 0,
+    log_aN = 0,
     o_i = 0,
     act.eligible = 1,
     degree_freq = 0,
@@ -147,6 +148,11 @@ make_computed_attrs <- function(dat, n_new, post_init) {
     never_new <- if (post_init) n_attr$never else get_attr(dat, "never", posit_ids = new_nodes_pid)
     n_attr$o_i <- draw_out_propensity(band_new, pars$o, pars$kappa)
     n_attr$act.eligible <- 1 - never_new
+    # A persistent propensity for new contacts, gamma with mean 1 and shape
+    # act.theta.N (new contacts are concentrated in few people in the diary)
+    n_attr$log_aN <- if (is.finite(pars$theta_N)) {
+      log(pmax(stats::rgamma(n_new, shape = pars$theta_N, rate = pars$theta_N), 1e-8))
+    } else rep(0, n_new)
   }
 
   for (attr_name in names(n_attr)) {

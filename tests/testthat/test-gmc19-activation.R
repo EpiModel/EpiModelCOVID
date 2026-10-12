@@ -367,3 +367,57 @@ test_that("an activity schedule of zero keeps everyone home", {
   dat <- activate_contacts(dat, 3)
   expect_gt(nrow(dat$run$contacts$freq), 0)
 })
+
+test_that("the exact daily step holds the relationship network at its cross-sectional equilibrium", {
+  dat <- rel_dat()
+  up <- which(upper.tri(diag(6), diag = TRUE), arr.ind = TRUE)
+  up <- up[order(up[, "col"], up[, "row"]), ]
+  cells <- paste(bands[up[, "row"]], bands[up[, "col"]], sep = ".")
+  D <- 5
+  crude <- c(-5.5, seq(0, 0.6, length.out = 20))    # reference cell, then differences
+  nwp <- dat$nwparam[[1]]
+  nwp$targets <- list(cell_names = cells, ref = 1L)
+  nwp$coef.form <- c(crude - c(log(D), rep(0, 20)), 1, -Inf)
+  nwp$coef.diss$coef.adj <- c(log((D - 1) / 1), rep(0, 20))
+  nwp$coef.diss$cell_duration <- setNames(rep(D, 21), cells)
+  dat$nwparam[[1]] <- nwp
+  # the equilibrium edge count of the crude model, summed exactly over pairs
+  M <- EpiModelCOVID:::cell_matrix(crude, cells, 1L, bands)
+  la <- get_attr(dat, "log_aF"); ok <- which(get_attr(dat, "never") == 0)
+  bb <- band
+  pairs <- utils::combn(ok, 2)
+  expected <- sum(stats::plogis(M[cbind(bb[pairs[1, ]], bb[pairs[2, ]])] + la[pairs[1, ]] + la[pairs[2, ]]))
+  edges <- numeric(600); kept <- numeric(600)
+  for (t in 2:601) {
+    old <- dat$run$el$freq
+    dat <- EpiModelCOVID:::step_relationships(dat, t, 1)
+    el <- dat$run$el$freq
+    edges[t - 1] <- nrow(el)
+    kept[t - 1] <- mean(paste(old[, 1], old[, 2]) %in% paste(el[, 1], el[, 2]))
+  }
+  # discrete-time equilibrium of the edapprox coefficients
+  pF <- stats::plogis(M[cbind(bb[pairs[1, ]], bb[pairs[2, ]])] - log(D) + la[pairs[1, ]] + la[pairs[2, ]])
+  expected_dt <- sum(D * pF / (D * pF + 1))
+  expect_equal(mean(edges[201:600]), expected_dt, tolerance = 0.02)
+  expect_equal(expected_dt, expected, tolerance = 0.02)
+  expect_equal(mean(kept), (D - 1) / D, tolerance = 0.01)
+  el <- dat$run$el$freq
+  expect_true(all(el[, 1] < el[, 2]))
+  expect_false(anyDuplicated(paste(el[, 1], el[, 2])) > 0)
+  expect_false(any(get_attr(dat, "never")[el] == 1))
+  expect_identical(attr(el, "n"), attr(dat$run$el$infreq, "n"))
+})
+
+test_that("new contacts follow each person's propensity", {
+  dat <- rel_dat()
+  dat <- set_param(dat, "act.theta.N", 0.2)
+  aN <- c(rep(10, 50), rep(0.01, N - 50))
+  dat <- set_attr(dat, "log_aN", log(aN))
+  ends <- numeric(N)
+  for (t in 2:21) {
+    dat <- set_current_timestep(dat, t)
+    dat <- activate_contacts(dat, t)
+    ends <- ends + tabulate(dat$run$contacts$new, nbins = N)
+  }
+  expect_gt(sum(ends[1:50]) / sum(ends), 0.8)
+})

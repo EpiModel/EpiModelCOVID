@@ -64,6 +64,7 @@ activation_params <- function(dat) {
     new_rate = get_param(dat, "new.rate") * param_or(dat, "new.rate.mult", 1),
     new_mix = get_param(dat, "new.mix"),
     new_share = get_param(dat, "new.share.norel"),
+    theta_N = param_or(dat, "act.theta.N", Inf),
     episodes = isTRUE(as.logical(param_or(dat, "act.episodes", TRUE))),
     window = as.integer(param_or(dat, "act.window", 30))
   )
@@ -85,6 +86,7 @@ activation_params <- function(dat) {
     bad(paste0("`new.mix` must be a symmetric non-negative ", nb, " x ", nb, " matrix"))
   }
   if (length(p$window) != 1 || !isTRUE(p$window >= 1)) bad("`act.window` must be at least 1")
+  if (length(p$theta_N) != 1 || !isTRUE(p$theta_N > 0)) bad("`act.theta.N` must be positive")
   # The off-to-on probability s (1 - p11) / (1 - s) must be a probability
   if (!isTRUE(p$s > 0 && p$p11 >= 0 && p$p11 < 1 && p$s <= 1 / (2 - p$p11))) {
     bad(paste0("episode parameters out of range: act.s ", p$s, ", act.p11 ", p$p11))
@@ -289,27 +291,31 @@ new_contact_odds <- function(ends, n0, n1, share) {
 #' @param out Logical: who is out today.
 #' @param live Logical: who is alive (eligible for new contacts).
 #' @param pars Output of [activation_params()].
+#' @param aN Each node's propensity for new contacts (mean 1), or NULL for none.
 #' @param episode Previous day's episode state (list with key and on), or NULL.
 #' @param N_b Number of people in each band (for the new-contact rate).
 #' @return A list: freq, infreq and new edgelists of the contacts met today,
 #'   and the infrequent ties' episode state to carry to tomorrow.
 #' @export
-activate_day <- function(el_freq, el_infreq, uid, band, out, live, pars, episode, N_b) {
+activate_day <- function(el_freq, el_infreq, uid, band, out, live, pars, episode, N_b, aN = NULL) {
   qa <- pars$q[band[el_freq[, 1]]]; qb <- pars$q[band[el_freq[, 2]]]
   onF <- out[el_freq[, 1]] & out[el_freq[, 2]] & stats::runif(nrow(el_freq)) < (qa + qb) / 2
   keyI <- pair_key(uid[el_infreq[, 1]], uid[el_infreq[, 2]])
   st <- episode_update(keyI, episode, pars$p11, pars$s, pars$episodes)
   onI <- out[el_infreq[, 1]] & out[el_infreq[, 2]] & st
   freq <- el_freq[onF, , drop = FALSE]; infreq <- el_infreq[onI, , drop = FALSE]
-  ## New contacts: each band's ends are fixed by the age mixing, so the share of
+  ## New contacts: each person's draw weight is their persistent new-contact
+  ## propensity aN. Each band's ends are fixed by the age mixing, so the share of
   ## all ends on people with no relationship met today is set by an odds
   ## multiplier lambda on those people, solved for the day's band composition
   none <- live & tabulate(c(freq, infreq), nbins = length(live)) == 0
   E <- new_contact_edges(pars$new_mix, pars$new_rate, N_b)
-  w <- as.numeric(live)
-  lambda <- new_contact_odds(rowSums(E) + diag(E), tabulate(band[none], length(N_b)),
-                             tabulate(band[live & !none], length(N_b)), pars$new_share)
-  w[none] <- lambda
+  w <- as.numeric(live) * (if (is.null(aN)) 1 else aN)
+  wsum <- function(sel) as.numeric(tapply(w[sel], factor(band[sel], levels = seq_along(N_b)), sum))
+  n0 <- wsum(none); n1 <- wsum(live & !none)
+  n0[is.na(n0)] <- 0; n1[is.na(n1)] <- 0
+  lambda <- new_contact_odds(rowSums(E) + diag(E), n0, n1, pars$new_share)
+  w[none] <- w[none] * lambda
   el_new <- draw_new_contacts(E, band, w)
   list(freq = freq, infreq = infreq, new = el_new, episode = list(key = keyI, on = st))
 }
@@ -351,7 +357,7 @@ activate_contacts <- function(dat, at) {
   N_b <- tabulate(band[live], nbins = nb)
   el <- dat$run$el
   day <- activate_day(el[[rel_layers[["freq"]]]], el[[rel_layers[["infreq"]]]], uid, band, out, live,
-                      pars, dat$run$episode, N_b)
+                      pars, dat$run$episode, N_b, aN = exp(get_attr(dat, "log_aN")))
   dat$run$episode <- day$episode
   hh <- hh_layer(dat)
   contacts <- list(day$freq, day$infreq, day$new)
@@ -371,7 +377,7 @@ activate_contacts <- function(dat, at) {
   dat <- update_recent_contacts(dat, uid, deg, degN, pars$window)
 
   if (!isFALSE(as.logical(param_or(dat, "act.diagnostics", TRUE)))) {
-    dat <- activation_diagnostics(dat, at, day, uid, out, live, degF, degI, degN)
+    dat <- activation_diagnostics(dat, at, day, uid, out, live, degF, degI, degN, band)
   }
   dat
 }
@@ -412,16 +418,34 @@ update_recent_contacts <- function(dat, uid, deg, degN, window) {
 #                     yesterday and today) and on both days, among people living
 #                     on both: the symmetric rejoin is 1 - sum(zz) / sum(z)
 #   act.z.all, act.zz.all  the same counting new contacts too
+#   act.n2            people living on both days; with act.z.rel and act.zz.rel
+#                     it gives b = P(contact both days | either) =
+#                     (n2 - 2 z + zz) / (n2 - zz)
+#   act.iso.rel.ageN  daily share with no relationship contact by age band
+#   act.n, act.sF, act.sI, act.sFI, act.sF2, act.sI2  sums of the day's frequent
+#                     and infrequent contacts per person, for their correlation
 #   act.both.F.num/den, act.both.I.num/den  relationships met on both days and
 #                     on either day, counted from each end with relationship
 #                     contact on both days (the diary's conditioning)
 #   act.union2, act.daily2  distinct contacts over yesterday and today, and the
 #                     sum of the two days' contacts: the two-day ratio is
 #                     2 * sum(union2) / sum(daily2)
-activation_diagnostics <- function(dat, at, day, uid, out, live, degF, degI, degN) {
+activation_diagnostics <- function(dat, at, day, uid, out, live, degF, degI, degN, band) {
   n_live <- sum(live)
   zero_rel <- degF + degI == 0
   zero_all <- zero_rel & degN == 0
+  # the daily zero share by band, and the sums behind the person-day correlation
+  # of frequent and infrequent contacts
+  for (g in seq_along(get_param(dat, "age.grps"))) {
+    dat <- set_epi(dat, paste0("act.iso.rel.age", g), at, mean(zero_rel[live & band == g]))
+  }
+  x <- degF[live]; y <- degI[live]
+  dat <- set_epi(dat, "act.n", at, n_live)
+  dat <- set_epi(dat, "act.sF", at, sum(x))
+  dat <- set_epi(dat, "act.sI", at, sum(y))
+  dat <- set_epi(dat, "act.sFI", at, sum(x * y))
+  dat <- set_epi(dat, "act.sF2", at, sum(x^2))
+  dat <- set_epi(dat, "act.sI2", at, sum(y^2))
   dat <- set_epi(dat, "act.out", at, sum(out) / n_live)
   dat <- set_epi(dat, "act.deg.freq", at, 2 * nrow(day$freq) / n_live)
   dat <- set_epi(dat, "act.deg.infreq", at, 2 * nrow(day$infreq) / n_live)
@@ -446,6 +470,7 @@ activation_diagnostics <- function(dat, at, day, uid, out, live, degF, degI, deg
     dat <- set_epi(dat, "act.zz.rel", at, sum(zr_prev[both] & zero_rel[both]))
     dat <- set_epi(dat, "act.z.all", at, (sum(za_prev[both]) + sum(zero_all[both])) / 2)
     dat <- set_epi(dat, "act.zz.all", at, sum(za_prev[both] & zero_all[both]))
+    dat <- set_epi(dat, "act.n2", at, sum(both))
     # The diary's conditioning: a participant with relationship contact on both
     # days. A tie met on either day is counted from each such end; an end that
     # has died since yesterday is not counted.
