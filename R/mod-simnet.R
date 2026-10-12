@@ -5,7 +5,7 @@ resim_nets_covid_ship <- function(dat, at) {
   ## Edges correction
   dat <- edges_correct(dat, at)
 
-  if (at < dat$param$network.lockdown.time) {
+  if (at < get_param(dat, "network.lockdown.time")) {
     nets <- 1:3
   } else {
     nets <- 4:6

@@ -153,12 +153,12 @@ progress_covid <- function(dat, at) {
   dat <- set_attr(dat, "hospit", hospit)
 
   ## Save summary statistics
-  dat <- set_epi(dat, "ea.flow", at, num.new.EtoA)
-  dat <- set_epi(dat, "ar.flow", at, num.new.AtoR)
-  dat <- set_epi(dat, "eip.flow", at, num.new.EtoIp)
-  dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
-  dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
-  dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
+  dat <- set_epi(dat, "ea.flow", num.new.EtoA, at = at)
+  dat <- set_epi(dat, "ar.flow", num.new.AtoR, at = at)
+  dat <- set_epi(dat, "eip.flow", num.new.EtoIp, at = at)
+  dat <- set_epi(dat, "ipic.flow", num.new.IptoIc, at = at)
+  dat <- set_epi(dat, "icr.flow", num.new.IctoR, at = at)
+  dat <- set_epi(dat, "hr.flow", num.new.HtoR, at = at)
 
   return(dat)
 }
@@ -169,19 +169,19 @@ progress_covid <- function(dat, at) {
 progress_covid_ship <- function(dat, at) {
 
   ## Attributes
-  active <- dat$attr$active
-  status <- dat$attr$status
-  statusTime <- dat$attr$statusTime
-  clinical <- dat$attr$clinical
-  age <- dat$attr$age
+  active <- get_attr(dat, "active")
+  status <- get_attr(dat, "status")
+  statusTime <- get_attr(dat, "statusTime")
+  clinical <- get_attr(dat, "clinical")
+  age <- get_attr(dat, "age")
 
   ## Parameters
-  prop.clinical <- dat$param$prop.clinical
-  ea.rate <- dat$param$ea.rate
-  ar.rate <- dat$param$ar.rate
-  eip.rate <- dat$param$eip.rate
-  ipic.rate <- dat$param$ipic.rate
-  icr.rate <- dat$param$icr.rate
+  prop.clinical <- get_param(dat, "prop.clinical")
+  ea.rate <- get_param(dat, "ea.rate")
+  ar.rate <- get_param(dat, "ar.rate")
+  eip.rate <- get_param(dat, "eip.rate")
+  ipic.rate <- get_param(dat, "ipic.rate")
+  icr.rate <- get_param(dat, "icr.rate")
 
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
@@ -268,17 +268,17 @@ progress_covid_ship <- function(dat, at) {
   }
 
   ## Save updated status attribute
-  dat$attr$status <- status
-  dat$attr$statusTime <- statusTime
-  dat$attr$clinical <- clinical
+  dat <- set_attr(dat, "status", status)
+  dat <- set_attr(dat, "statusTime", statusTime)
+  dat <- set_attr(dat, "clinical", clinical)
 
   ## Save summary statistics
-  dat$epi$ea.flow[at] <- num.new.EtoA
-  dat$epi$ar.flow[at] <- num.new.AtoR
+  dat <- set_epi(dat, "ea.flow", num.new.EtoA, at = at)
+  dat <- set_epi(dat, "ar.flow", num.new.AtoR, at = at)
 
-  dat$epi$eip.flow[at] <- num.new.EtoIp
-  dat$epi$ipic.flow[at] <- num.new.IptoIc
-  dat$epi$icr.flow[at] <- num.new.IctoR
+  dat <- set_epi(dat, "eip.flow", num.new.EtoIp, at = at)
+  dat <- set_epi(dat, "ipic.flow", num.new.IptoIc, at = at)
+  dat <- set_epi(dat, "icr.flow", num.new.IctoR, at = at)
 
   return(dat)
 }

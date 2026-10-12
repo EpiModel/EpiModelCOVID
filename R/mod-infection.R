@@ -4,22 +4,23 @@
 infect_covid_ship <- function(dat, at) {
 
   ## Attributes ##
-  active <- dat$attr$active
-  status <- dat$attr$status
-  transmissions <- dat$attr$transmissions
+  active <- get_attr(dat, "active")
+  status <- get_attr(dat, "status")
+  transmissions <- get_attr(dat, "transmissions")
+  type <- get_attr(dat, "type")
 
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
 
   ## Common Parameters ##
-  inf.prob.a.rr <- dat$param$inf.prob.a.rr
+  inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr")
 
-  act.rate.dx.inter.rr <- dat$param$act.rate.dx.inter.rr
-  act.rate.dx.inter.time <- dat$param$act.rate.dx.inter.time
-  act.rate.sympt.inter.rr <- dat$param$act.rate.sympt.inter.rr
-  act.rate.sympt.inter.time <- dat$param$act.rate.sympt.inter.time
+  act.rate.dx.inter.rr <- get_param(dat, "act.rate.dx.inter.rr")
+  act.rate.dx.inter.time <- get_param(dat, "act.rate.dx.inter.time")
+  act.rate.sympt.inter.rr <- get_param(dat, "act.rate.sympt.inter.rr")
+  act.rate.sympt.inter.time <- get_param(dat, "act.rate.sympt.inter.time")
 
-  network.lockdown.time <- dat$param$network.lockdown.time
+  network.lockdown.time <- get_param(dat, "network.lockdown.time")
   if (at < network.lockdown.time) {
     nets <- 1:3
   } else {
@@ -42,12 +43,12 @@ infect_covid_ship <- function(dat, at) {
     if (!(is.null(del.PP))) {
 
       ## Parameters ##
-      inf.prob <- dat$param$inf.prob.pp
-      act.rate <- dat$param$act.rate.pp
-      inf.prob.pp.inter.rr <- dat$param$inf.prob.pp.inter.rr
-      inf.prob.pp.inter.time <- dat$param$inf.prob.pp.inter.time
-      act.rate.pp.inter.rr <- dat$param$act.rate.pp.inter.rr
-      act.rate.pp.inter.time <- dat$param$act.rate.pp.inter.time
+      inf.prob <- get_param(dat, "inf.prob.pp")
+      act.rate <- get_param(dat, "act.rate.pp")
+      inf.prob.pp.inter.rr <- get_param(dat, "inf.prob.pp.inter.rr")
+      inf.prob.pp.inter.time <- get_param(dat, "inf.prob.pp.inter.time")
+      act.rate.pp.inter.rr <- get_param(dat, "act.rate.pp.inter.rr")
+      act.rate.pp.inter.time <- get_param(dat, "act.rate.pp.inter.time")
 
       # Set parameters on discordant edgelist data frame
       del.PP$transProb <- inf.prob
@@ -83,12 +84,14 @@ infect_covid_ship <- function(dat, at) {
 
       # Set new attributes for those newly infected
       if (nInf.PtoP > 0) {
-        dat$attr$status[idsNewInf.PtoP] <- "e"
-        dat$attr$infTime[idsNewInf.PtoP] <- at
-        dat$attr$statusTime[idsNewInf.PtoP] <- at
+        dat <- set_attr(dat, "status", "e", posit_ids = idsNewInf.PtoP)
+        dat <- set_attr(dat, "infTime", at, posit_ids = idsNewInf.PtoP)
+        dat <- set_attr(dat, "statusTime", at, posit_ids = idsNewInf.PtoP)
+        trans_count <- get_attr(dat, "transmissions")
         for (tt in seq_along(transIds)) {
-          dat$attr$transmissions[transIds[tt]] <- dat$attr$transmissions[transIds[tt]] + 1
+          trans_count[transIds[tt]] <- trans_count[transIds[tt]] + 1
         }
+        dat <- set_attr(dat, "transmissions", trans_count)
       }
     }
 
@@ -97,12 +100,12 @@ infect_covid_ship <- function(dat, at) {
     if (!(is.null(del.CC))) {
 
       ## Parameters ##
-      inf.prob <- dat$param$inf.prob.cc
-      act.rate <- dat$param$act.rate.cc
-      inf.prob.cc.inter.rr <- dat$param$inf.prob.cc.inter.rr
-      inf.prob.cc.inter.time <- dat$param$inf.prob.cc.inter.time
-      act.rate.cc.inter.rr <- dat$param$act.rate.cc.inter.rr
-      act.rate.cc.inter.time <- dat$param$act.rate.cc.inter.time
+      inf.prob <- get_param(dat, "inf.prob.cc")
+      act.rate <- get_param(dat, "act.rate.cc")
+      inf.prob.cc.inter.rr <- get_param(dat, "inf.prob.cc.inter.rr")
+      inf.prob.cc.inter.time <- get_param(dat, "inf.prob.cc.inter.time")
+      act.rate.cc.inter.rr <- get_param(dat, "act.rate.cc.inter.rr")
+      act.rate.cc.inter.time <- get_param(dat, "act.rate.cc.inter.time")
 
       # Set parameters on discordant edgelist data frame
       del.CC$transProb <- inf.prob
@@ -138,12 +141,14 @@ infect_covid_ship <- function(dat, at) {
 
       # Set new attributes for those newly infected
       if (nInf.CtoC > 0) {
-        dat$attr$status[idsNewInf.CtoC] <- "e"
-        dat$attr$infTime[idsNewInf.CtoC] <- at
-        dat$attr$statusTime[idsNewInf.CtoC] <- at
+        dat <- set_attr(dat, "status", "e", posit_ids = idsNewInf.CtoC)
+        dat <- set_attr(dat, "infTime", at, posit_ids = idsNewInf.CtoC)
+        dat <- set_attr(dat, "statusTime", at, posit_ids = idsNewInf.CtoC)
+        trans_count <- get_attr(dat, "transmissions")
         for (tt in seq_along(transIds)) {
-          dat$attr$transmissions[transIds[tt]] <- dat$attr$transmissions[transIds[tt]] + 1
+          trans_count[transIds[tt]] <- trans_count[transIds[tt]] + 1
         }
+        dat <- set_attr(dat, "transmissions", trans_count)
       }
     }
 
@@ -152,12 +157,12 @@ infect_covid_ship <- function(dat, at) {
     if (!(is.null(del.PC))) {
 
       ## Parameters ##
-      inf.prob <- dat$param$inf.prob.pc
-      act.rate <- dat$param$act.rate.pc
-      inf.prob.pc.inter.rr <- dat$param$inf.prob.pc.inter.rr
-      inf.prob.pc.inter.time <- dat$param$inf.prob.pc.inter.time
-      act.rate.pc.inter.rr <- dat$param$act.rate.pc.inter.rr
-      act.rate.pc.inter.time <- dat$param$act.rate.pc.inter.time
+      inf.prob <- get_param(dat, "inf.prob.pc")
+      act.rate <- get_param(dat, "act.rate.pc")
+      inf.prob.pc.inter.rr <- get_param(dat, "inf.prob.pc.inter.rr")
+      inf.prob.pc.inter.time <- get_param(dat, "inf.prob.pc.inter.time")
+      act.rate.pc.inter.rr <- get_param(dat, "act.rate.pc.inter.rr")
+      act.rate.pc.inter.time <- get_param(dat, "act.rate.pc.inter.time")
 
       # Set parameters on discordant edgelist data frame
       del.PC$transProb <- inf.prob
@@ -187,10 +192,10 @@ infect_covid_ship <- function(dat, at) {
       del.PC <- del.PC[which(transmit == 1), ]
 
       # New transmissions by direction
-      idsNewInf.CtoP <- unique(del.PC$sus[dat$attr$type[del.PC$sus] == "p"])
+      idsNewInf.CtoP <- unique(del.PC$sus[type[del.PC$sus] == "p"])
       nInf.CtoP <- length(idsNewInf.CtoP)
 
-      idsNewInf.PtoC <- unique(del.PC$sus[dat$attr$type[del.PC$sus] == "c"])
+      idsNewInf.PtoC <- unique(del.PC$sus[type[del.PC$sus] == "c"])
       nInf.PtoC <- length(idsNewInf.PtoC)
 
       # Either direction
@@ -199,33 +204,35 @@ infect_covid_ship <- function(dat, at) {
 
       # Set new attributes for those newly infected
       if ((nInf.CtoP + nInf.PtoC) > 0) {
-        dat$attr$status[idsNewInf.PC] <- "e"
-        dat$attr$infTime[idsNewInf.PC] <- at
-        dat$attr$statusTime[idsNewInf.PC] <- at
+        dat <- set_attr(dat, "status", "e", posit_ids = idsNewInf.PC)
+        dat <- set_attr(dat, "infTime", at, posit_ids = idsNewInf.PC)
+        dat <- set_attr(dat, "statusTime", at, posit_ids = idsNewInf.PC)
+        trans_count <- get_attr(dat, "transmissions")
         for (tt in seq_along(transIds)) {
-          dat$attr$transmissions[transIds[tt]] <- dat$attr$transmissions[transIds[tt]] + 1
+          trans_count[transIds[tt]] <- trans_count[transIds[tt]] + 1
         }
+        dat <- set_attr(dat, "transmissions", trans_count)
       }
     }
   }
 
   ## Save summary statistics for S->E flow
-  dat$epi$se.flow[at] <- nInf.PtoP + nInf.PtoC + nInf.CtoP + nInf.CtoC
-  dat$epi$se.pp.flow[at] <- nInf.PtoP
-  dat$epi$se.pc.flow[at] <- nInf.PtoC
-  dat$epi$se.cp.flow[at] <- nInf.CtoP
-  dat$epi$se.cc.flow[at] <- nInf.CtoC
-  dat$epi$Rt[at] <- mean(transmissions[status %in% c("a", "ip", "ic", "r")])
+  dat <- set_epi(dat, "se.flow", nInf.PtoP + nInf.PtoC + nInf.CtoP + nInf.CtoC, at = at)
+  dat <- set_epi(dat, "se.pp.flow", nInf.PtoP, at = at)
+  dat <- set_epi(dat, "se.pc.flow", nInf.PtoC, at = at)
+  dat <- set_epi(dat, "se.cp.flow", nInf.CtoP, at = at)
+  dat <- set_epi(dat, "se.cc.flow", nInf.CtoC, at = at)
+  dat <- set_epi(dat, "Rt", mean(transmissions[status %in% c("a", "ip", "ic", "r")]), at = at)
   return(dat)
 }
 
 
 discord_edgelist_covid_ship <- function(dat, nw = 1) {
 
-  status <- dat$attr$status
-  dxStatus <- dat$attr$dxStatus
+  status <- get_attr(dat, "status")
+  dxStatus <- get_attr(dat, "dxStatus")
 
-  el <- dat$el[[nw]]
+  el <- get_edgelist(dat, nw)
 
   del <- NULL
   if (nrow(el) > 0) {
