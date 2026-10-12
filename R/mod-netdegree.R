@@ -151,6 +151,9 @@ relationship_scores <- function(dat, at) {
   dat
 }
 
+# The scores vax.degree.score can name
+degree_scores <- c("total", "xlayer", "relationship", "all", "active", "hazard", "recent", "new", "out")
+
 #' The score the degree strategies rank on
 #'
 #' `vax.degree.score` names it: "total" (every network tie, the household
@@ -164,8 +167,6 @@ relationship_scores <- function(dat, at) {
 #' @param dat Main `netsim_dat` object.
 #' @return Numeric score per node.
 #' @keywords internal
-degree_scores <- c("total", "xlayer", "relationship", "all", "active", "hazard", "recent", "new", "out")
-
 degree_score <- function(dat) {
   score <- as.character(param_or(dat, "vax.degree.score", "total"))
   rel_only <- c("relationship", "all", "active", "hazard", "recent", "new", "out")
