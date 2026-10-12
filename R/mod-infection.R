@@ -256,45 +256,45 @@ infect_general <- function(dat, at) {
   allNewInf <- unique(allNewInf)
 
   ## Summary statistics for incidence (network by layer + imports)
-  dat <- set_epi(dat, "se.flow", at, sum(nInf) + nImport + nBg)
-  dat <- set_epi(dat, "se.flow.l1", at, nInf[1])
-  dat <- set_epi(dat, "se.flow.l2", at, nInf[2])
-  dat <- set_epi(dat, "se.flow.l3", at, nInf[3])
-  dat <- set_epi(dat, "se.flow.l4", at, if (length(nInf) >= 4) nInf[4] else 0)  # household layer
+  dat <- set_epi(dat, "se.flow", sum(nInf) + nImport + nBg, at = at)
+  dat <- set_epi(dat, "se.flow.l1", nInf[1], at = at)
+  dat <- set_epi(dat, "se.flow.l2", nInf[2], at = at)
+  dat <- set_epi(dat, "se.flow.l3", nInf[3], at = at)
+  dat <- set_epi(dat, "se.flow.l4", if (length(nInf) >= 4) nInf[4] else 0, at = at)  # household layer
   # The same counts named by tie type (GlobalMix India #63), so a reader never has
   # to know which position a layer took
-  for (k in seq_along(types)) dat <- set_epi(dat, paste0("se.flow.", types[k]), at, nInf[k])
-  dat <- set_epi(dat, "se.import.flow", at, nImport)
-  if (bg.hazard > 0) dat <- set_epi(dat, "se.flow.bg", at, nBg)
+  for (k in seq_along(types)) dat <- set_epi(dat, paste0("se.flow.", types[k]), nInf[k], at = at)
+  dat <- set_epi(dat, "se.import.flow", nImport, at = at)
+  if (bg.hazard > 0) dat <- set_epi(dat, "se.flow.bg", nBg, at = at)
 
   ## Stratified incidence: by age group, vaccination status, and network position
   age <- get_attr(dat, "age")
   age.breaks <- get_param(dat, "age.breaks")
   ag <- cut(age[allNewInf], age.breaks, labels = FALSE, right = FALSE)
   for (g in seq_len(length(age.breaks) - 1)) {
-    dat <- set_epi(dat, paste0("se.flow.age", g), at, sum(ag == g, na.rm = TRUE))
+    dat <- set_epi(dat, paste0("se.flow.age", g), sum(ag == g, na.rm = TRUE), at = at)
   }
   vaxed_new <- vax[allNewInf] >= 1
-  dat <- set_epi(dat, "se.flow.vax", at, sum(vaxed_new, na.rm = TRUE))
-  dat <- set_epi(dat, "se.flow.unvax", at, sum(!vaxed_new, na.rm = TRUE))
+  dat <- set_epi(dat, "se.flow.vax", sum(vaxed_new, na.rm = TRUE), at = at)
+  dat <- set_epi(dat, "se.flow.unvax", sum(!vaxed_new, na.rm = TRUE), at = at)
   # Age x vaccination-status cross-tab. The paper's indirect-protection claim
   # (vaccinating network hubs cuts infection among the UNVACCINATED vulnerable)
   # cannot be read from the age and vax marginals alone, so emit incidence among
   # the unvaccinated (and vaccinated) within each age group.
   for (g in seq_len(length(age.breaks) - 1)) {
-    dat <- set_epi(dat, paste0("se.flow.unvax.age", g), at, sum(ag == g & !vaxed_new, na.rm = TRUE))
-    dat <- set_epi(dat, paste0("se.flow.vax.age", g),   at, sum(ag == g &  vaxed_new, na.rm = TRUE))
+    dat <- set_epi(dat, paste0("se.flow.unvax.age", g), sum(ag == g & !vaxed_new, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, paste0("se.flow.vax.age", g),   sum(ag == g &  vaxed_new, na.rm = TRUE), at = at)
   }
   degree_quartile <- get_attr(dat, "degree_quartile")
   if (!is.null(degree_quartile)) {
     dq_new <- degree_quartile[allNewInf]
-    for (q in 1:4) dat <- set_epi(dat, paste0("se.flow.degQ", q), at, sum(dq_new == q, na.rm = TRUE))
+    for (q in 1:4) dat <- set_epi(dat, paste0("se.flow.degQ", q), sum(dq_new == q, na.rm = TRUE), at = at)
   }
   is_bridge <- get_attr(dat, "is_bridge")
   if (!is.null(is_bridge)) {
     br_new <- is_bridge[allNewInf]
-    dat <- set_epi(dat, "se.flow.bridge", at, sum(br_new, na.rm = TRUE))
-    dat <- set_epi(dat, "se.flow.nonbridge", at, sum(!br_new, na.rm = TRUE))
+    dat <- set_epi(dat, "se.flow.bridge", sum(br_new, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, "se.flow.nonbridge", sum(!br_new, na.rm = TRUE), at = at)
   }
   # Infant incidence (issue #23): reported separately (and by vax status) so the
   # infant burden and the indirect protection of infants by parent-targeting are
@@ -302,17 +302,17 @@ infect_general <- function(dat, at) {
   is_infant <- get_attr(dat, "is_infant")
   if (!is.null(is_infant)) {
     inf_new <- is_infant[allNewInf]
-    dat <- set_epi(dat, "se.flow.infant", at, sum(inf_new, na.rm = TRUE))
-    dat <- set_epi(dat, "se.flow.infant.unvax", at, sum(inf_new & !vaxed_new, na.rm = TRUE))
-    dat <- set_epi(dat, "se.flow.infant.vax", at, sum(inf_new & vaxed_new, na.rm = TRUE))
+    dat <- set_epi(dat, "se.flow.infant", sum(inf_new, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, "se.flow.infant.unvax", sum(inf_new & !vaxed_new, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, "se.flow.infant.vax", sum(inf_new & vaxed_new, na.rm = TRUE), at = at)
     # Infant severity is sharply front-loaded, so the RSV infant contrast has to
     # be readable at the 0-6 / 6-12 month split rather than pooled under 1y
     # (issue #46). Deaths and hospitalisations already split this way; incidence
     # did not, which left the infant comparison undecomposable into its
     # attack-rate and severity parts.
     a_new <- age[allNewInf]
-    dat <- set_epi(dat, "se.flow.infant.young", at, sum(inf_new & a_new <  0.5, na.rm = TRUE))
-    dat <- set_epi(dat, "se.flow.infant.old",   at, sum(inf_new & a_new >= 0.5, na.rm = TRUE))
+    dat <- set_epi(dat, "se.flow.infant.young", sum(inf_new & a_new <  0.5, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, "se.flow.infant.old",   sum(inf_new & a_new >= 0.5, na.rm = TRUE), at = at)
   }
 
   ## Person-level cumulative infection (issue #46) ------------------------------
@@ -346,11 +346,11 @@ infect_general <- function(dat, at) {
     hh_infectious <- unique(hh.ids[active == 1 & status_now %in% c("a", "ip", "ic", "h") &
                                      !is.na(hh.ids)])
     exposed_sus <- active == 1 & status_now == "s" & hh.ids %in% hh_infectious
-    dat <- set_epi(dat, "hh.sar.den", at, sum(exposed_sus, na.rm = TRUE))
+    dat <- set_epi(dat, "hh.sar.den", sum(exposed_sus, na.rm = TRUE), at = at)
     hh <- hh_layer(dat)
     hh_type <- if (is.na(hh)) NA_integer_ else match(names(dat$run$el)[hh], types)
-    dat <- set_epi(dat, "hh.sar.num", at, if (is.na(hh_type)) 0 else nInf[hh_type])
-    dat <- set_epi(dat, "hh.exposed.n", at, length(hh_infectious))
+    dat <- set_epi(dat, "hh.sar.num", if (is.na(hh_type)) 0 else nInf[hh_type], at = at)
+    dat <- set_epi(dat, "hh.exposed.n", length(hh_infectious), at = at)
   }
 
   return(dat)

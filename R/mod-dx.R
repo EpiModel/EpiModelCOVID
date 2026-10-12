@@ -168,14 +168,14 @@ dx_covid_corporate <- function(dat, at) {
   dat <- set_attr(dat, "isoTime", isoTime)
   
   ## Summary statistics ##
-  dat <- set_epi(dat, "nDx", at, length(idsDx.sympt) + length(idsDx.other))
-  dat <- set_epi(dat, "nDx.pos", at, length(idsDx.sympt.pos) +
-                   length(idsDx.other.pos.true))
-  dat <- set_epi(dat, "nDx.pos.sympt", at, length(idsDx.sympt.pos))
-  dat <- set_epi(dat, "nDx.pos.fn", at, length(idsDx.sympt.neg) +
-                   length(idsDx.other.pos.false))
-  dat <- set_epi(dat, "nDx.new.iso", at, num.new.dx.sympt.iso.office + num.new.dx.sympt.iso.other + num.new.dx.iso.office + num.new.dx.iso.other)
-  dat <- set_epi(dat, "nDx.end.iso", at, num.iso.end.iso)
+  dat <- set_epi(dat, "nDx", length(idsDx.sympt) + length(idsDx.other), at = at)
+  dat <- set_epi(dat, "nDx.pos", length(idsDx.sympt.pos) +
+                   length(idsDx.other.pos.true), at = at)
+  dat <- set_epi(dat, "nDx.pos.sympt", length(idsDx.sympt.pos), at = at)
+  dat <- set_epi(dat, "nDx.pos.fn", length(idsDx.sympt.neg) +
+                   length(idsDx.other.pos.false), at = at)
+  dat <- set_epi(dat, "nDx.new.iso", num.new.dx.sympt.iso.office + num.new.dx.sympt.iso.other + num.new.dx.iso.office + num.new.dx.iso.other, at = at)
+  dat <- set_epi(dat, "nDx.end.iso", num.iso.end.iso, at = at)
   
   return(dat)
 }

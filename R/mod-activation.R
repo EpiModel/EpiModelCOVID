@@ -439,25 +439,25 @@ activation_diagnostics <- function(dat, at, day, uid, out, live, degF, degI, deg
   # the daily zero share by band, and the sums behind the person-day correlation
   # of frequent and infrequent contacts
   for (g in seq_along(get_param(dat, "age.grps"))) {
-    dat <- set_epi(dat, paste0("act.iso.rel.age", g), at, mean(zero_rel[live & band == g]))
+    dat <- set_epi(dat, paste0("act.iso.rel.age", g), mean(zero_rel[live & band == g]), at = at)
   }
   x <- degF[live]; y <- degI[live]
-  dat <- set_epi(dat, "act.n", at, n_live)
-  dat <- set_epi(dat, "act.sF", at, sum(x))
-  dat <- set_epi(dat, "act.sI", at, sum(y))
-  dat <- set_epi(dat, "act.sFI", at, sum(x * y))
-  dat <- set_epi(dat, "act.sF2", at, sum(x^2))
-  dat <- set_epi(dat, "act.sI2", at, sum(y^2))
-  dat <- set_epi(dat, "act.out", at, sum(out) / n_live)
-  dat <- set_epi(dat, "act.deg.freq", at, 2 * nrow(day$freq) / n_live)
-  dat <- set_epi(dat, "act.deg.infreq", at, 2 * nrow(day$infreq) / n_live)
-  dat <- set_epi(dat, "act.deg.new", at, 2 * nrow(day$new) / n_live)
-  dat <- set_epi(dat, "act.iso.rel", at, sum(zero_rel & live) / n_live)
-  dat <- set_epi(dat, "act.iso.all", at, sum(zero_all & live) / n_live)
+  dat <- set_epi(dat, "act.n", n_live, at = at)
+  dat <- set_epi(dat, "act.sF", sum(x), at = at)
+  dat <- set_epi(dat, "act.sI", sum(y), at = at)
+  dat <- set_epi(dat, "act.sFI", sum(x * y), at = at)
+  dat <- set_epi(dat, "act.sF2", sum(x^2), at = at)
+  dat <- set_epi(dat, "act.sI2", sum(y^2), at = at)
+  dat <- set_epi(dat, "act.out", sum(out) / n_live, at = at)
+  dat <- set_epi(dat, "act.deg.freq", 2 * nrow(day$freq) / n_live, at = at)
+  dat <- set_epi(dat, "act.deg.infreq", 2 * nrow(day$infreq) / n_live, at = at)
+  dat <- set_epi(dat, "act.deg.new", 2 * nrow(day$new) / n_live, at = at)
+  dat <- set_epi(dat, "act.iso.rel", sum(zero_rel & live) / n_live, at = at)
+  dat <- set_epi(dat, "act.iso.all", sum(zero_all & live) / n_live, at = at)
   # New-contact ends on people with no relationship met today (the diary's 51%
   # rural and 48% urban)
-  dat <- set_epi(dat, "act.new.norel", at, sum(zero_rel[day$new]))
-  dat <- set_epi(dat, "act.new.ends", at, length(day$new))
+  dat <- set_epi(dat, "act.new.norel", sum(zero_rel[day$new]), at = at)
+  dat <- set_epi(dat, "act.new.ends", length(day$new), at = at)
 
   prev <- dat$run$act_prev
   now <- list(uid = uid, out = out, live = live, zero_rel = zero_rel, zero_all = zero_all,
@@ -468,11 +468,11 @@ activation_diagnostics <- function(dat, at, day, uid, out, live, degF, degI, deg
     both <- live & !is.na(j)
     both[both] <- prev$live[j[both]]
     zr_prev <- prev$zero_rel[j]; za_prev <- prev$zero_all[j]
-    dat <- set_epi(dat, "act.z.rel", at, (sum(zr_prev[both]) + sum(zero_rel[both])) / 2)
-    dat <- set_epi(dat, "act.zz.rel", at, sum(zr_prev[both] & zero_rel[both]))
-    dat <- set_epi(dat, "act.z.all", at, (sum(za_prev[both]) + sum(zero_all[both])) / 2)
-    dat <- set_epi(dat, "act.zz.all", at, sum(za_prev[both] & zero_all[both]))
-    dat <- set_epi(dat, "act.n2", at, sum(both))
+    dat <- set_epi(dat, "act.z.rel", (sum(zr_prev[both]) + sum(zero_rel[both])) / 2, at = at)
+    dat <- set_epi(dat, "act.zz.rel", sum(zr_prev[both] & zero_rel[both]), at = at)
+    dat <- set_epi(dat, "act.z.all", (sum(za_prev[both]) + sum(zero_all[both])) / 2, at = at)
+    dat <- set_epi(dat, "act.zz.all", sum(za_prev[both] & zero_all[both]), at = at)
+    dat <- set_epi(dat, "act.n2", sum(both), at = at)
     # The diary's conditioning: a participant with relationship contact on both
     # days. A tie met on either day is counted from each such end; an end that
     # has died since yesterday is not counted.
@@ -489,13 +489,13 @@ activation_diagnostics <- function(dat, at, day, uid, out, live, degF, degI, deg
     }
     bF <- both_days(now$F, prev$F)
     bI <- both_days(now$I, prev$I)
-    dat <- set_epi(dat, "act.both.F.num", at, bF[["num"]])
-    dat <- set_epi(dat, "act.both.F.den", at, bF[["den"]])
-    dat <- set_epi(dat, "act.both.I.num", at, bI[["num"]])
-    dat <- set_epi(dat, "act.both.I.den", at, bI[["den"]])
-    dat <- set_epi(dat, "act.union2", at, bF[["union"]] + bI[["union"]] + now$n_new + prev$n_new)
-    dat <- set_epi(dat, "act.daily2", at, nrow(now$F) + nrow(prev$F) + nrow(now$I) + nrow(prev$I) +
-                     now$n_new + prev$n_new)
+    dat <- set_epi(dat, "act.both.F.num", bF[["num"]], at = at)
+    dat <- set_epi(dat, "act.both.F.den", bF[["den"]], at = at)
+    dat <- set_epi(dat, "act.both.I.num", bI[["num"]], at = at)
+    dat <- set_epi(dat, "act.both.I.den", bI[["den"]], at = at)
+    dat <- set_epi(dat, "act.union2", bF[["union"]] + bI[["union"]] + now$n_new + prev$n_new, at = at)
+    dat <- set_epi(dat, "act.daily2", nrow(now$F) + nrow(prev$F) + nrow(now$I) + nrow(prev$I) +
+                     now$n_new + prev$n_new, at = at)
   }
   dat$run$act_prev <- now
   dat

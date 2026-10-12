@@ -152,13 +152,13 @@ progress_general <- function(dat, at) {
       }
       ag_ic <- cut(age[ids.new.Ic], age.breaks, labels = FALSE, right = FALSE)
       for (g in seq_len(length(age.breaks) - 1)) {
-        dat <- set_epi(dat, paste0("ipic.flow.age", g), at, sum(ag_ic == g, na.rm = TRUE))
+        dat <- set_epi(dat, paste0("ipic.flow.age", g), sum(ag_ic == g, na.rm = TRUE), at = at)
       }
       if (!is.null(is_infant)) {
         i_ic <- is_infant[ids.new.Ic]; a_ic <- age[ids.new.Ic]
-        dat <- set_epi(dat, "ipic.flow.infant", at, sum(i_ic, na.rm = TRUE))
-        dat <- set_epi(dat, "ipic.flow.infant.young", at, sum(i_ic & a_ic <  0.5, na.rm = TRUE))
-        dat <- set_epi(dat, "ipic.flow.infant.old",   at, sum(i_ic & a_ic >= 0.5, na.rm = TRUE))
+        dat <- set_epi(dat, "ipic.flow.infant", sum(i_ic, na.rm = TRUE), at = at)
+        dat <- set_epi(dat, "ipic.flow.infant.young", sum(i_ic & a_ic <  0.5, na.rm = TRUE), at = at)
+        dat <- set_epi(dat, "ipic.flow.infant.old",   sum(i_ic & a_ic >= 0.5, na.rm = TRUE), at = at)
       }
     }
   }
@@ -238,13 +238,13 @@ progress_general <- function(dat, at) {
       ## series emitted in mod-prevalence.R.
       ag_h <- cut(age[ids.new.H], age.breaks, labels = FALSE, right = FALSE)
       for (g in seq_len(length(age.breaks) - 1)) {
-        dat <- set_epi(dat, paste0("ich.flow.age", g), at, sum(ag_h == g, na.rm = TRUE))
+        dat <- set_epi(dat, paste0("ich.flow.age", g), sum(ag_h == g, na.rm = TRUE), at = at)
       }
       if (!is.null(is_infant)) {
         i_h <- is_infant[ids.new.H]; a_h <- age[ids.new.H]
-        dat <- set_epi(dat, "ich.flow.infant", at, sum(i_h, na.rm = TRUE))
-        dat <- set_epi(dat, "ich.flow.infant.young", at, sum(i_h & a_h <  0.5, na.rm = TRUE))
-        dat <- set_epi(dat, "ich.flow.infant.old",   at, sum(i_h & a_h >= 0.5, na.rm = TRUE))
+        dat <- set_epi(dat, "ich.flow.infant", sum(i_h, na.rm = TRUE), at = at)
+        dat <- set_epi(dat, "ich.flow.infant.young", sum(i_h & a_h <  0.5, na.rm = TRUE), at = at)
+        dat <- set_epi(dat, "ich.flow.infant.old",   sum(i_h & a_h >= 0.5, na.rm = TRUE), at = at)
       }
     }
   }
@@ -306,19 +306,19 @@ progress_general <- function(dat, at) {
   dat <- set_attr(dat, "hospit", hospit)
   
   ## Save summary statistics
-  dat <- set_epi(dat, "ea.flow", at, num.new.EtoA)
-  dat <- set_epi(dat, "ar.flow", at, num.new.AtoR)
-  dat <- set_epi(dat, "eip.flow", at, num.new.EtoIp)
-  dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
-  dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
-  dat <- set_epi(dat, "ich.flow", at, num.new.IctoH)
-  dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
-  dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
+  dat <- set_epi(dat, "ea.flow", num.new.EtoA, at = at)
+  dat <- set_epi(dat, "ar.flow", num.new.AtoR, at = at)
+  dat <- set_epi(dat, "eip.flow", num.new.EtoIp, at = at)
+  dat <- set_epi(dat, "ipic.flow", num.new.IptoIc, at = at)
+  dat <- set_epi(dat, "icr.flow", num.new.IctoR, at = at)
+  dat <- set_epi(dat, "ich.flow", num.new.IctoH, at = at)
+  dat <- set_epi(dat, "hr.flow", num.new.HtoR, at = at)
+  dat <- set_epi(dat, "rs.flow", num.new.RtoS, at = at)
   
-  dat <- set_epi(dat, "ipic.flow.w", at, num.new.IptoIc.w)
-  dat <- set_epi(dat, "icr.flow.w", at, num.new.IctoR.w)
-  dat <- set_epi(dat, "ich.flow.w", at, num.new.IctoH.w)
-  dat <- set_epi(dat, "hr.flow.w", at, num.new.HtoR.w)
+  dat <- set_epi(dat, "ipic.flow.w", num.new.IptoIc.w, at = at)
+  dat <- set_epi(dat, "icr.flow.w", num.new.IctoR.w, at = at)
+  dat <- set_epi(dat, "ich.flow.w", num.new.IctoH.w, at = at)
+  dat <- set_epi(dat, "hr.flow.w", num.new.HtoR.w, at = at)
   
   
   return(dat)
@@ -600,19 +600,19 @@ progress_covid_corporate <- function(dat, at) {
   dat <- set_attr(dat, "dxStatus", dxStatus)
   
   ## Save summary statistics
-  dat <- set_epi(dat, "ea.flow", at, num.new.EtoA)
-  dat <- set_epi(dat, "ar.flow", at, num.new.AtoR)
-  dat <- set_epi(dat, "eip.flow", at, num.new.EtoIp)
-  dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
-  dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
-  dat <- set_epi(dat, "ich.flow", at, num.new.IctoH)
-  dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
-  dat <- set_epi(dat, "rs.flow", at, num.new.RtoS)
+  dat <- set_epi(dat, "ea.flow", num.new.EtoA, at = at)
+  dat <- set_epi(dat, "ar.flow", num.new.AtoR, at = at)
+  dat <- set_epi(dat, "eip.flow", num.new.EtoIp, at = at)
+  dat <- set_epi(dat, "ipic.flow", num.new.IptoIc, at = at)
+  dat <- set_epi(dat, "icr.flow", num.new.IctoR, at = at)
+  dat <- set_epi(dat, "ich.flow", num.new.IctoH, at = at)
+  dat <- set_epi(dat, "hr.flow", num.new.HtoR, at = at)
+  dat <- set_epi(dat, "rs.flow", num.new.RtoS, at = at)
   
-  dat <- set_epi(dat, "ipic.flow.w", at, num.new.IptoIc.w)
-  dat <- set_epi(dat, "icr.flow.w", at, num.new.IctoR.w)
-  dat <- set_epi(dat, "ich.flow.w", at, num.new.IctoH.w)
-  dat <- set_epi(dat, "hr.flow.w", at, num.new.HtoR.w)
+  dat <- set_epi(dat, "ipic.flow.w", num.new.IptoIc.w, at = at)
+  dat <- set_epi(dat, "icr.flow.w", num.new.IctoR.w, at = at)
+  dat <- set_epi(dat, "ich.flow.w", num.new.IctoH.w, at = at)
+  dat <- set_epi(dat, "hr.flow.w", num.new.HtoR.w, at = at)
   
   
   return(dat)

@@ -114,26 +114,26 @@ deaths_covid_gmc19 <- function(dat, at) {
   ## is what lets the strategy comparison distinguish "vaccinated cases protected"
   ## from "fewer cases overall" and read direct vs indirect mortality protection;
   ## the age marginal alone cannot.
-  dat <- set_epi(dat, "d.flow", at, nDeaths)
-  dat <- set_epi(dat, "d.dis.flow", at, nDisDeaths)
-  dat <- set_epi(dat, "d.dis.flow.vax", at, sum(vax_disdep, na.rm = TRUE))
-  dat <- set_epi(dat, "d.dis.flow.unvax", at, sum(!vax_disdep, na.rm = TRUE))
+  dat <- set_epi(dat, "d.flow", nDeaths, at = at)
+  dat <- set_epi(dat, "d.dis.flow", nDisDeaths, at = at)
+  dat <- set_epi(dat, "d.dis.flow.vax", sum(vax_disdep, na.rm = TRUE), at = at)
+  dat <- set_epi(dat, "d.dis.flow.unvax", sum(!vax_disdep, na.rm = TRUE), at = at)
   # Infant disease deaths, reported separately so the infant burden (RSV) is not
   # diluted in the coarse youngest age band (d.dis.flow.age1).
-  dat <- set_epi(dat, "d.dis.flow.infant", at, sum(infant_disdep, na.rm = TRUE))
+  dat <- set_epi(dat, "d.dis.flow.infant", sum(infant_disdep, na.rm = TRUE), at = at)
   # Issue #46: infant deaths split at 6 months, matching the graded severity
   # inputs (dis.death.rate.infant / .infant6). Pooling under 1y hid the fact
   # that 0-6mo carries most of the RSV burden, which is exactly the quantity the
   # direct-infant-product arms are meant to move.
-  dat <- set_epi(dat, "d.dis.flow.infant.young", at,
-                 sum(infant_disdep & age_disdep <  0.5, na.rm = TRUE))
-  dat <- set_epi(dat, "d.dis.flow.infant.old", at,
-                 sum(infant_disdep & age_disdep >= 0.5, na.rm = TRUE))
+  dat <- set_epi(dat, "d.dis.flow.infant.young",
+                 sum(infant_disdep & age_disdep <  0.5, na.rm = TRUE), at = at)
+  dat <- set_epi(dat, "d.dis.flow.infant.old",
+                 sum(infant_disdep & age_disdep >= 0.5, na.rm = TRUE), at = at)
   for (g in seq_len(nAgeGrp)) {
-    dat <- set_epi(dat, paste0("d.dis.flow.age", g), at,
-                   sum(age_grp_disdep == g, na.rm = TRUE))
-    dat <- set_epi(dat, paste0("d.dis.flow.unvax.age", g), at,
-                   sum(age_grp_disdep == g & !vax_disdep, na.rm = TRUE))
+    dat <- set_epi(dat, paste0("d.dis.flow.age", g),
+                   sum(age_grp_disdep == g, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, paste0("d.dis.flow.unvax.age", g),
+                   sum(age_grp_disdep == g & !vax_disdep, na.rm = TRUE), at = at)
   }
 
   return(dat)

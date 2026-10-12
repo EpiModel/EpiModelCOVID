@@ -65,17 +65,17 @@ prevalence_covid_corporate <- function(dat, at) {
   }
 
   # Update Outputs
-  dat <- set_epi(dat, "num", at, sum(active == 1))
+  dat <- set_epi(dat, "num", sum(active == 1), at = at)
 
-  dat <- set_epi(dat, "s.num", at, sum(active == 1 & status == "s"))
-  dat <- set_epi(dat, "e.num", at, sum(active == 1 & status == "e"))
-  dat <- set_epi(dat, "a.num", at, sum(active == 1 & status == "a"))
-  dat <- set_epi(dat, "ip.num", at, sum(active == 1 & status == "ip"))
-  dat <- set_epi(dat, "ic.num", at, sum(active == 1 & status == "ic"))
-  dat <- set_epi(dat, "r.num", at, sum(active == 1 & status == "r"))
-  dat <- set_epi(dat, "h.num", at, sum(active == 1 & status == "h"))
-  dat <- set_epi(dat, "v1.num", at, sum(active == 1 & status == "s" & vax == 1))
-  dat <- set_epi(dat, "v2.num", at, sum(active == 1 & status == "s" & vax == 3))
+  dat <- set_epi(dat, "s.num", sum(active == 1 & status == "s"), at = at)
+  dat <- set_epi(dat, "e.num", sum(active == 1 & status == "e"), at = at)
+  dat <- set_epi(dat, "a.num", sum(active == 1 & status == "a"), at = at)
+  dat <- set_epi(dat, "ip.num", sum(active == 1 & status == "ip"), at = at)
+  dat <- set_epi(dat, "ic.num", sum(active == 1 & status == "ic"), at = at)
+  dat <- set_epi(dat, "r.num", sum(active == 1 & status == "r"), at = at)
+  dat <- set_epi(dat, "h.num", sum(active == 1 & status == "h"), at = at)
+  dat <- set_epi(dat, "v1.num", sum(active == 1 & status == "s" & vax == 1), at = at)
+  dat <- set_epi(dat, "v2.num", sum(active == 1 & status == "s" & vax == 3), at = at)
 
   ## Person-denominated outputs (issue #46) --------------------------------------
   ##
@@ -99,24 +99,24 @@ prevalence_covid_corporate <- function(dat, at) {
   ag <- cut(age, age.breaks, labels = FALSE, right = FALSE)
 
   if (!is.null(ever.inf)) {
-    dat <- set_epi(dat, "ever.inf.num", at, sum(alive & ever.inf == 1, na.rm = TRUE))
+    dat <- set_epi(dat, "ever.inf.num", sum(alive & ever.inf == 1, na.rm = TRUE), at = at)
     for (g in seq_len(nAge)) {
-      dat <- set_epi(dat, paste0("ever.inf.age", g), at,
-                     sum(alive & ag == g & ever.inf == 1, na.rm = TRUE))
+      dat <- set_epi(dat, paste0("ever.inf.age", g),
+                     sum(alive & ag == g & ever.inf == 1, na.rm = TRUE), at = at)
     }
   }
   if (!is.null(ever.sympt)) {
-    dat <- set_epi(dat, "ever.sympt.num", at, sum(alive & ever.sympt == 1, na.rm = TRUE))
+    dat <- set_epi(dat, "ever.sympt.num", sum(alive & ever.sympt == 1, na.rm = TRUE), at = at)
     for (g in seq_len(nAge)) {
-      dat <- set_epi(dat, paste0("ever.sympt.age", g), at,
-                     sum(alive & ag == g & ever.sympt == 1, na.rm = TRUE))
+      dat <- set_epi(dat, paste0("ever.sympt.age", g),
+                     sum(alive & ag == g & ever.sympt == 1, na.rm = TRUE), at = at)
     }
   }
   ## Per-band denominators. Without these the ever.inf.age* counts are not attack
   ## rates, and the age structure drifts over a 365-day run through ageing,
   ## arrivals and deaths, so a fixed t=1 denominator would be wrong.
   for (g in seq_len(nAge)) {
-    dat <- set_epi(dat, paste0("n.age", g), at, sum(alive & ag == g, na.rm = TRUE))
+    dat <- set_epi(dat, paste0("n.age", g), sum(alive & ag == g, na.rm = TRUE), at = at)
   }
 
   ## Infant person-time, split at 6 months (issue #46). Infant N was never
@@ -128,11 +128,11 @@ prevalence_covid_corporate <- function(dat, at) {
   is_infant <- get_attr(dat, "is_infant")
   if (!is.null(is_infant)) {
     inf_alive <- alive & is_infant
-    dat <- set_epi(dat, "n.infant", at, sum(inf_alive, na.rm = TRUE))
-    dat <- set_epi(dat, "n.infant.young", at, sum(inf_alive & age <  0.5, na.rm = TRUE))
-    dat <- set_epi(dat, "n.infant.old",   at, sum(inf_alive & age >= 0.5, na.rm = TRUE))
+    dat <- set_epi(dat, "n.infant", sum(inf_alive, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, "n.infant.young", sum(inf_alive & age <  0.5, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, "n.infant.old",   sum(inf_alive & age >= 0.5, na.rm = TRUE), at = at)
     if (!is.null(ever.inf)) {
-      dat <- set_epi(dat, "ever.inf.infant", at, sum(inf_alive & ever.inf == 1, na.rm = TRUE))
+      dat <- set_epi(dat, "ever.inf.infant", sum(inf_alive & ever.inf == 1, na.rm = TRUE), at = at)
     }
   }
 

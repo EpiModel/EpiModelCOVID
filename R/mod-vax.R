@@ -197,40 +197,40 @@ vax_general <- function(dat, at) {
   # Summary statistics 
   ## Number of regular doses received at this timestep
   for (dose_i in seq_len(nrow(vax.schedule))) {
-    dat <- set_epi(dat, paste0("nVax", dose_i), at, daily_vax_by_dose[dose_i])
+    dat <- set_epi(dat, paste0("nVax", dose_i), daily_vax_by_dose[dose_i], at = at)
   }
   
   
   ## Age-specific vax coverage #TODO: this needs to be turned to loop like the above
-  dat <- set_epi(dat, "cov_vax1_0to4", at, length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)))
-  dat <- set_epi(dat, "cov_vax1_5to17", at, length(which(vax.age.group == 2 & vax >= 1)) / length(which(vax.age.group == 2)))
-  dat <- set_epi(dat, "cov_vax1_18to64", at, length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 1)) / length(which(vax.age.group == 3 | vax.age.group == 4)))
-  dat <- set_epi(dat, "cov_vax1_65p", at, length(which(vax.age.group == 5 & vax >= 1)) / length(which(vax.age.group == 5)))
+  dat <- set_epi(dat, "cov_vax1_0to4", length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)), at = at)
+  dat <- set_epi(dat, "cov_vax1_5to17", length(which(vax.age.group == 2 & vax >= 1)) / length(which(vax.age.group == 2)), at = at)
+  dat <- set_epi(dat, "cov_vax1_18to64", length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 1)) / length(which(vax.age.group == 3 | vax.age.group == 4)), at = at)
+  dat <- set_epi(dat, "cov_vax1_65p", length(which(vax.age.group == 5 & vax >= 1)) / length(which(vax.age.group == 5)), at = at)
   
-  dat <- set_epi(dat, "cov_vax2_0to4", at, length(which(vax.age.group == 1 & vax >= 2)) / length(which(vax.age.group == 1)))
-  dat <- set_epi(dat, "cov_vax2_5to17", at, length(which(vax.age.group == 2 & vax >= 2)) / length(which(vax.age.group == 2)))
-  dat <- set_epi(dat, "cov_vax2_18to64", at, length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 2)) / length(which(vax.age.group == 3 | vax.age.group == 4)))
-  dat <- set_epi(dat, "cov_vax2_65p", at, length(which(vax.age.group == 5 & vax >= 2)) / length(which(vax.age.group == 5)))
+  dat <- set_epi(dat, "cov_vax2_0to4", length(which(vax.age.group == 1 & vax >= 2)) / length(which(vax.age.group == 1)), at = at)
+  dat <- set_epi(dat, "cov_vax2_5to17", length(which(vax.age.group == 2 & vax >= 2)) / length(which(vax.age.group == 2)), at = at)
+  dat <- set_epi(dat, "cov_vax2_18to64", length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 2)) / length(which(vax.age.group == 3 | vax.age.group == 4)), at = at)
+  dat <- set_epi(dat, "cov_vax2_65p", length(which(vax.age.group == 5 & vax >= 2)) / length(which(vax.age.group == 5)), at = at)
   
-  dat <- set_epi(dat, "cov_vax3_0to4", at, length(which(vax.age.group == 1 & vax >= 3)) / length(which(vax.age.group == 1)))
-  dat <- set_epi(dat, "cov_vax3_5to17", at, length(which(vax.age.group == 2 & vax >= 3)) / length(which(vax.age.group == 2)))
-  dat <- set_epi(dat, "cov_vax3_18to49", at, length(which(vax.age.group == 3 & vax >= 3)) / length(which(vax.age.group == 3)))
-  dat <- set_epi(dat, "cov_vax3_50to64", at, length(which(vax.age.group == 4 & vax >= 3)) / length(which(vax.age.group == 4)))
-  dat <- set_epi(dat, "cov_vax3_65p", at, length(which(vax.age.group == 5 & vax >= 3)) / length(which(vax.age.group == 5)))
+  dat <- set_epi(dat, "cov_vax3_0to4", length(which(vax.age.group == 1 & vax >= 3)) / length(which(vax.age.group == 1)), at = at)
+  dat <- set_epi(dat, "cov_vax3_5to17", length(which(vax.age.group == 2 & vax >= 3)) / length(which(vax.age.group == 2)), at = at)
+  dat <- set_epi(dat, "cov_vax3_18to49", length(which(vax.age.group == 3 & vax >= 3)) / length(which(vax.age.group == 3)), at = at)
+  dat <- set_epi(dat, "cov_vax3_50to64", length(which(vax.age.group == 4 & vax >= 3)) / length(which(vax.age.group == 4)), at = at)
+  dat <- set_epi(dat, "cov_vax3_65p", length(which(vax.age.group == 5 & vax >= 3)) / length(which(vax.age.group == 5)), at = at)
 
   ## Dose-1 coverage by NETWORK POSITION (fixed degree_quartile / is_bridge attrs).
   ## Verifies the network strategies actually reach high-degree / bridge nodes
   ## (the degree-strategy acceptance criterion, Q4 > Q1; closes issue #21).
   degree_quartile <- get_attr(dat, "degree_quartile")
   if (!is.null(degree_quartile)) {
-    for (q in 1:4) dat <- set_epi(dat, paste0("cov_vax1_degQ", q), at,
-      length(which(degree_quartile == q & vax >= 1)) / max(1, length(which(degree_quartile == q))))
+    for (q in 1:4) dat <- set_epi(dat, paste0("cov_vax1_degQ", q),
+      length(which(degree_quartile == q & vax >= 1)) / max(1, length(which(degree_quartile == q))), at = at)
   }
   if (!is.null(is_bridge)) {
-    dat <- set_epi(dat, "cov_vax1_bridge", at,
-      length(which(is_bridge == 1 & vax >= 1)) / max(1, length(which(is_bridge == 1))))
-    dat <- set_epi(dat, "cov_vax1_nonbridge", at,
-      length(which(is_bridge == 0 & vax >= 1)) / max(1, length(which(is_bridge == 0))))
+    dat <- set_epi(dat, "cov_vax1_bridge",
+      length(which(is_bridge == 1 & vax >= 1)) / max(1, length(which(is_bridge == 1))), at = at)
+    dat <- set_epi(dat, "cov_vax1_nonbridge",
+      length(which(is_bridge == 0 & vax >= 1)) / max(1, length(which(is_bridge == 0))), at = at)
   }
 
   # mean deg and num of bridge in those ever vaccinated and never vaccinated
@@ -246,11 +246,11 @@ vax_general <- function(dat, at) {
   ## cumulative coverage rate
   cov_cumulative <- length(vaccinated_ids) / sum(active == 1)
   
-  dat <- set_epi(dat, "mean_deg_vax", at, mean_deg_vax)
-  dat <- set_epi(dat, "mean_deg_unvax", at, mean_deg_unvax)
-  dat <- set_epi(dat, "mean_n_layers_active_vax", at, mean_n_layers_active_vax)
-  dat <- set_epi(dat, "mean_n_layers_active_unvax", at, mean_n_layers_active_unvax)
-  dat <- set_epi(dat, "cov_cumulative", at, cov_cumulative)
+  dat <- set_epi(dat, "mean_deg_vax", mean_deg_vax, at = at)
+  dat <- set_epi(dat, "mean_deg_unvax", mean_deg_unvax, at = at)
+  dat <- set_epi(dat, "mean_n_layers_active_vax", mean_n_layers_active_vax, at = at)
+  dat <- set_epi(dat, "mean_n_layers_active_unvax", mean_n_layers_active_unvax, at = at)
+  dat <- set_epi(dat, "cov_cumulative", cov_cumulative, at = at)
   
   # acceptance check, the mean degree of newly vaccinated individuals should be > that of eligible but not selected individuals.
   eligible_not_selected_ids <- setdiff(unique(ids_elig_all), unique(ids_newly_vaxed))
@@ -269,10 +269,10 @@ vax_general <- function(dat, at) {
     mean(n_layers_active[eligible_not_selected_ids])
   } else NA_real_
   
-  dat <- set_epi(dat, "mean_deg_newly_vaxed", at, mean_deg_newly_vaxed)
-  dat <- set_epi(dat, "mean_deg_elig_not_selected", at, mean_deg_elig_not_selected)
-  dat <- set_epi(dat, "mean_n_layers_active_newly_vaxed", at, mean_n_layers_active_newly_vaxed)
-  dat <- set_epi(dat, "mean_n_layers_active_elig_not_selected", at, mean_n_layers_active_elig_not_selected)
+  dat <- set_epi(dat, "mean_deg_newly_vaxed", mean_deg_newly_vaxed, at = at)
+  dat <- set_epi(dat, "mean_deg_elig_not_selected", mean_deg_elig_not_selected, at = at)
+  dat <- set_epi(dat, "mean_n_layers_active_newly_vaxed", mean_n_layers_active_newly_vaxed, at = at)
+  dat <- set_epi(dat, "mean_n_layers_active_elig_not_selected", mean_n_layers_active_elig_not_selected, at = at)
   
   # acceptance check, Verified: with a cap of 0.005, daily vaccination count never exceeds 0.5% of population size
   daily_vax_total <- sum(daily_vax_by_dose)
@@ -283,10 +283,10 @@ vax_general <- function(dat, at) {
     floor(vax.supply.rate * n_pop)
   }
   
-  dat <- set_epi(dat, "remaining_supply", at, remaining_supply)
-  dat <- set_epi(dat, "remaining_firstdose", at, remaining_firstdose)
-  dat <- set_epi(dat, "daily_vax_total", at, daily_vax_total)
-  dat <- set_epi(dat, "daily_vax_cap", at, daily_vax_cap)
+  dat <- set_epi(dat, "remaining_supply", remaining_supply, at = at)
+  dat <- set_epi(dat, "remaining_firstdose", remaining_firstdose, at = at)
+  dat <- set_epi(dat, "daily_vax_total", daily_vax_total, at = at)
+  dat <- set_epi(dat, "daily_vax_cap", daily_vax_cap, at = at)
   
   return(dat)
 }
@@ -652,29 +652,29 @@ vax_covid_corporate <- function(dat, at) {
   dat <- set_attr(dat, "vax4Time", vax4Time)
   
   ## Summary statistics ##
-  dat <- set_epi(dat, "nVax1", at, nVax1)
-  dat <- set_epi(dat, "nVax2", at, nVax2)
-  dat <- set_epi(dat, "nVax3", at, nVax3)
-  dat <- set_epi(dat, "nVax4", at, nVax4)
+  dat <- set_epi(dat, "nVax1", nVax1, at = at)
+  dat <- set_epi(dat, "nVax2", nVax2, at = at)
+  dat <- set_epi(dat, "nVax3", nVax3, at = at)
+  dat <- set_epi(dat, "nVax4", nVax4, at = at)
   
   ## Summary stats -- vaccine coverage ##
-  dat <- set_epi(dat, "cov_vax1_0to4", at, length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)))
-  dat <- set_epi(dat, "cov_vax1_5to17", at, length(which(vax.age.group == 2 & vax >= 1)) / length(which(vax.age.group == 2)))
-  dat <- set_epi(dat, "cov_vax1_18to64", at, length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 1)) / length(which(vax.age.group == 3 | vax.age.group == 4)))
-  dat <- set_epi(dat, "cov_vax1_65p", at, length(which(vax.age.group == 5 & vax >= 1)) / length(which(vax.age.group == 5)))
+  dat <- set_epi(dat, "cov_vax1_0to4", length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)), at = at)
+  dat <- set_epi(dat, "cov_vax1_5to17", length(which(vax.age.group == 2 & vax >= 1)) / length(which(vax.age.group == 2)), at = at)
+  dat <- set_epi(dat, "cov_vax1_18to64", length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 1)) / length(which(vax.age.group == 3 | vax.age.group == 4)), at = at)
+  dat <- set_epi(dat, "cov_vax1_65p", length(which(vax.age.group == 5 & vax >= 1)) / length(which(vax.age.group == 5)), at = at)
 
-  dat <- set_epi(dat, "cov_vax2_0to4", at, length(which(vax.age.group == 1 & vax >= 2)) / length(which(vax.age.group == 1)))
-  dat <- set_epi(dat, "cov_vax2_5to17", at, length(which(vax.age.group == 2 & vax >= 2)) / length(which(vax.age.group == 2)))
-  dat <- set_epi(dat, "cov_vax2_18to64", at, length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 2)) / length(which(vax.age.group == 3 | vax.age.group == 4)))
-  dat <- set_epi(dat, "cov_vax2_65p", at, length(which(vax.age.group == 5 & vax >= 2)) / length(which(vax.age.group == 5)))
+  dat <- set_epi(dat, "cov_vax2_0to4", length(which(vax.age.group == 1 & vax >= 2)) / length(which(vax.age.group == 1)), at = at)
+  dat <- set_epi(dat, "cov_vax2_5to17", length(which(vax.age.group == 2 & vax >= 2)) / length(which(vax.age.group == 2)), at = at)
+  dat <- set_epi(dat, "cov_vax2_18to64", length(which((vax.age.group == 3 | vax.age.group == 4) & vax >= 2)) / length(which(vax.age.group == 3 | vax.age.group == 4)), at = at)
+  dat <- set_epi(dat, "cov_vax2_65p", length(which(vax.age.group == 5 & vax >= 2)) / length(which(vax.age.group == 5)), at = at)
 
-  dat <- set_epi(dat, "cov_vax3_5to17", at, length(which(vax.age.group == 2 & vax >= 3)) / length(which(vax.age.group == 2)))
-  dat <- set_epi(dat, "cov_vax3_18to49", at, length(which(vax.age.group == 3 & vax >= 3)) / length(which(vax.age.group == 3)))
-  dat <- set_epi(dat, "cov_vax3_50to64", at, length(which(vax.age.group == 4 & vax >= 3)) / length(which(vax.age.group == 4)))
-  dat <- set_epi(dat, "cov_vax3_65p", at, length(which(vax.age.group == 5 & vax >= 3)) / length(which(vax.age.group == 5)))
+  dat <- set_epi(dat, "cov_vax3_5to17", length(which(vax.age.group == 2 & vax >= 3)) / length(which(vax.age.group == 2)), at = at)
+  dat <- set_epi(dat, "cov_vax3_18to49", length(which(vax.age.group == 3 & vax >= 3)) / length(which(vax.age.group == 3)), at = at)
+  dat <- set_epi(dat, "cov_vax3_50to64", length(which(vax.age.group == 4 & vax >= 3)) / length(which(vax.age.group == 4)), at = at)
+  dat <- set_epi(dat, "cov_vax3_65p", length(which(vax.age.group == 5 & vax >= 3)) / length(which(vax.age.group == 5)), at = at)
 
-  dat <- set_epi(dat, "cov_vax4_50to64", at, length(which(vax.age.group == 4 & vax >= 4)) / length(which(vax.age.group == 4)))
-  dat <- set_epi(dat, "cov_vax4_65p", at, length(which(vax.age.group == 5 & vax >= 4)) / length(which(vax.age.group == 5)))
+  dat <- set_epi(dat, "cov_vax4_50to64", length(which(vax.age.group == 4 & vax >= 4)) / length(which(vax.age.group == 4)), at = at)
+  dat <- set_epi(dat, "cov_vax4_65p", length(which(vax.age.group == 5 & vax >= 4)) / length(which(vax.age.group == 5)), at = at)
   
   # mean deg and num of bridge in those ever vaccinated and never vaccinated
   ## individual ever vaccinated and never vaccinated
@@ -689,11 +689,11 @@ vax_covid_corporate <- function(dat, at) {
   ## cumulative coverage rate
   cov_cumulative <- length(vaccinated_ids)/sum(active == 1)
   
-  dat <- set_epi(dat, "mean_deg_vax", at, mean_deg_vax)
-  dat <- set_epi(dat, "mean_deg_unvax", at, mean_deg_unvax)
-  dat <- set_epi(dat, "mean_n_layers_active_vax", at, mean_n_layers_active_vax)
-  dat <- set_epi(dat, "mean_n_layers_active_unvax", at, mean_n_layers_active_unvax)
-  dat <- set_epi(dat, "cov_cumulative", at, cov_cumulative)
+  dat <- set_epi(dat, "mean_deg_vax", mean_deg_vax, at = at)
+  dat <- set_epi(dat, "mean_deg_unvax", mean_deg_unvax, at = at)
+  dat <- set_epi(dat, "mean_n_layers_active_vax", mean_n_layers_active_vax, at = at)
+  dat <- set_epi(dat, "mean_n_layers_active_unvax", mean_n_layers_active_unvax, at = at)
+  dat <- set_epi(dat, "cov_cumulative", cov_cumulative, at = at)
 
   # acceptance check, the mean degree of newly vaccinated individuals should be > that of eligible but not selected individuals.
   eligible_not_selected_ids <- setdiff(unique(ids_elig_all), unique(ids_newly_vaxed))
@@ -712,10 +712,10 @@ vax_covid_corporate <- function(dat, at) {
       mean(n_layers_active[eligible_not_selected_ids])
     } else NA_real_
   
-  dat <- set_epi(dat, "mean_deg_newly_vaxed", at, mean_deg_newly_vaxed)
-  dat <- set_epi(dat, "mean_deg_elig_not_selected", at, mean_deg_elig_not_selected)
-  dat <- set_epi(dat, "mean_n_layers_active_newly_vaxed", at, mean_n_layers_active_newly_vaxed)
-  dat <- set_epi(dat, "mean_n_layers_active_elig_not_selected", at, mean_n_layers_active_elig_not_selected)
+  dat <- set_epi(dat, "mean_deg_newly_vaxed", mean_deg_newly_vaxed, at = at)
+  dat <- set_epi(dat, "mean_deg_elig_not_selected", mean_deg_elig_not_selected, at = at)
+  dat <- set_epi(dat, "mean_n_layers_active_newly_vaxed", mean_n_layers_active_newly_vaxed, at = at)
+  dat <- set_epi(dat, "mean_n_layers_active_elig_not_selected", mean_n_layers_active_elig_not_selected, at = at)
 
   
   # acceptance check, Verified: with a cap of 0.005, daily vaccination count never exceeds 0.5% of population size
@@ -730,10 +730,10 @@ vax_covid_corporate <- function(dat, at) {
     floor(vax.supply.rate * n_pop)
   }
   
-  dat <- set_epi(dat, "remaining_supply", at, remaining_supply)
-  dat <- set_epi(dat, "remaining_firstdose", at, remaining_firstdose)
-  dat <- set_epi(dat, "daily_vax_total", at, daily_vax_total)
-  dat <- set_epi(dat, "daily_vax_cap", at, daily_vax_cap)
+  dat <- set_epi(dat, "remaining_supply", remaining_supply, at = at)
+  dat <- set_epi(dat, "remaining_firstdose", remaining_firstdose, at = at)
+  dat <- set_epi(dat, "daily_vax_total", daily_vax_total, at = at)
+  dat <- set_epi(dat, "daily_vax_cap", daily_vax_cap, at = at)
   
   return(dat)
 }
