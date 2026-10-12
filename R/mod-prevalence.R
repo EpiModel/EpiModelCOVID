@@ -3,12 +3,12 @@
 #' @export
 prevalence_covid_ship <- function(dat, at) {
 
-  active <- dat$attr$active
-  status <- dat$attr$status
-  type <- dat$attr$type
-  dxStatus <- dat$attr$dxStatus
-
-  nsteps <- dat$control$nsteps
+  active <- get_attr(dat, "active")
+  status <- get_attr(dat, "status")
+  type <- get_attr(dat, "type")
+  dxStatus <- get_attr(dat, "dxStatus")
+  age <- get_attr(dat, "age")
+  clinical <- get_attr(dat, "clinical")
 
   # Initialize Outputs
   var.names <- c("num", "s.num", "e.num", "a.num", "ip.num", "ic.num", "r.num",
@@ -22,27 +22,27 @@ prevalence_covid_ship <- function(dat, at) {
                  "meanAge", "meanClinic")
   if (at == 1) {
     for (i in seq_along(var.names)) {
-      dat$epi[[var.names[i]]] <- rep(0, nsteps)
+      dat <- add_epi(dat, var.names[i])
     }
   }
 
   # Update Outputs
-  dat$epi$num[at] <- sum(active == 1)
+  dat <- set_epi(dat, "num", sum(active == 1), at = at)
 
-  dat$epi$s.num[at] <- sum(active == 1 & status == "s")
-  dat$epi$e.num[at] <- sum(active == 1 & status == "e")
-  dat$epi$a.num[at] <- sum(active == 1 & status == "a")
-  dat$epi$ip.num[at] <- sum(active == 1 & status == "ip")
-  dat$epi$ic.num[at] <- sum(active == 1 & status == "ic")
-  dat$epi$r.num[at] <- sum(active == 1 & status == "r")
+  dat <- set_epi(dat, "s.num", sum(active == 1 & status == "s"), at = at)
+  dat <- set_epi(dat, "e.num", sum(active == 1 & status == "e"), at = at)
+  dat <- set_epi(dat, "a.num", sum(active == 1 & status == "a"), at = at)
+  dat <- set_epi(dat, "ip.num", sum(active == 1 & status == "ip"), at = at)
+  dat <- set_epi(dat, "ic.num", sum(active == 1 & status == "ic"), at = at)
+  dat <- set_epi(dat, "r.num", sum(active == 1 & status == "r"), at = at)
 
-  dat$epi$dx.pos.num[at] <- sum(active == 1 & dxStatus == 2, na.rm = TRUE)
+  dat <- set_epi(dat, "dx.pos.num", sum(active == 1 & dxStatus == 2, na.rm = TRUE), at = at)
 
-  dat$epi$i.pass.num[at] <- sum(active == 1 & status %in% c("ip", "ic", "a") & type == "p")
-  dat$epi$i.crew.num[at] <- sum(active == 1 & status %in% c("ip", "ic", "a") & type == "c")
+  dat <- set_epi(dat, "i.pass.num", sum(active == 1 & status %in% c("ip", "ic", "a") & type == "p"), at = at)
+  dat <- set_epi(dat, "i.crew.num", sum(active == 1 & status %in% c("ip", "ic", "a") & type == "c"), at = at)
 
-  dat$epi$meanAge[at] <- mean(dat$attr$age, na.rm = TRUE)
-  dat$epi$meanClinic[at] <- mean(dat$attr$clinical, na.rm = TRUE)
+  dat <- set_epi(dat, "meanAge", mean(age, na.rm = TRUE), at = at)
+  dat <- set_epi(dat, "meanClinic", mean(clinical, na.rm = TRUE), at = at)
 
   return(dat)
 }

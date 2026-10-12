@@ -16,13 +16,13 @@ aging_covid <- function(dat, at) {
 deaths_covid_ship <- function(dat, at) {
 
   ## Attributes ##
-  active <- dat$attr$active
-  age <- dat$attr$age
-  status <- dat$attr$status
+  active <- get_attr(dat, "active")
+  age <- get_attr(dat, "age")
+  status <- get_attr(dat, "status")
 
   ## Parameters ##
-  mort.rates <- dat$param$mort.rates
-  mort.dis.mult <- dat$param$mort.dis.mult
+  mort.rates <- get_param(dat, "mort.rates")
+  mort.dis.mult <- get_param(dat, "mort.dis.mult")
 
   idsElig <- which(active == 1)
   nElig <- length(idsElig)
@@ -42,15 +42,16 @@ deaths_covid_ship <- function(dat, at) {
     nDeathsIC <- length(intersect(idsDeaths, idsElig.inf))
 
     if (nDeaths > 0) {
-      dat$attr$active[idsDeaths] <- 0
-      inactive <- which(dat$attr$active == 0)
+      active[idsDeaths] <- 0
+      dat <- set_attr(dat, "active", active)
+      inactive <- which(active == 0)
       dat <- depart_nodes(dat, inactive)
     }
   }
 
   ## Summary statistics ##
-  dat$epi$d.flow[at] <- nDeaths
-  dat$epi$d.ic.flow[at] <- nDeathsIC
+  dat <- set_epi(dat, "d.flow", nDeaths, at = at)
+  dat <- set_epi(dat, "d.ic.flow", nDeathsIC, at = at)
 
   return(dat)
 }
@@ -88,8 +89,9 @@ deaths_covid_corporate <- function(dat, at) {
     nDeathsH <- length(intersect(idsDeaths, idsElig.inf))
 
     if (nDeaths > 0) {
-      dat$attr$active[idsDeaths] <- 0
-      inactive <- which(dat$attr$active == 0)
+      active[idsDeaths] <- 0
+      dat <- set_attr(dat, "active", active)
+      inactive <- which(active == 0)
       dat <- depart_nodes(dat, inactive)
     }
   }
@@ -107,17 +109,17 @@ deaths_covid_corporate <- function(dat, at) {
 offload_covid_ship <- function(dat, at) {
 
   ## Attributes ##
-  active <- dat$attr$active
-  status <- dat$attr$status
-  dxStatus <- dat$attr$dxStatus
-  type <- dat$attr$type
+  active <- get_attr(dat, "active")
+  status <- get_attr(dat, "status")
+  dxStatus <- get_attr(dat, "dxStatus")
+  type <- get_attr(dat, "type")
 
   ## Parameters ##
-  exit.rate.pass <- dat$param$exit.rate.pass
-  exit.rate.crew <- dat$param$exit.rate.crew
+  exit.rate.pass <- get_param(dat, "exit.rate.pass")
+  exit.rate.crew <- get_param(dat, "exit.rate.crew")
 
-  exit.elig.status <- dat$param$exit.elig.status
-  require.dx <- dat$param$exit.require.dx
+  exit.elig.status <- get_param(dat, "exit.elig.status")
+  require.dx <- get_param(dat, "exit.require.dx")
 
   idsElig <- which(active == 1 & status %in% exit.elig.status)
   if (require.dx == TRUE) {
@@ -134,13 +136,14 @@ offload_covid_ship <- function(dat, at) {
 
     if (nExits > 0) {
       active[idsExits] <- 0
+      dat <- set_attr(dat, "active", active)
       inactive <- which(active == 0)
       dat <- depart_nodes(dat, inactive)
     }
   }
 
   ## Summary statistics ##
-  dat$epi$exit.flow[at] <- nExits
+  dat <- set_epi(dat, "exit.flow", nExits, at = at)
 
   return(dat)
 }
