@@ -153,12 +153,12 @@ progress_covid <- function(dat, at) {
   dat <- set_attr(dat, "hospit", hospit)
 
   ## Save summary statistics
-  dat <- set_epi(dat, "ea.flow", at, num.new.EtoA)
-  dat <- set_epi(dat, "ar.flow", at, num.new.AtoR)
-  dat <- set_epi(dat, "eip.flow", at, num.new.EtoIp)
-  dat <- set_epi(dat, "ipic.flow", at, num.new.IptoIc)
-  dat <- set_epi(dat, "icr.flow", at, num.new.IctoR)
-  dat <- set_epi(dat, "hr.flow", at, num.new.HtoR)
+  dat <- set_epi(dat, "ea.flow", num.new.EtoA, at = at)
+  dat <- set_epi(dat, "ar.flow", num.new.AtoR, at = at)
+  dat <- set_epi(dat, "eip.flow", num.new.EtoIp, at = at)
+  dat <- set_epi(dat, "ipic.flow", num.new.IptoIc, at = at)
+  dat <- set_epi(dat, "icr.flow", num.new.IctoR, at = at)
+  dat <- set_epi(dat, "hr.flow", num.new.HtoR, at = at)
 
   return(dat)
 }

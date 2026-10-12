@@ -67,12 +67,12 @@ dx_covid <- function(dat, at) {
   dat <- set_attr(dat, "dxStatus", dxStatus)
 
   ## Summary statistics ##
-  dat <- set_epi(dat, "nDx", at, length(idsDx.sympt) + length(idsDx.other))
-  dat <- set_epi(dat, "nDx.pos", at, length(idsDx.sympt.pos) +
-                   length(idsDx.other.pos.true))
-  dat <- set_epi(dat, "nDx.pos.sympt", at, length(idsDx.sympt.pos))
-  dat <- set_epi(dat, "nDx.pos.fn", at, length(idsDx.sympt.neg) +
-                   length(idsDx.other.pos.false))
+  dat <- set_epi(dat, "nDx", length(idsDx.sympt) + length(idsDx.other), at = at)
+  dat <- set_epi(dat, "nDx.pos", length(idsDx.sympt.pos) +
+                   length(idsDx.other.pos.true), at = at)
+  dat <- set_epi(dat, "nDx.pos.sympt", length(idsDx.sympt.pos), at = at)
+  dat <- set_epi(dat, "nDx.pos.fn", length(idsDx.sympt.neg) +
+                   length(idsDx.other.pos.false), at = at)
 
   return(dat)
 }

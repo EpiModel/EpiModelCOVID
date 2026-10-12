@@ -95,8 +95,8 @@ deaths_covid_corporate <- function(dat, at) {
   }
 
   ## Summary statistics ##
-  dat <- set_epi(dat, "d.flow", at, nDeaths)
-  dat <- set_epi(dat, "d.h.flow", at, nDeathsH)
+  dat <- set_epi(dat, "d.flow", nDeaths, at = at)
+  dat <- set_epi(dat, "d.h.flow", nDeathsH, at = at)
 
   return(dat)
 }
@@ -165,7 +165,7 @@ arrival_covid_corporate <- function(dat, at) {
   dat <- arrive_nodes(dat, nNew)
 
   ## Output
-  dat <- set_epi(dat, "nNew", at, nNew)
+  dat <- set_epi(dat, "nNew", nNew, at = at)
 
   return(dat)
 }

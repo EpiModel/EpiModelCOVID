@@ -65,17 +65,17 @@ prevalence_covid_corporate <- function(dat, at) {
   }
 
   # Update Outputs
-  dat <- set_epi(dat, "num", at, sum(active == 1))
+  dat <- set_epi(dat, "num", sum(active == 1), at = at)
 
-  dat <- set_epi(dat, "s.num", at, sum(active == 1 & status == "s"))
-  dat <- set_epi(dat, "e.num", at, sum(active == 1 & status == "e"))
-  dat <- set_epi(dat, "a.num", at, sum(active == 1 & status == "a"))
-  dat <- set_epi(dat, "ip.num", at, sum(active == 1 & status == "ip"))
-  dat <- set_epi(dat, "ic.num", at, sum(active == 1 & status == "ic"))
-  dat <- set_epi(dat, "r.num", at, sum(active == 1 & status == "r"))
-  dat <- set_epi(dat, "h.num", at, sum(active == 1 & status == "h"))
-  dat <- set_epi(dat, "v1.num", at, sum(active == 1 & status == "s" & vax == 1))
-  dat <- set_epi(dat, "v2.num", at, sum(active == 1 & status == "s" & vax == 3))
+  dat <- set_epi(dat, "s.num", sum(active == 1 & status == "s"), at = at)
+  dat <- set_epi(dat, "e.num", sum(active == 1 & status == "e"), at = at)
+  dat <- set_epi(dat, "a.num", sum(active == 1 & status == "a"), at = at)
+  dat <- set_epi(dat, "ip.num", sum(active == 1 & status == "ip"), at = at)
+  dat <- set_epi(dat, "ic.num", sum(active == 1 & status == "ic"), at = at)
+  dat <- set_epi(dat, "r.num", sum(active == 1 & status == "r"), at = at)
+  dat <- set_epi(dat, "h.num", sum(active == 1 & status == "h"), at = at)
+  dat <- set_epi(dat, "v1.num", sum(active == 1 & status == "s" & vax == 1), at = at)
+  dat <- set_epi(dat, "v2.num", sum(active == 1 & status == "s" & vax == 3), at = at)
 
 
   return(dat)

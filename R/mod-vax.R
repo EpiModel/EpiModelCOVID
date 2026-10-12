@@ -71,12 +71,12 @@ vax_covid <- function(dat, at) {
   dat <- set_attr(dat, "vax2Time", vax2Time)
 
   ## Summary statistics ##
-  dat <- set_epi(dat, "nVax1", at, nVax)
-  dat <- set_epi(dat, "nVax2", at, nvaxFull)
-  dat <- set_epi(dat, "nVaxImmunePart", at, nvaximmunePartial)
-  dat <- set_epi(dat, "nVax1gt65", at, nidsVax1.gt65)
-  dat <- set_epi(dat, "nVax115to65", at, nidsVax1.15to65)
-  dat <- set_epi(dat, "nVax1lt15", at, nidsVax1.lt15)
+  dat <- set_epi(dat, "nVax1", nVax, at = at)
+  dat <- set_epi(dat, "nVax2", nvaxFull, at = at)
+  dat <- set_epi(dat, "nVaxImmunePart", nvaximmunePartial, at = at)
+  dat <- set_epi(dat, "nVax1gt65", nidsVax1.gt65, at = at)
+  dat <- set_epi(dat, "nVax115to65", nidsVax1.15to65, at = at)
+  dat <- set_epi(dat, "nVax1lt15", nidsVax1.lt15, at = at)
 
   return(dat)
 }
