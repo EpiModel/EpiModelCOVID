@@ -19,6 +19,24 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     degree_total=0,
     degree_xlayer=0,
     degree_quartile=NA,
+    # relationship traits and activation (GlobalMix India #63). never, log_aF and
+    # log_aI come from the fitted networks at initialization and are drawn for
+    # newborns in make_computed_attrs(); o_i is drawn there for everyone.
+    never = 0,
+    log_aF = 0,
+    log_aI = 0,
+    o_i = 0,
+    act.eligible = 1,
+    degree_freq = 0,
+    degree_infreq = 0,
+    degree_active = 0,
+    degree_hazard = 0,
+    degree_score = 0,
+    act.out.days = 0,
+    act.contact.days = 0,
+    act.new.contacts = 0,
+    act.recent = 0,
+    act.recent.new = 0,
     # cross-layer bridge indicators
     is_bridge = FALSE,
     n_layers_active =0,
@@ -110,6 +128,27 @@ make_computed_attrs <- function(dat, n_new, post_init) {
     is_infant   =   age < infant.age.max
   ))
   
+  # Relationship traits and the propensity to go out (GlobalMix India #63).
+  # Newborns draw their traits from the youngest band's parameters, as the
+  # initial 0-9y population's were drawn, so the two are exchangeable (#65). o_i
+  # is drawn here for everyone, so act.o and act.kappa can be set by a scenario.
+  if (activation_on(dat)) {
+    pars <- activation_params(dat)
+    band_new <- match(n_attr$age.grp, age.grps)
+    if (anyNA(band_new)) {
+      stop("age.grp outside age.grps for ", sum(is.na(band_new)), " nodes", call. = FALSE)
+    }
+    if (post_init) {
+      tr <- draw_relationship_traits(band_new, pars)
+      n_attr$never <- tr$never
+      n_attr$log_aF <- tr$log_aF
+      n_attr$log_aI <- tr$log_aI
+    }
+    never_new <- if (post_init) n_attr$never else get_attr(dat, "never", posit_ids = new_nodes_pid)
+    n_attr$o_i <- draw_out_propensity(band_new, pars$o, pars$kappa)
+    n_attr$act.eligible <- 1 - never_new
+  }
+
   for (attr_name in names(n_attr)) {
     dat <- set_attr(dat, attr_name, n_attr[[attr_name]], posit_ids = new_nodes_pid)
   }

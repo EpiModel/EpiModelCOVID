@@ -11,6 +11,10 @@ vax_general <- function(dat, at) {
   vax.age.group <- vax_age_group_for(dat)
 
   degree_total <- get_attr(dat, "degree_total") # total nodal degree
+  # The score the degree strategies rank on (vax.degree.score; netdegree() sets
+  # it, and it is degree_total unless the parameter names another score)
+  degree_rank <- get_attr(dat, "degree_score", override.null.error = TRUE)
+  if (is.null(degree_rank)) degree_rank <- degree_total
   is_bridge <- get_attr(dat, "is_bridge")
   n_layers_active <- get_attr(dat, "n_layers_active")
   hh.ids <- get_attr(dat, "hh.ids")             # household id (parent-targeting)
@@ -18,6 +22,10 @@ vax_general <- function(dat, at) {
 
   ######## extract parameters ########
   vax.strategy <- get_param(dat, "vax.strategy") # determine which stategy to use
+  if (vax.strategy == "bridge" && activation_on(dat)) {
+    stop("the bridge strategy counts layers, which on the relationship model is not a ",
+         "position measure; #75 redefines it", call. = FALSE)
+  }
   vax.supply.rate <- get_param(dat, "vax.supply.rate")
   vax.supply.total <- get_param(dat, "vax.supply.total")
   # Infant eligibility for the (adult, actively-administered) vaccine. For RSV the
@@ -60,8 +68,12 @@ vax_general <- function(dat, at) {
     if (vax.strategy == "proxy_hh") {
       proxy_score <- hh_size
     } else {
-      degree_school <- get_attr(dat, "degree_school")
-      degree_work   <- get_attr(dat, "degree_work")
+      degree_school <- get_attr(dat, "degree_school", override.null.error = TRUE)
+      degree_work   <- get_attr(dat, "degree_work", override.null.error = TRUE)
+      if (is.null(degree_school) || is.null(degree_work)) {
+        stop("proxy_fit and age_plus_proxy read the school and work layers, which the ",
+             "relationship model does not have (its proxy arm is #75's proxy_obs)", call. = FALSE)
+      }
       student  <- as.integer(degree_school > 0)  # enrolled (observable)
       employed <- as.integer(degree_work > 0)    # employed (observable)
       fit_df <- data.frame(deg = degree_total, hh_size = hh_size,
@@ -149,7 +161,7 @@ vax_general <- function(dat, at) {
       rate = rate_vec,
       vax.age.group = vax.age.group,
       vax.strategy = vax.strategy,
-      degree_total = degree_total,
+      degree_total = degree_rank,
       is_bridge = is_bridge,
       n_layers_active = n_layers_active,
       remaining_supply = effective_supply,
@@ -226,8 +238,8 @@ vax_general <- function(dat, at) {
   vaccinated_ids <- which(active == 1 & vax >= 1)
   unvaccinated_ids <- which(active == 1 & vax == 0)
   ##  mean degree and bridge number in ever vaccinated individuals vs. in those unvaccinated
-  mean_deg_vax <- mean(degree_total[vaccinated_ids])
-  mean_deg_unvax <- mean(degree_total[unvaccinated_ids])
+  mean_deg_vax <- mean(degree_rank[vaccinated_ids])
+  mean_deg_unvax <- mean(degree_rank[unvaccinated_ids])
   mean_n_layers_active_vax <- mean(n_layers_active[vaccinated_ids])
   mean_n_layers_active_unvax <- mean(n_layers_active[unvaccinated_ids])
   
@@ -245,10 +257,10 @@ vax_general <- function(dat, at) {
   
   # this tracker pools across all dose levels per timestep. If we ever need per-dose-level verification, we'd need separate trackers.
   mean_deg_newly_vaxed <- if (length(ids_newly_vaxed) > 0) { 
-    mean(degree_total[unique(ids_newly_vaxed)])
+    mean(degree_rank[unique(ids_newly_vaxed)])
   } else NA_real_
   mean_deg_elig_not_selected <- if (length(eligible_not_selected_ids) > 0) {
-    mean(degree_total[eligible_not_selected_ids])
+    mean(degree_rank[eligible_not_selected_ids])
   } else NA_real_
   mean_n_layers_active_newly_vaxed <- if (length(ids_newly_vaxed) > 0) {
     mean(n_layers_active[unique(ids_newly_vaxed)])

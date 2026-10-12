@@ -42,15 +42,33 @@ infect_general <- function(dat, at) {
   if (is.null(seasonal.phase)) seasonal.phase <- 0
   season_mult <- 1 + seasonal.amp * cos(2 * pi * (at - seasonal.phase) / 364)
 
-  nLayers <- dat$num.nw
+  # Tie types (GlobalMix India #63). Without the activation step these are the
+  # networks, every tie of which is a contact every day. With it they are the
+  # day's contacts by tie type from activate_contacts(): the relationships met
+  # today, the new contacts, and the household layer.
+  types <- tie_types(dat)
+  contacts <- if (activation_on(dat)) dat$run$contacts else NULL
+  if (activation_on(dat) && (is.null(contacts) || !identical(dat$run$contacts_at, at) ||
+                             !identical(names(contacts), types))) {
+    stop("no contacts for step ", at, " by tie type (", toString(types), "); is activation.FUN ",
+         "in module.order, after the network modules and before infection.FUN?", call. = FALSE)
+  }
+  # Relative per-contact daily hazard by age pair and tie type (#68), or NULL
+  weights <- contact_weights(dat)
+  band <- if (!is.null(weights)) band_index(dat)
+
+  nLayers <- length(types)
   nInf <- rep(0, nLayers)
   allNewInf <- integer(0)  # newly infected across all layers + imports, for stratified incidence
  
   if (length(idsInf) > 0) {
     for (layer in seq_len(nLayers)) {
       ## Look up discordant edgelist ##
-      del <- discord_edgelist(dat, at, network = layer,
-                              infstat = c("a", "ic", "ip"))
+      del <- if (is.null(contacts)) {
+        discord_edgelist(dat, at, network = layer, infstat = c("a", "ic", "ip"))
+      } else {
+        discord_pairs(contacts[[layer]], get_attr(dat, "status"), active, c("a", "ic", "ip"), at)
+      }
 
       ## If any discordant pairs, proceed ##
       if (!(is.null(del))
@@ -125,8 +143,10 @@ infect_general <- function(dat, at) {
         del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *
           inf.prob.a.rr
 
-        # Daily probability over exposure.rate acts on the tie
-        del$finalProb <- 1 - (1 - del$transProb)^exposure.rate[[layer]]
+        # Daily probability over exposure.rate acts on the tie, each act scaled
+        # by the age pair's relative intensity on this tie type
+        w <- if (is.null(weights)) 1 else weights[[layer]][cbind(band[del$sus], band[del$inf])]
+        del$finalProb <- 1 - (1 - del$transProb)^(exposure.rate[[layer]] * w)
 
         # rbinom() would turn these into NAs with only a warning, and the NA
         # draws would then drop out of the which() below as non-transmissions
@@ -188,6 +208,9 @@ infect_general <- function(dat, at) {
   dat <- set_epi(dat, "se.flow.l2", at, nInf[2])
   dat <- set_epi(dat, "se.flow.l3", at, nInf[3])
   dat <- set_epi(dat, "se.flow.l4", at, if (length(nInf) >= 4) nInf[4] else 0)  # household layer
+  # The same counts named by tie type (GlobalMix India #63), so a reader never has
+  # to know which position a layer took
+  for (k in seq_along(types)) dat <- set_epi(dat, paste0("se.flow.", types[k]), at, nInf[k])
   dat <- set_epi(dat, "se.import.flow", at, nImport)
 
   ## Stratified incidence: by age group, vaccination status, and network position
@@ -271,11 +294,51 @@ infect_general <- function(dat, at) {
     exposed_sus <- active == 1 & status_now == "s" & hh.ids %in% hh_infectious
     dat <- set_epi(dat, "hh.sar.den", at, sum(exposed_sus, na.rm = TRUE))
     hh <- hh_layer(dat)
-    dat <- set_epi(dat, "hh.sar.num", at, if (is.na(hh)) 0 else nInf[hh])
+    hh_type <- if (is.na(hh)) NA_integer_ else match(names(dat$run$el)[hh], types)
+    dat <- set_epi(dat, "hh.sar.num", at, if (is.na(hh_type)) 0 else nInf[hh_type])
     dat <- set_epi(dat, "hh.exposed.n", at, length(hh_infectious))
   }
 
   return(dat)
+}
+
+
+# Discordant pairs of an edgelist of the day's contacts, as EpiModel's
+# discord_edgelist() builds them from a network: rows in random order, the
+# susceptible end first, both ends active.
+discord_pairs <- function(el, status, active, infstat, at) {
+  if (is.null(el) || nrow(el) == 0) return(NULL)
+  el <- el[sample(seq_len(nrow(el))), , drop = FALSE]
+  stat <- matrix(status[el], ncol = 2)
+  isInf <- matrix(stat %in% infstat, ncol = 2)
+  isSus <- matrix(stat %in% "s", ncol = 2)
+  SIpairs <- el[isSus[, 1] * isInf[, 2] == 1, , drop = FALSE]
+  ISpairs <- el[isSus[, 2] * isInf[, 1] == 1, , drop = FALSE]
+  pairs <- rbind(SIpairs, ISpairs[, 2:1])
+  if (nrow(pairs) == 0) return(NULL)
+  del <- data.frame(at = at, sus = pairs[, 1], inf = pairs[, 2])
+  del <- del[active[del$sus] == 1 & active[del$inf] == 1, , drop = FALSE]
+  if (nrow(del) == 0) NULL else del
+}
+
+# Relative per-contact daily hazard by age pair (#68): `contact.weight` is a
+# list with one age band by age band matrix per tie type. NULL when unset or
+# when `contact.weight.equal` is TRUE (the equal-weights sensitivity).
+contact_weights <- function(dat) {
+  w <- get_param(dat, "contact.weight", override.null.error = TRUE)
+  if (is.null(w) || isTRUE(as.logical(param_or(dat, "contact.weight.equal", FALSE)))) return(NULL)
+  types <- tie_types(dat)
+  nb <- length(get_param(dat, "age.grps"))
+  if (!is.list(w) || !all(types %in% names(w))) {
+    stop("`contact.weight` needs a matrix for each tie type (", toString(types), ")", call. = FALSE)
+  }
+  w <- w[types]
+  ok <- vapply(w, function(m) is.matrix(m) && all(dim(m) == nb) && all(is.finite(m)) && all(m >= 0), logical(1))
+  if (!all(ok)) {
+    stop("`contact.weight` for ", toString(types[!ok]), " is not a non-negative ", nb, " x ", nb,
+         " matrix", call. = FALSE)
+  }
+  w
 }
 
 

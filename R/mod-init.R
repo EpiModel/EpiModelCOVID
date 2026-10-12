@@ -22,6 +22,17 @@ init_gmc19 <- function(x, param, init, control, s) {
   check_retired_params(dat)
   dat <- check_layer_params(dat)
 
+  # GlobalMix India #63: the relationship traits come from the fitted networks'
+  # vertex attributes. Without them the default attributes would be appended
+  # below and the formation offsets would run on zeros.
+  if (activation_on(dat)) {
+    missing <- setdiff(c("never", "log_aF", "log_aI"), names(get_attr_list(dat)))
+    if (length(missing) > 0) {
+      stop("the relationship networks carry no vertex attribute ", toString(missing),
+           "; fit them with the traits from draw_relationship_traits()", call. = FALSE)
+    }
+  }
+
   
   ## Initialize all remaining attributes in default values
   dat <- init_attrs(dat)
@@ -74,17 +85,27 @@ hh_layer <- function(dat) {
 # parameter table names its layers (layer.names), the run stops unless those
 # are the names of the layer list passed to netsim(), in that order, and every
 # per-layer vector is then named by layer.
+#
+# With the activation step (GlobalMix India #63) the per-layer parameters are
+# read per tie type: the two relationship networks, the new contacts the engine
+# draws each day (tie type "new", which is not a network), and the household
+# layer, in the order of layer.names. The networks passed to netsim() are then
+# layer.names without "new", in the same order.
 layer_params <- c("inf.prob", "exposure.rate")
 
 layer_names <- function(dat) {
   names(if (!is.null(dat$run$el)) dat$run$el else dat$run$nw)
 }
 
+tie_types <- function(dat) {
+  if (!is.null(dat$run$tie.types)) dat$run$tie.types else layer_names(dat)
+}
+
 check_layer_params <- function(dat) {
   layers <- layer_names(dat)
   if (is.null(layers) || any(layers == "") || anyDuplicated(layers) > 0) {
     stop("name every layer in the list passed to netsim(), e.g. ",
-         "list(school = ..., work = ..., nonhome = ..., home = ...), so the ",
+         "list(freq = ..., infreq = ..., home = ...), so the ",
          "per-layer parameters can be checked against it", call. = FALSE)
   }
   declared <- get_param(dat, "layer.names", override.null.error = TRUE)
@@ -93,7 +114,27 @@ check_layer_params <- function(dat) {
          "layers passed to netsim(), in order (", toString(layers), ")",
          call. = FALSE)
   }
-  if (!identical(as.character(declared), layers)) {
+  declared <- as.character(declared)
+  if (activation_on(dat)) {
+    if (!all(rel_layers %in% layers)) {
+      stop("with the activation step the relationship networks must be named ",
+           toString(rel_layers), "; the layers are ", toString(layers), call. = FALSE)
+    }
+    if (!new_type %in% declared || !identical(setdiff(declared, new_type), layers)) {
+      stop("layer.names in the parameters (", toString(declared), ") must be the ",
+           "layers passed to netsim() (", toString(layers), ") with the new-contact ",
+           "tie type \"", new_type, "\" added", call. = FALSE)
+    }
+    if (is.null(dat$run$el)) {
+      stop("the activation step needs tergmLite = TRUE", call. = FALSE)
+    }
+    activation_params(dat)  # stops here, not mid-run, on a malformed parameter
+    dat$run$tie.types <- declared
+  } else if (any(rel_layers %in% layers) || new_type %in% declared) {
+    stop("the relationship networks and the new-contact tie type need the activation ",
+         "parameters (act.o, act.kappa, ...); without them every relationship would be ",
+         "a contact every day", call. = FALSE)
+  } else if (!identical(declared, layers)) {
     stop("layer.names in the parameters (", toString(declared), ") are not ",
          "the layers passed to netsim() (", toString(layers), ")", call. = FALSE)
   }
@@ -103,13 +144,14 @@ check_layer_params <- function(dat) {
   dat
 }
 
-# A per-layer parameter with one value per layer, named by layer. An unnamed
-# vector is read in layer order (check_layer_params() matched layer.names to the
-# layers at initialization); a named one must name the layers in order. Called
-# on every step, so a parameter updater cannot misalign a vector either.
+# A per-layer parameter with one value per layer (tie type), named by layer. An
+# unnamed vector is read in layer order (check_layer_params() matched
+# layer.names to the layers at initialization); a named one must name the
+# layers in order. Called on every step, so a parameter updater cannot
+# misalign a vector either.
 layer_param <- function(dat, name) {
   value <- get_param(dat, name)
-  layers <- layer_names(dat)
+  layers <- tie_types(dat)
   if (length(value) != length(layers)) {
     stop("`", name, "` has ", length(value), " values for ", length(layers),
          " layers (", toString(layers), ")", call. = FALSE)
