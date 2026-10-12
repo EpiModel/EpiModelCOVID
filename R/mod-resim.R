@@ -24,6 +24,12 @@
 #' @rdname moduleset-gmc19
 #' @export
 resim_relationships <- function(dat, at) {
+  if (!is.null(get_control(dat, "dat.updates", override.null.error = TRUE))) {
+    stop("resim_relationships() does not run dat.updates; drop it from the control", call. = FALSE)
+  }
+  if (any(unlist(get_control(dat, "tergmLite.track.duration", override.null.error = TRUE)))) {
+    stop("resim_relationships() does not track tie durations (tergmLite.track.duration)", call. = FALSE)
+  }
   active <- get_attr(dat, "active")
   if (any(active == 1) && isTRUE(get_control(dat, "resimulate.network"))) {
     dat <- EpiModel::edges_correct(dat, at)
@@ -142,7 +148,8 @@ form_dyadind <- function(band, la, elig, phi, old_key) {
     i <- ids[[g]][sample.int(length(ids[[g]]), nc, replace = TRUE, prob = a[ids[[g]]])]
     j <- ids[[h]][sample.int(length(ids[[h]]), nc, replace = TRUE, prob = a[ids[[h]]])]
     x <- phi[g, h] + la[i] + la[j]
-    acc <- stats::runif(nc) < ifelse(x < -30, 1, log1p(exp(x)) / exp(x))
+    # log(1 + e^x) / e^x, written so it neither overflows nor loses precision
+    acc <- stats::runif(nc) < ifelse(x > 30, x * exp(-x), ifelse(x < -30, 1, log1p(exp(x)) / exp(x)))
     m <- m + 1
     ta[[m]] <- i[acc]; tb[[m]] <- j[acc]
   }
@@ -152,4 +159,28 @@ form_dyadind <- function(band, la, elig, phi, old_key) {
   p <- p[p[, 1] != p[, 2], , drop = FALSE]
   key <- pair_key(p[, 1], p[, 2])
   p[!duplicated(key) & !key %in% old_key, , drop = FALSE]
+}
+
+# The relationship networks' starting cross-section, drawn exactly: every pair of
+# eligible people is a tie with probability expit(theta_gh + log a_i + log a_j),
+# theta_gh the age pair's cross-sectional coefficient stored with the fit.
+start_relationships <- function(dat) {
+  band <- band_index(dat)
+  elig <- get_attr(dat, "active") == 1 & get_attr(dat, "never") == 0
+  for (layer in rel_layers) {
+    k <- match(layer, names(dat$run$el))
+    cell <- get_nwparam(dat, network = k)$cell_theta
+    if (is.null(cell)) {
+      stop("the `", layer, "` network has no cell_theta; refit it with the relationship pipeline", call. = FALSE)
+    }
+    la <- get_attr(dat, if (layer == rel_layers[["freq"]]) "log_aF" else "log_aI")
+    el <- dat$run$el[[k]]
+    keep_attr <- attributes(el)[setdiff(names(attributes(el)), c("dim", "dimnames"))]
+    new <- form_dyadind(band, la, elig, unname(cell), numeric(0))
+    new <- new[order(new[, 1], new[, 2]), , drop = FALSE]
+    storage.mode(new) <- "integer"
+    for (a in names(keep_attr)) attr(new, a) <- keep_attr[[a]]
+    dat$run$el[[k]] <- new
+  }
+  dat
 }

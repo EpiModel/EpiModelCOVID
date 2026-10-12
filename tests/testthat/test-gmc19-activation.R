@@ -421,3 +421,27 @@ test_that("new contacts follow each person's propensity", {
   }
   expect_gt(sum(ends[1:50]) / sum(ends), 0.8)
 })
+
+test_that("the formation draw gives every pair exactly its probability", {
+  set.seed(7)
+  nn <- 24
+  bnd <- rep(1:2, each = nn / 2)
+  la <- stats::rnorm(nn, 0, 1.2)
+  elig <- rep(TRUE, nn); elig[3] <- FALSE
+  phi <- matrix(c(-2.5, -3, -3, -2), 2)
+  old <- EpiModelCOVID:::pair_key(1, 2)               # yesterday's tie: cannot form
+  pairs <- t(utils::combn(nn, 2))
+  key <- EpiModelCOVID:::pair_key(pairs[, 1], pairs[, 2])
+  hits <- numeric(nrow(pairs))
+  R <- 20000
+  for (r in seq_len(R)) {
+    f <- EpiModelCOVID:::form_dyadind(bnd, la, elig, phi, old)
+    m <- match(EpiModelCOVID:::pair_key(f[, 1], f[, 2]), key)
+    hits[m] <- hits[m] + 1
+  }
+  p <- stats::plogis(phi[cbind(bnd[pairs[, 1]], bnd[pairs[, 2]])] + la[pairs[, 1]] + la[pairs[, 2]])
+  p[!elig[pairs[, 1]] | !elig[pairs[, 2]] | key == old] <- 0
+  z <- (hits / R - p) / sqrt(pmax(p * (1 - p), 1e-12) / R)
+  expect_lt(max(abs(z[p > 0])), 5)
+  expect_equal(sum(hits[p == 0]), 0)
+})

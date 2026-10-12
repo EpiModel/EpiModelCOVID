@@ -65,6 +65,7 @@ activation_params <- function(dat) {
     new_mix = get_param(dat, "new.mix"),
     new_share = get_param(dat, "new.share.norel"),
     theta_N = param_or(dat, "act.theta.N", Inf),
+    pi_N = param_or(dat, "act.pi.N", 0),
     episodes = isTRUE(as.logical(param_or(dat, "act.episodes", TRUE))),
     window = as.integer(param_or(dat, "act.window", 30))
   )
@@ -87,6 +88,7 @@ activation_params <- function(dat) {
   }
   if (length(p$window) != 1 || !isTRUE(p$window >= 1)) bad("`act.window` must be at least 1")
   if (length(p$theta_N) != 1 || !isTRUE(p$theta_N > 0)) bad("`act.theta.N` must be positive")
+  if (length(p$pi_N) != 1 || !isTRUE(p$pi_N >= 0 && p$pi_N < 1)) bad("`act.pi.N` must be in [0, 1)")
   # The off-to-on probability s (1 - p11) / (1 - s) must be a probability
   if (!isTRUE(p$s > 0 && p$p11 >= 0 && p$p11 < 1 && p$s <= 1 / (2 - p$p11))) {
     bad(paste0("episode parameters out of range: act.s ", p$s, ", act.p11 ", p$p11))
@@ -101,7 +103,7 @@ activation_params <- function(dat) {
 # that changed the trait parameters would make newborns differ from the initial
 # population, so both stop the run.
 check_trait_params <- function(dat) {
-  at_start <- c("act.o", "act.kappa", "act.kappa.mult")
+  at_start <- c("act.o", "act.kappa", "act.kappa.mult", "act.theta.N", "act.pi.N")
   traits <- c("act.pi", "act.theta.F", "act.theta.I", "act.rho")
   late <- unlist(lapply(dat$param$.param.updater.list, function(u) if (isTRUE(u$at > 1)) names(u$param)))
   hit <- intersect(late, c(at_start, traits))

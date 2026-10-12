@@ -49,6 +49,11 @@ init_gmc19 <- function(x, param, init, control, s) {
   # list passed to netsim(), which sim_nets_t1() and summary_nets() handle
   # themselves: it has no network model to simulate.
   dat <- sim_nets_t1(dat)
+  # The relationship networks start from an exact draw of their cross-section
+  # (GlobalMix India #63): ergm's MCMC start under-placed the ties of the most
+  # active people (2.7% too few among the top 1% by activity), and the exact
+  # daily step would carry that error for years
+  if (activation_on(dat)) dat <- start_relationships(dat)
   dat <- summary_nets(dat, at = 1L)
   
   num <- sum(get_attr(dat, "active") == 1)

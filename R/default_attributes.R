@@ -148,11 +148,12 @@ make_computed_attrs <- function(dat, n_new, post_init) {
     never_new <- if (post_init) n_attr$never else get_attr(dat, "never", posit_ids = new_nodes_pid)
     n_attr$o_i <- draw_out_propensity(band_new, pars$o, pars$kappa)
     n_attr$act.eligible <- 1 - never_new
-    # A persistent propensity for new contacts, gamma with mean 1 and shape
-    # act.theta.N (new contacts are concentrated in few people in the diary)
-    n_attr$log_aN <- if (is.finite(pars$theta_N)) {
-      log(pmax(stats::rgamma(n_new, shape = pars$theta_N, rate = pars$theta_N), 1e-8))
-    } else rep(0, n_new)
+    # A persistent propensity for new contacts, mean 1: zero for a share act.pi.N
+    # of people, and gamma with shape act.theta.N among the rest (new contacts
+    # are concentrated in few people in the diary)
+    aN <- if (is.finite(pars$theta_N)) stats::rgamma(n_new, shape = pars$theta_N, rate = pars$theta_N) else rep(1, n_new)
+    aN <- aN * (stats::runif(n_new) >= pars$pi_N) / (1 - pars$pi_N)
+    n_attr$log_aN <- log(pmax(aN, 1e-8))
   }
 
   for (attr_name in names(n_attr)) {
