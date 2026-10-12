@@ -71,14 +71,21 @@ netdegree <- function(dat, at) {
     dat <- set_epi(dat, paste0("var_degree_age", g), at, var_degree_age[[g]])
   }
 
-  if (activation_on(dat)) dat <- relationship_scores(dat, at)
+  # The expected-contact scores cost a pass over every relationship each step,
+  # so they are computed only when the degree strategies rank on one of them
+  score_name <- as.character(param_or(dat, "vax.degree.score", "total"))
+  if (activation_on(dat) && score_name %in% c("active", "hazard")) dat <- relationship_scores(dat, at)
   score <- degree_score(dat)
   dat <- set_attr(dat, "degree_score", score)
 
   # degree quartile (rank-based, 4 equal-size groups) for outcome stratification,
-  # on the score the degree strategies rank on
+  # on the score the degree strategies rank on. On the relationship model a block
+  # of tied scores takes the quartile of its mid-rank, so ties are not split by
+  # node order (which follows age band, newborns last); the four-layer model
+  # keeps its first-come split.
+  ties <- if (activation_on(dat)) "average" else "first"
   degree_quartile <- pmin(pmax(
-    ceiling(rank(score, ties.method = "first") / n_nodes * 4), 1L), 4L)
+    ceiling(rank(score, ties.method = ties) / n_nodes * 4), 1L), 4L)
   dat <- set_attr(dat, "degree_quartile", degree_quartile)
   dat <- set_epi(dat, "mean_degree_daily", at, mean(daily_degree))
 
@@ -94,8 +101,12 @@ degree_of <- function(el, n) {
 edge_sum <- function(el, x, n) {
   out <- numeric(n)
   if (length(x) == 0) return(out)
-  s <- rowsum(c(x, x), c(el[, 1], el[, 2]))
-  out[as.integer(rownames(s))] <- s[, 1]
+  idx <- c(el[, 1], el[, 2])
+  o <- order(idx)
+  idx <- idx[o]
+  cs <- cumsum(c(x, x)[o])
+  last <- which(c(idx[-1] != idx[-length(idx)], TRUE))
+  out[idx[last]] <- diff(c(0, cs[last]))
   out
 }
 
@@ -104,9 +115,10 @@ edge_sum <- function(el, x, n) {
 #                  frequent relationships of o_j q and over infrequent ones of
 #                  o_j s (a contact survey of usual contacts plus how often each
 #                  is seen)
-#   degree_hazard  expected daily exposure: each relationship's probability of
-#                  being met times its age pair's relative hazard and the tie
-#                  type's exposure.rate, plus the household ties, met every day
+#   degree_hazard  expected daily hazard: each relationship's probability of
+#                  being met times its per-contact hazard, -log(1 - inf.prob)
+#                  times exposure.rate times the age pair's relative intensity,
+#                  plus the household ties, met every day
 # New contacts cannot be anticipated and are in neither.
 relationship_scores <- function(dat, at) {
   pars <- activation_params(dat)
@@ -121,9 +133,10 @@ relationship_scores <- function(dat, at) {
 
   weights <- contact_weights(dat)
   exposure.rate <- layer_param(dat, "exposure.rate")
+  inf.prob <- layer_param(dat, "inf.prob")
   wt <- function(type, e) {
     w <- if (is.null(weights)) rep(1, nrow(e)) else weights[[type]][cbind(band[e[, 1]], band[e[, 2]])]
-    w * exposure.rate[[type]]
+    w * exposure.rate[[type]] * -log(1 - inf.prob[[type]])
   }
   hh <- hh_layer(dat)
   degree_hazard <- edge_sum(eF, pF * wt(rel_layers[["freq"]], eF), n) +
@@ -151,6 +164,8 @@ relationship_scores <- function(dat, at) {
 #' @param dat Main `netsim_dat` object.
 #' @return Numeric score per node.
 #' @keywords internal
+degree_scores <- c("total", "xlayer", "relationship", "all", "active", "hazard", "recent", "new", "out")
+
 degree_score <- function(dat) {
   score <- as.character(param_or(dat, "vax.degree.score", "total"))
   rel_only <- c("relationship", "all", "active", "hazard", "recent", "new", "out")

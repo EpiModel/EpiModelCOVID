@@ -68,12 +68,12 @@ vax_general <- function(dat, at) {
     if (vax.strategy == "proxy_hh") {
       proxy_score <- hh_size
     } else {
-      degree_school <- get_attr(dat, "degree_school", override.null.error = TRUE)
-      degree_work   <- get_attr(dat, "degree_work", override.null.error = TRUE)
-      if (is.null(degree_school) || is.null(degree_work)) {
+      if (activation_on(dat) || !all(c("school", "work") %in% names(dat$run$el))) {
         stop("proxy_fit and age_plus_proxy read the school and work layers, which the ",
              "relationship model does not have (its proxy arm is #75's proxy_obs)", call. = FALSE)
       }
+      degree_school <- get_attr(dat, "degree_school")
+      degree_work   <- get_attr(dat, "degree_work")
       student  <- as.integer(degree_school > 0)  # enrolled (observable)
       employed <- as.integer(degree_work > 0)    # employed (observable)
       fit_df <- data.frame(deg = degree_total, hh_size = hh_size,

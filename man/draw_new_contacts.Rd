@@ -11,7 +11,7 @@ draw_new_contacts(E, band, weight)
 
 \item{band}{Age band index of each node.}
 
-\item{weight}{Draw weight of each node; 0 for people not out.}
+\item{weight}{Draw weight of each node (0: never drawn).}
 }
 \value{
 Two-column integer matrix of positional ids, tail < head.

@@ -13,10 +13,11 @@
 #     day to day
 #   - new contacts (never met before) are drawn fresh each day by age pair. In
 #     the diary half of them fall on days with no relationship contact (51%
-#     rural, 55% urban, against 30% and 10% of person-days), and they are not
+#     rural, 48% urban, against 30% and 10% of person-days), and they are not
 #     associated with frequent activity, so each day a fixed share of new-contact
 #     ends goes to the people with no relationship met that day, the never-active
-#     included, and the rest to everyone else, uniformly within each group
+#     included, and the rest to everyone else: a person with no relationship met
+#     carries an odds multiplier, solved each day, over one with one
 # The day's contacts by tie type go to the infection module in
 # dat$run$contacts. The household layer is met every day.
 #
@@ -66,22 +67,59 @@ activation_params <- function(dat) {
     episodes = isTRUE(as.logical(param_or(dat, "act.episodes", TRUE))),
     window = as.integer(param_or(dat, "act.window", 30))
   )
+  bad <- function(what) stop("activation parameter ", what, call. = FALSE)
   for (v in c("o", "q", "pi", "theta_F", "new_rate")) {
-    if (length(p[[v]]) != nb) {
-      stop("activation parameter `", v, "` needs one value per age band (", nb, ")", call. = FALSE)
-    }
+    if (length(p[[v]]) != nb || anyNA(p[[v]])) bad(paste0("`", v, "` needs one value per age band (", nb, "), none NA"))
   }
-  if (length(p$new_share) != 1 || p$new_share < 0 || p$new_share > 1) {
-    stop("`new.share.norel` must be one share in [0, 1]", call. = FALSE)
+  in01 <- function(x) all(x >= 0 & x <= 1)
+  if (!in01(p$o) || !in01(p$q) || !in01(p$pi)) bad("o, q or pi outside [0, 1]")
+  if (any(p$theta_F <= 0) || length(p$theta_I) != 1 || !isTRUE(p$theta_I > 0)) bad("theta must be positive")
+  if (length(p$kappa) != 1 || !isTRUE(p$kappa > 0)) bad("kappa (act.kappa x act.kappa.mult) must be positive")
+  if (length(p$rho) != 1 || !isTRUE(abs(p$rho) <= 1)) bad("rho must be in [-1, 1]")
+  if (any(p$new_rate < 0)) bad("new.rate must be non-negative")
+  if (length(p$new_share) != 1 || !isTRUE(p$new_share >= 0 && p$new_share <= 1)) {
+    bad("`new.share.norel` must be one share in [0, 1]")
   }
-  if (!is.matrix(p$new_mix) || any(dim(p$new_mix) != nb)) {
-    stop("`new.mix` must be a ", nb, " x ", nb, " matrix", call. = FALSE)
+  if (!is.matrix(p$new_mix) || any(dim(p$new_mix) != nb) || anyNA(p$new_mix) || any(p$new_mix < 0) ||
+      !isSymmetric(unname(p$new_mix))) {
+    bad(paste0("`new.mix` must be a symmetric non-negative ", nb, " x ", nb, " matrix"))
   }
+  if (length(p$window) != 1 || !isTRUE(p$window >= 1)) bad("`act.window` must be at least 1")
   # The off-to-on probability s (1 - p11) / (1 - s) must be a probability
-  if (p$s <= 0 || p$p11 < 0 || p$p11 >= 1 || p$s > 1 / (2 - p$p11)) {
-    stop("episode parameters out of range: act.s ", p$s, ", act.p11 ", p$p11, call. = FALSE)
+  if (!isTRUE(p$s > 0 && p$p11 >= 0 && p$p11 < 1 && p$s <= 1 / (2 - p$p11))) {
+    bad(paste0("episode parameters out of range: act.s ", p$s, ", act.p11 ", p$p11))
   }
   p
+}
+
+# The out-propensity and trait parameters act only when a person's traits are
+# drawn (at initialization, and for newborns), and the initial population's
+# relationship traits are those the networks were fitted on. A parameter
+# updater that changed them mid-run would reach only newborns, and a scenario
+# that changed the trait parameters would make newborns differ from the initial
+# population, so both stop the run.
+check_trait_params <- function(dat) {
+  at_start <- c("act.o", "act.kappa", "act.kappa.mult")
+  traits <- c("act.pi", "act.theta.F", "act.theta.I", "act.rho")
+  late <- unlist(lapply(dat$param$.param.updater.list, function(u) if (isTRUE(u$at > 1)) names(u$param)))
+  hit <- intersect(late, c(at_start, traits))
+  if (length(hit)) {
+    stop("a parameter updater after the first step changes ", toString(hit), ", which act only when ",
+         "traits are drawn; set them in the scenario (at = 1)", call. = FALSE)
+  }
+  fitted <- get_nwparam(dat, network = match(rel_layers[["freq"]], names(dat$run$el)))$trait_pars
+  if (!is.null(fitted)) {
+    now <- list(pi = get_param(dat, "act.pi"), theta_F = get_param(dat, "act.theta.F"),
+                theta_I = get_param(dat, "act.theta.I"), rho = get_param(dat, "act.rho"))
+    diff <- names(now)[!vapply(names(now), function(k) isTRUE(all.equal(unname(now[[k]]),
+                                                                        unname(fitted[[k]]))), logical(1))]
+    if (length(diff)) {
+      stop("the trait parameters (", toString(diff), ") differ from those the networks were fitted ",
+           "with; newborns would differ from the initial population. Refit the networks instead.",
+           call. = FALSE)
+    }
+  }
+  invisible(TRUE)
 }
 
 # Age band index of every node (1..6), from age.grp.
@@ -198,7 +236,7 @@ new_contact_edges <- function(new_mix, new_rate, N_b) {
 #'
 #' @param E Expected edges by age pair (from [new_contact_edges()]).
 #' @param band Age band index of each node.
-#' @param weight Draw weight of each node; 0 for people not out.
+#' @param weight Draw weight of each node (0: never drawn).
 #' @return Two-column integer matrix of positional ids, tail < head.
 #' @export
 draw_new_contacts <- function(E, band, weight) {
@@ -221,6 +259,22 @@ draw_new_contacts <- function(E, band, weight) {
   el <- cbind(pmin(a, b)[keep], pmax(a, b)[keep])
   storage.mode(el) <- "integer"
   el
+}
+
+# Odds multiplier on people with no relationship met today such that a share
+# `share` of all new-contact ends goes to them, given each band's expected ends
+# and its counts of people with none (n0) and with some (n1).
+new_contact_odds <- function(ends, n0, n1, share) {
+  if (sum(ends) <= 0 || sum(n0) == 0 || sum(n1) == 0) return(1)
+  f <- function(ll) {
+    l <- exp(ll)
+    d <- l * n0 + n1
+    sum(ifelse(d > 0, ends * l * n0 / d, 0)) / sum(ends) - share
+  }
+  lo <- f(-30); hi <- f(30)
+  if (lo >= 0) return(exp(-30))
+  if (hi <= 0) return(exp(30))
+  exp(stats::uniroot(f, c(-30, 30), f.lower = lo, f.upper = hi, tol = 1e-8)$root)
 }
 
 #' The day's out-of-home contacts
@@ -247,14 +301,15 @@ activate_day <- function(el_freq, el_infreq, uid, band, out, live, pars, episode
   st <- episode_update(keyI, episode, pars$p11, pars$s, pars$episodes)
   onI <- out[el_infreq[, 1]] & out[el_infreq[, 2]] & st
   freq <- el_freq[onF, , drop = FALSE]; infreq <- el_infreq[onI, , drop = FALSE]
-  ## New contacts: a share new_share of the ends goes to the living people with
-  ## no relationship met today, the rest to those with one
+  ## New contacts: each band's ends are fixed by the age mixing, so the share of
+  ## all ends on people with no relationship met today is set by an odds
+  ## multiplier lambda on those people, solved for the day's band composition
   none <- live & tabulate(c(freq, infreq), nbins = length(live)) == 0
-  some <- live & !none
-  w <- numeric(length(live))
-  if (any(none)) w[none] <- pars$new_share / sum(none)
-  if (any(some)) w[some] <- (1 - pars$new_share) / sum(some)
   E <- new_contact_edges(pars$new_mix, pars$new_rate, N_b)
+  w <- as.numeric(live)
+  lambda <- new_contact_odds(rowSums(E) + diag(E), tabulate(band[none], length(N_b)),
+                             tabulate(band[live & !none], length(N_b)), pars$new_share)
+  w[none] <- lambda
   el_new <- draw_new_contacts(E, band, w)
   list(freq = freq, infreq = infreq, new = el_new, episode = list(key = keyI, on = st))
 }
@@ -287,6 +342,11 @@ activate_contacts <- function(dat, at) {
 
   dat <- seed_newborn_ties(dat, at)
 
+  # A daily activity schedule (#68) scales the propensity to go out: a vector of
+  # multipliers recycled over the run (7 values for a weekly pattern). Absent or
+  # all ones, it leaves the draw unchanged.
+  sched <- get_param(dat, "act.schedule", override.null.error = TRUE)
+  if (!is.null(sched) && any(sched != 1)) o_i <- pmin(o_i * sched[(at - 1) %% length(sched) + 1], 1)
   out <- live & never == 0 & stats::runif(n) < o_i
   N_b <- tabulate(band[live], nbins = nb)
   el <- dat$run$el
@@ -310,7 +370,9 @@ activate_contacts <- function(dat, at) {
   dat <- set_attr(dat, "act.new.contacts", get_attr(dat, "act.new.contacts") + degN)
   dat <- update_recent_contacts(dat, uid, deg, degN, pars$window)
 
-  dat <- activation_diagnostics(dat, at, day, uid, out, live, degF, degI, degN)
+  if (!isFALSE(as.logical(param_or(dat, "act.diagnostics", TRUE)))) {
+    dat <- activation_diagnostics(dat, at, day, uid, out, live, degF, degI, degN)
+  }
   dat
 }
 
@@ -367,7 +429,7 @@ activation_diagnostics <- function(dat, at, day, uid, out, live, degF, degI, deg
   dat <- set_epi(dat, "act.iso.rel", at, sum(zero_rel & live) / n_live)
   dat <- set_epi(dat, "act.iso.all", at, sum(zero_all & live) / n_live)
   # New-contact ends on people with no relationship met today (the diary's 51%
-  # rural and 55% urban)
+  # rural and 48% urban)
   dat <- set_epi(dat, "act.new.norel", at, sum(zero_rel[day$new]))
   dat <- set_epi(dat, "act.new.ends", at, length(day$new))
 
@@ -445,7 +507,8 @@ seed_newborn_ties <- function(dat, at) {
     for (b in seq_along(newborn)) {
       i <- newborn[b]
       if (never[i] == 1) next
-      j <- elig[elig != i]
+      # a pair of same-day newborns is drawn once, from the earlier one
+      j <- elig[elig != i & !elig %in% newborn[seq_len(b)]]
       p <- stats::plogis(cell[band[i], band[j]] + la[i] + la[j])
       hit <- j[stats::runif(length(j)) < p]
       if (length(hit)) add[[b]] <- cbind(pmin(i, hit), pmax(i, hit))

@@ -260,3 +260,110 @@ test_that("newborns get relationships at arrival and the edgelists stay sorted",
   expect_gt(sum(tabulate(el, nbins = N + n_new)[N + seq_len(n_new)]), 0)
   expect_identical(attr(el, "n"), attr(dat$run$el$infreq, "n"))
 })
+
+test_that("malformed activation parameters stop the run at initialization", {
+  dat <- rel_dat()
+  expect_error(EpiModelCOVID:::activation_params(set_param(dat, "act.o", c(1.2, act_pars$o[-1]))), "outside")
+  expect_error(EpiModelCOVID:::activation_params(set_param(dat, "act.q", c(NA, act_pars$q[-1]))), "none NA")
+  M <- act_pars$new_mix; M[1, 2] <- 3
+  expect_error(EpiModelCOVID:::activation_params(set_param(dat, "new.mix", M)), "symmetric")
+  expect_error(EpiModelCOVID:::activation_params(set_param(dat, "act.kappa", -1)), "kappa")
+  expect_error(EpiModelCOVID:::activation_params(set_param(dat, "act.window", 0)), "act.window")
+})
+
+test_that("trait parameters must be those the networks were fitted with", {
+  F2 <- est_F
+  F2$trait_pars <- list(pi = act_pars$pi, theta_F = act_pars$theta_F, theta_I = act_pars$theta_I, rho = act_pars$rho)
+  dat <- rel_dat(x = list(freq = F2, infreq = est_I, home = est_H))
+  expect_true(EpiModelCOVID:::check_trait_params(dat))
+  expect_error(EpiModelCOVID:::check_trait_params(set_param(dat, "act.rho", 0)), "differ from those")
+  dat$param$.param.updater.list <- list(list(at = 50, param = list(act.kappa.mult = 2)))
+  expect_error(EpiModelCOVID:::check_trait_params(dat), "after the first step")
+})
+
+test_that("the new-contact share on people with no relationship met holds across bands", {
+  ends <- c(100, 50, 300, 200, 400, 600)
+  n0 <- c(200, 20, 400, 900, 300, 1500); n1 <- c(800, 980, 600, 100, 700, 500)
+  lam <- EpiModelCOVID:::new_contact_odds(ends, n0, n1, 0.4)
+  expect_equal(sum(ends * lam * n0 / (lam * n0 + n1)) / sum(ends), 0.4, tolerance = 1e-6)
+})
+
+# Probabilities passed to rbinom by infect_general, with vaccine effects mocked
+inf_probs <- function(dat, at) {
+  probs <- list()
+  local_mocked_bindings(
+    rbinom = function(n, size, prob) {
+      probs[[length(probs) + 1]] <<- prob
+      integer(n)
+    },
+    build_vax_schedule = function(dat, disease) NULL,
+    compute_ve = function(at, ids, ...) list(rr = rep(1, length(ids))),
+    vax_age_group_for = function(dat) rep(NA_integer_, length(get_attr(dat, "active"))),
+    .package = "EpiModelCOVID"
+  )
+  infect_general(dat, at)
+  probs
+}
+inf_dat <- function() {
+  dat <- rel_dat()
+  dat <- set_current_timestep(dat, 2)
+  dat <- activate_contacts(dat, 2)
+  status <- rep("s", N); status[seq(1, N, by = 3)] <- "ic"
+  dat <- set_attr(dat, "status", status)
+  dat <- set_attr(dat, "vax", rep(0, N))
+  dat <- set_attr(dat, "ever.inf", rep(0, N))
+  dat <- set_attr(dat, "last.dose.time", rep(NA, N))
+  dat <- set_attr(dat, "is_infant", rep(FALSE, N))
+  dat
+}
+
+test_that("a symptomatic infector's hazard is scaled on out-of-home ties, not at home", {
+  dat <- inf_dat()
+  dat <- set_param(dat, "inf.prob", c(0.1, 0.2, 0.3, 0.4))
+  dat <- set_param(dat, "sympt.contact.rr", c(0.5, 0.5, 0.5, 1))
+  p <- unique(round(unlist(inf_probs(dat, 2)), 10))
+  expect_true(all(p %in% round(c(1 - 0.9^0.5, 1 - 0.8^0.5, 1 - 0.7^0.5, 0.4), 10)))
+  expect_true(round(1 - 0.9^0.5, 10) %in% p && 0.4 %in% p)
+})
+
+test_that("the #68 hooks at their neutral values leave the run unchanged", {
+  dat <- inf_dat()
+  run <- function(d) {
+    local_mocked_bindings(
+      build_vax_schedule = function(dat, disease) NULL,
+      compute_ve = function(at, ids, ...) list(rr = rep(1, length(ids))),
+      vax_age_group_for = function(dat) rep(NA_integer_, length(get_attr(dat, "active"))),
+      .package = "EpiModelCOVID"
+    )
+    set.seed(11)
+    get_attr(infect_general(d, 2), "status")
+  }
+  neutral <- set_param(set_param(dat, "sympt.contact.rr", rep(1, 4)), "bg.hazard", 0)
+  expect_identical(run(dat), run(neutral))
+})
+
+test_that("the background hazard infects without any contact", {
+  dat <- inf_dat()
+  dat <- set_param(dat, "inf.prob", rep(0, 4))
+  dat <- set_param(dat, "bg.hazard", 0.5)
+  local_mocked_bindings(
+    build_vax_schedule = function(dat, disease) NULL,
+    compute_ve = function(at, ids, ...) list(rr = rep(1, length(ids))),
+    vax_age_group_for = function(dat) rep(NA_integer_, length(get_attr(dat, "active"))),
+    .package = "EpiModelCOVID"
+  )
+  out <- infect_general(dat, 2)
+  expect_gt(get_epi(out, "se.flow.bg", 2), 0)
+  expect_equal(get_epi(out, "se.flow", 2), get_epi(out, "se.flow.bg", 2))
+})
+
+test_that("an activity schedule of zero keeps everyone home", {
+  dat <- rel_dat()
+  dat <- set_param(dat, "act.schedule", c(1, 0, 1, 1, 1, 1, 1))
+  dat <- set_current_timestep(dat, 2)
+  dat <- activate_contacts(dat, 2)
+  expect_equal(nrow(dat$run$contacts$freq) + nrow(dat$run$contacts$infreq), 0)
+  dat <- set_current_timestep(dat, 3)
+  dat <- activate_contacts(dat, 3)
+  expect_gt(nrow(dat$run$contacts$freq), 0)
+})

@@ -26,10 +26,14 @@ init_gmc19 <- function(x, param, init, control, s) {
   # vertex attributes. Without them the default attributes would be appended
   # below and the formation offsets would run on zeros.
   if (activation_on(dat)) {
-    missing <- setdiff(c("never", "log_aF", "log_aI"), names(get_attr_list(dat)))
+    traits <- c("never", "log_aF", "log_aI")
+    missing <- setdiff(traits, names(get_attr_list(dat)))
     if (length(missing) > 0) {
       stop("the relationship networks carry no vertex attribute ", toString(missing),
            "; fit them with the traits from draw_relationship_traits()", call. = FALSE)
+    }
+    if (any(vapply(traits, function(a) anyNA(get_attr(dat, a)), logical(1)))) {
+      stop("a relationship trait (never, log_aF, log_aI) is NA for some node", call. = FALSE)
     }
   }
 
@@ -91,7 +95,10 @@ hh_layer <- function(dat) {
 # draws each day (tie type "new", which is not a network), and the household
 # layer, in the order of layer.names. The networks passed to netsim() are then
 # layer.names without "new", in the same order.
-layer_params <- c("inf.prob", "exposure.rate")
+#
+# sympt.contact.rr (#67, #68) is the per-contact hazard multiplier while the
+# infector is symptomatic (status "ic"), one value per tie type; absent, 1.
+layer_params <- c("inf.prob", "exposure.rate", "sympt.contact.rr")
 
 layer_names <- function(dat) {
   names(if (!is.null(dat$run$el)) dat$run$el else dat$run$nw)
@@ -129,6 +136,7 @@ check_layer_params <- function(dat) {
       stop("the activation step needs tergmLite = TRUE", call. = FALSE)
     }
     activation_params(dat)  # stops here, not mid-run, on a malformed parameter
+    check_trait_params(dat)
     dat$run$tie.types <- declared
   } else if (any(rel_layers %in% layers) || new_type %in% declared) {
     stop("the relationship networks and the new-contact tie type need the activation ",
@@ -138,8 +146,20 @@ check_layer_params <- function(dat) {
     stop("layer.names in the parameters (", toString(declared), ") are not ",
          "the layers passed to netsim() (", toString(layers), ")", call. = FALSE)
   }
-  for (name in layer_params) {
+  for (name in intersect(layer_params, names(dat$param))) {
     dat <- set_param(dat, name, layer_param(dat, name))
+  }
+  # Checked here so a malformed value stops the run before the first step
+  if (!is.null(get_param(dat, "contact.weight", override.null.error = TRUE))) {
+    w <- contact_weights(dat)
+    if (!is.null(w) && !all(vapply(w, function(m) isSymmetric(unname(m)), logical(1)))) {
+      stop("every `contact.weight` matrix must be symmetric in the age pair", call. = FALSE)
+    }
+  }
+  score <- as.character(param_or(dat, "vax.degree.score", "total"))
+  if (!score %in% degree_scores) stop("unknown vax.degree.score \"", score, "\"", call. = FALSE)
+  if (!score %in% c("total", "xlayer") && !activation_on(dat)) {
+    stop("vax.degree.score \"", score, "\" needs the relationship model", call. = FALSE)
   }
   dat
 }

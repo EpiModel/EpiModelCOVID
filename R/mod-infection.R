@@ -33,6 +33,11 @@ infect_general <- function(dat, at) {
   # stops if a vector no longer lines up with the layers, e.g. after an updater.
   inf.prob <- layer_param(dat, "inf.prob")
   exposure.rate <- layer_param(dat, "exposure.rate")
+  # Symptomatic contact reduction (#67, #68): a per-contact hazard multiplier,
+  # by tie type, while the infector is symptomatic ("ic"). Absent, no reduction.
+  sympt.rr <- if (!is.null(get_param(dat, "sympt.contact.rr", override.null.error = TRUE))) {
+    layer_param(dat, "sympt.contact.rr")
+  }
 
   # Seasonal forcing of transmission (issue #26): a sinusoidal annual multiplier on
   # inf.prob. Defaults to no forcing (amplitude 0) when the params are unset.
@@ -144,9 +149,11 @@ infect_general <- function(dat, at) {
           inf.prob.a.rr
 
         # Daily probability over exposure.rate acts on the tie, each act scaled
-        # by the age pair's relative intensity on this tie type
+        # by the age pair's relative intensity on this tie type and, while the
+        # infector is symptomatic, by the symptomatic contact multiplier
         w <- if (is.null(weights)) 1 else weights[[layer]][cbind(band[del$sus], band[del$inf])]
-        del$finalProb <- 1 - (1 - del$transProb)^(exposure.rate[[layer]] * w)
+        rr_ic <- if (is.null(sympt.rr)) 1 else ifelse(del$stat == "ic", sympt.rr[[layer]], 1)
+        del$finalProb <- 1 - (1 - del$transProb)^(exposure.rate[[layer]] * w * rr_ic)
 
         # rbinom() would turn these into NAs with only a warning, and the NA
         # draws would then drop out of the which() below as non-transmissions
@@ -180,6 +187,52 @@ infect_general <- function(dat, at) {
     }
   }
 
+  ## Background mass-action hazard (#68; the #79 group-contact arm), off when
+  ## bg.hazard is 0 or unset. A susceptible in age band b is infected with daily
+  ## probability 1 - exp(-bg.hazard x season x sum_h W_bh prev_h x rr): W is the
+  ## row-normalized out-of-home age mixing (bg.mix, or the new-contact mixing
+  ## new.mix), prev_h the infectious share of band h with asymptomatic infectors
+  ## weighted by inf.prob.a.rr, and rr the susceptible's vaccine and
+  ## age-susceptibility multipliers, as on a network contact.
+  bg.hazard <- param_or(dat, "bg.hazard", 0)
+  nBg <- 0L
+  if (bg.hazard > 0) {
+    status_now <- get_attr(dat, "status")
+    bnd <- match(get_attr(dat, "age.grp"), get_param(dat, "age.grps"))
+    nb <- length(get_param(dat, "age.grps"))
+    live <- active == 1
+    M <- get_param(dat, "bg.mix", override.null.error = TRUE)
+    if (is.null(M)) M <- get_param(dat, "new.mix", override.null.error = TRUE)
+    if (is.null(M)) stop("bg.hazard needs an age mixing matrix (bg.mix)", call. = FALSE)
+    W <- M + diag(diag(M))
+    W <- W / pmax(rowSums(W), .Machine$double.xmin)
+    infw <- (status_now %in% c("ip", "ic")) + inf.prob.a.rr * (status_now == "a")
+    prev <- as.numeric(tapply(infw[live], factor(bnd[live], levels = seq_len(nb)), sum)) /
+      pmax(tabulate(bnd[live], nb), 1)
+    prev[is.na(prev)] <- 0
+    lambda_b <- bg.hazard * season_mult * as.numeric(W %*% prev)
+    idsSus <- which(live & status_now == "s")
+    if (length(idsSus) > 0) {
+      rr <- compute_ve(at = at, ids = idsSus, vax = vax, last.dose.time = last.dose.time,
+                       vax.schedule = vax.schedule, outcome = "infect", vax.age.group = vax.age.group)$rr
+      if (isTRUE(vax.infant.product) && !is.null(is_infant)) rr[is_infant[idsSus]] <- 1
+      susc.age.rr <- get_param(dat, "susc.age.rr", override.null.error = TRUE)
+      if (!is.null(susc.age.rr) && !all(is.na(susc.age.rr)) && any(susc.age.rr != 1, na.rm = TRUE)) {
+        rs <- susc.age.rr[cut(age[idsSus], get_param(dat, "age.breaks"), labels = FALSE, right = FALSE)]
+        rs[is.na(rs)] <- 1
+        rr <- rr * rs
+      }
+      idsBg <- idsSus[stats::runif(length(idsSus)) < 1 - exp(-lambda_b[bnd[idsSus]] * rr)]
+      if (length(idsBg) > 0) {
+        dat <- set_attr(dat, "status", "e", idsBg)
+        dat <- set_attr(dat, "infTime", at, idsBg)
+        dat <- set_attr(dat, "statusTime", at, idsBg)
+        nBg <- length(idsBg)
+        allNewInf <- c(allNewInf, idsBg)
+      }
+    }
+  }
+
   ## External re-importation (seasonal): a small per-step hazard of infection from
   ## outside the modeled population, so seasonal epidemics can re-ignite and zero
   ## prevalence is not absorbing. Defaults to 0 (off) when import.rate is unset.
@@ -203,7 +256,7 @@ infect_general <- function(dat, at) {
   allNewInf <- unique(allNewInf)
 
   ## Summary statistics for incidence (network by layer + imports)
-  dat <- set_epi(dat, "se.flow", at, sum(nInf) + nImport)
+  dat <- set_epi(dat, "se.flow", at, sum(nInf) + nImport + nBg)
   dat <- set_epi(dat, "se.flow.l1", at, nInf[1])
   dat <- set_epi(dat, "se.flow.l2", at, nInf[2])
   dat <- set_epi(dat, "se.flow.l3", at, nInf[3])
@@ -212,6 +265,7 @@ infect_general <- function(dat, at) {
   # to know which position a layer took
   for (k in seq_along(types)) dat <- set_epi(dat, paste0("se.flow.", types[k]), at, nInf[k])
   dat <- set_epi(dat, "se.import.flow", at, nImport)
+  if (bg.hazard > 0) dat <- set_epi(dat, "se.flow.bg", at, nBg)
 
   ## Stratified incidence: by age group, vaccination status, and network position
   age <- get_attr(dat, "age")
