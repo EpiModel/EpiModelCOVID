@@ -29,7 +29,7 @@ arrival <- function(dat, at) {
   }
 
   ## Output
-  dat <- set_epi(dat, "nNew", at, nNew)
+  dat <- set_epi(dat, "nNew", nNew, at = at)
   
   return(dat)
 }

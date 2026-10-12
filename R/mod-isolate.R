@@ -256,17 +256,17 @@ isolate_covid_corporate <- function(dat, at) { # placed after the progression
   dat <- set_attr(dat, "isoTime", isoTime)
   
   ## Save summary stats
-  dat <- set_epi(dat, "iso1.flow", at, num.new.iso1.other + num.new.iso1.office)
-  dat <- set_epi(dat, "iso2.flow", at, num.new.iso2)
-  dat <- set_epi(dat, "iso3.flow", at, num.new.iso3)
-  dat <- set_epi(dat, "iso4.flow", at, num.new.iso4.other + num.new.iso4.office)
-  dat <- set_epi(dat, "isoend.flow", at, num.new.iso.end)
+  dat <- set_epi(dat, "iso1.flow", num.new.iso1.other + num.new.iso1.office, at = at)
+  dat <- set_epi(dat, "iso2.flow", num.new.iso2, at = at)
+  dat <- set_epi(dat, "iso3.flow", num.new.iso3, at = at)
+  dat <- set_epi(dat, "iso4.flow", num.new.iso4.other + num.new.iso4.office, at = at)
+  dat <- set_epi(dat, "isoend.flow", num.new.iso.end, at = at)
 
-  dat <- set_epi(dat, "iso1.flow.w", at, num.new.iso1.office)
-  dat <- set_epi(dat, "iso2.flow.w", at, num.new.iso2.w)
-  dat <- set_epi(dat, "iso3.flow.w", at, num.new.iso3.w)
-  dat <- set_epi(dat, "iso4.flow.w", at, num.new.iso4.office)
-  dat <- set_epi(dat, "isoend.flow.w", at, num.new.iso.end.w)
+  dat <- set_epi(dat, "iso1.flow.w", num.new.iso1.office, at = at)
+  dat <- set_epi(dat, "iso2.flow.w", num.new.iso2.w, at = at)
+  dat <- set_epi(dat, "iso3.flow.w", num.new.iso3.w, at = at)
+  dat <- set_epi(dat, "iso4.flow.w", num.new.iso4.office, at = at)
+  dat <- set_epi(dat, "isoend.flow.w", num.new.iso.end.w, at = at)
   
   return(dat)
 }

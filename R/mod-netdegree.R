@@ -55,20 +55,20 @@ netdegree <- function(dat, at) {
   dat <- set_attr(dat, "n_layers_active", n_layers_active)
 
   for (nm in names(deg_net)) {
-    dat <- set_epi(dat, paste0("mean_degree_", nm), at, mean(deg_net[[nm]]))
+    dat <- set_epi(dat, paste0("mean_degree_", nm), mean(deg_net[[nm]]), at = at)
   }
-  dat <- set_epi(dat, "mean_degree_hh", at, mean(degree_hh))
-  dat <- set_epi(dat, "mean_degree_total", at, mean(degree_total))
+  dat <- set_epi(dat, "mean_degree_hh", mean(degree_hh), at = at)
+  dat <- set_epi(dat, "mean_degree_total", mean(degree_total), at = at)
 
-  dat <- set_epi(dat, "prop_bridge", at, prop_bridge)
+  dat <- set_epi(dat, "prop_bridge", prop_bridge, at = at)
   for (g in seq_along(prop_bridge_age)) {
-    dat <- set_epi(dat, paste0("prop_bridge_age", g), at, prop_bridge_age[[g]])
+    dat <- set_epi(dat, paste0("prop_bridge_age", g), prop_bridge_age[[g]], at = at)
   }
   for (g in seq_along(mean_degree_age)) {
-    dat <- set_epi(dat, paste0("mean_degree_age", g), at, mean_degree_age[[g]])
+    dat <- set_epi(dat, paste0("mean_degree_age", g), mean_degree_age[[g]], at = at)
   }
   for (g in seq_along(var_degree_age)) {
-    dat <- set_epi(dat, paste0("var_degree_age", g), at, var_degree_age[[g]])
+    dat <- set_epi(dat, paste0("var_degree_age", g), var_degree_age[[g]], at = at)
   }
 
   # The expected-contact scores cost a pass over every relationship each step,
@@ -87,7 +87,7 @@ netdegree <- function(dat, at) {
   degree_quartile <- pmin(pmax(
     ceiling(rank(score, ties.method = ties) / n_nodes * 4), 1L), 4L)
   dat <- set_attr(dat, "degree_quartile", degree_quartile)
-  dat <- set_epi(dat, "mean_degree_daily", at, mean(daily_degree))
+  dat <- set_epi(dat, "mean_degree_daily", mean(daily_degree), at = at)
 
   dat
 }
@@ -147,7 +147,7 @@ relationship_scores <- function(dat, at) {
   }
   dat <- set_attr(dat, "degree_active", degree_active)
   dat <- set_attr(dat, "degree_hazard", degree_hazard)
-  dat <- set_epi(dat, "mean_degree_active", at, mean(degree_active))
+  dat <- set_epi(dat, "mean_degree_active", mean(degree_active), at = at)
   dat
 }
 
