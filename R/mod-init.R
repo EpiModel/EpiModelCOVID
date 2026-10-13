@@ -22,6 +22,10 @@ init_gmc19 <- function(x, param, init, control, s) {
   check_retired_params(dat)
   dat <- check_layer_params(dat)
 
+  # GlobalMix India #61: sex and occupation class come with the population, as
+  # vertex attributes of the networks, like age and hh.ids
+  dat <- init_pop_class(dat)
+
   # GlobalMix India #63: the relationship traits come from the fitted networks'
   # vertex attributes. Without them the default attributes would be appended
   # below and the formation offsets would run on zeros.
@@ -35,6 +39,7 @@ init_gmc19 <- function(x, param, init, control, s) {
     if (any(vapply(traits, function(a) anyNA(get_attr(dat, a)), logical(1)))) {
       stop("a relationship trait (never, log_aF, log_aI) is NA for some node", call. = FALSE)
     }
+    check_newborn_classes(dat)
   }
 
   

@@ -1,6 +1,6 @@
 #' Get the list the attributes used by the model with their default value
 get_default_attrs <- function(dat) { # all attributes should be listed here
-  list(
+  defaults <- list(
     # network attributes, binary
     deg_work=0,
     deg_school=0,
@@ -70,6 +70,62 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     ever.sympt = 0
 
   )
+  # Sex and occupation class (GlobalMix India #61), when the population carries
+  # them: newborns are children, and make_computed_attrs() draws their sex
+  if (has_pop_class(dat)) {
+    defaults$sex <- NA_character_
+    defaults$occ <- "child"
+  }
+  defaults
+}
+
+# Sex and occupation class (GlobalMix India #61) -------------------------------
+#
+# The population carries each person's sex and occupation class as vertex
+# attributes of the networks, which init_nets() copies to the attribute list
+# with age and hh.ids. Newborns are children, male with probability
+# birth.prop.male. A population without them (the four-layer model's) carries
+# neither, its newborns get neither, and no random number is drawn for them.
+pop_class_attrs <- c("sex", "occ")
+sex_levels <- c("F", "M")
+occ_levels <- c("child", "student", "worker", "home")
+
+has_pop_class <- function(dat) {
+  all(pop_class_attrs %in% names(get_attr_list(dat)))
+}
+
+# Checks the population's sex and occ at initialization and stores them as
+# character vectors
+init_pop_class <- function(dat) {
+  present <- intersect(pop_class_attrs, names(get_attr_list(dat)))
+  if (length(present) == 0) {
+    if (!is.null(get_param(dat, "act.class.mult", override.null.error = TRUE))) {
+      stop("act.class.mult needs each person's sex and occ, as vertex attributes of the ",
+           "relationship networks", call. = FALSE)
+    }
+    return(dat)
+  }
+  if (length(present) == 1) {
+    stop("the population carries ", present, " but not ", setdiff(pop_class_attrs, present),
+         "; set both as vertex attributes of the networks", call. = FALSE)
+  }
+  sex <- as.character(get_attr(dat, "sex"))
+  occ <- as.character(get_attr(dat, "occ"))
+  if (!all(sex %in% sex_levels)) {
+    stop("sex must be F or M; the population has ", toString(setdiff(unique(sex), sex_levels)),
+         call. = FALSE)
+  }
+  if (!all(occ %in% occ_levels)) {
+    stop("occ must be one of ", toString(occ_levels), "; the population has ",
+         toString(setdiff(unique(occ), occ_levels)), call. = FALSE)
+  }
+  p <- get_param(dat, "birth.prop.male", override.null.error = TRUE)
+  if (!isTRUE(length(p) == 1 && p >= 0 && p <= 1)) {
+    stop("birth.prop.male, the share of newborns who are male, must be one value in [0, 1] ",
+         "when the population carries sex", call. = FALSE)
+  }
+  dat <- set_attr(dat, "sex", sex)
+  set_attr(dat, "occ", occ)
 }
 
 #' Update the attributes requiring computation for new nodes
@@ -129,10 +185,19 @@ make_computed_attrs <- function(dat, n_new, post_init) {
     is_infant   =   age < infant.age.max
   ))
   
+  # Sex of newborns (GlobalMix India #61), drawn only when the population
+  # carries sex and occupation class
+  pop_class <- has_pop_class(dat)
+  if (post_init && pop_class) {
+    p.male <- get_param(dat, "birth.prop.male")
+    n_attr$sex <- ifelse(stats::runif(n_new) < p.male, "M", "F")
+  }
+
   # Relationship traits and the propensity to go out (GlobalMix India #63).
   # Newborns draw their traits from the youngest band's parameters, as the
-  # initial 0-9y population's were drawn, so the two are exchangeable (#65). o_i
-  # is drawn here for everyone, so act.o and act.kappa can be set by a scenario.
+  # initial 0-9y population's were drawn, so the two are exchangeable (#65),
+  # and with their own sex and occupation class (#61). o_i is drawn here for
+  # everyone, so act.o and act.kappa can be set by a scenario.
   if (activation_on(dat)) {
     pars <- activation_params(dat)
     band_new <- match(n_attr$age.grp, age.grps)
@@ -140,7 +205,8 @@ make_computed_attrs <- function(dat, n_new, post_init) {
       stop("age.grp outside age.grps for ", sum(is.na(band_new)), " nodes", call. = FALSE)
     }
     if (post_init) {
-      tr <- draw_relationship_traits(band_new, pars)
+      tr <- draw_relationship_traits(band_new, pars, sex = if (pop_class) n_attr$sex,
+                                     occ = if (pop_class) get_attr(dat, "occ", posit_ids = new_nodes_pid))
       n_attr$never <- tr$never
       n_attr$log_aF <- tr$log_aF
       n_attr$log_aI <- tr$log_aI

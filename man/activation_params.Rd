@@ -11,8 +11,9 @@ activation_params(dat)
 }
 \value{
 A list: o, q, pi, theta_F, new_rate (one value per age band), kappa,
-  p11, s, theta_I, rho, new_mix (age band by age band), episodes (logical)
-  and window (days).
+  p11, s, theta_I, rho, new_mix (age band by age band), episodes (logical),
+  window (days) and class_mult (the sex and occupation class multipliers of
+  the activities, a table with one row per class, or NULL).
 }
 \description{
 Activation parameters with the scenario multipliers applied

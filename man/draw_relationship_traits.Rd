@@ -4,15 +4,19 @@
 \alias{draw_relationship_traits}
 \title{Draw the relationship traits of a population}
 \usage{
-draw_relationship_traits(band, pars, seed = NULL)
+draw_relationship_traits(band, pars, seed = NULL, sex = NULL, occ = NULL)
 }
 \arguments{
 \item{band}{Age band index of each node (1..6).}
 
 \item{pars}{List with `pi` and `theta_F` (one value per band), `theta_I` and
-`rho`.}
+`rho`, and optionally `class_mult`: a data frame with one row per class,
+`band` (the band index), `sex`, `occ`, `mult_F` and `mult_I`.}
 
 \item{seed}{Optional seed.}
+
+\item{sex, occ}{Sex ("F", "M") and occupation class ("child", "student",
+"worker", "home") of each node; required with `pars$class_mult`.}
 }
 \value{
 A list with `never` (0/1), `log_aF` and `log_aI`.
@@ -24,4 +28,11 @@ z1 ~ N(0, 1), z2 = rho z1 + sqrt(1 - rho^2) e, a_F = G_F^-1(Phi(z1)) with
 shape theta_F by age band, a_I = G_I^-1(Phi(z2)) with shape theta_I. The fitted
 networks carry them as vertex attributes (`never`, `log_aF`, `log_aI`), and
 the arrivals module draws them for newborns from the youngest band.
+}
+\details{
+With class multipliers (`pars$class_mult`, GlobalMix India #61), each
+activity is the gamma variate times its class's multiplier, a_F = mult_F
+G_F^-1(Phi(z1)) and a_I = mult_I G_I^-1(Phi(z2)): the class sets the mean
+within the age band and the shape is unchanged. The never-active share stays
+by band. Without them, the draws are those of EpiModelCOVID 1.7.2.
 }

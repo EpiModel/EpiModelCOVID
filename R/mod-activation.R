@@ -46,8 +46,9 @@ param_or <- function(dat, name, default) {
 #'
 #' @param dat Main `netsim_dat` object.
 #' @return A list: o, q, pi, theta_F, new_rate (one value per age band), kappa,
-#'   p11, s, theta_I, rho, new_mix (age band by age band), episodes (logical)
-#'   and window (days).
+#'   p11, s, theta_I, rho, new_mix (age band by age band), episodes (logical),
+#'   window (days) and class_mult (the sex and occupation class multipliers of
+#'   the activities, a table with one row per class, or NULL).
 #' @keywords internal
 activation_params <- function(dat) {
   nb <- length(get_param(dat, "age.grps"))
@@ -67,7 +68,8 @@ activation_params <- function(dat) {
     theta_N = param_or(dat, "act.theta.N", Inf),
     pi_N = param_or(dat, "act.pi.N", 0),
     episodes = isTRUE(as.logical(param_or(dat, "act.episodes", TRUE))),
-    window = as.integer(param_or(dat, "act.window", 30))
+    window = as.integer(param_or(dat, "act.window", 30)),
+    class_mult = normalize_class_mult(param_or(dat, "act.class.mult", NULL), get_param(dat, "age.grps"))
   )
   bad <- function(what) stop("activation parameter ", what, call. = FALSE)
   for (v in c("o", "q", "pi", "theta_F", "new_rate")) {
@@ -96,6 +98,67 @@ activation_params <- function(dat) {
   p
 }
 
+# The sex and occupation class multipliers of the frequent and infrequent
+# activities (GlobalMix India #61), act.class.mult: a table with one row per
+# class, band (the age band's index in age.grps, or its label), sex, occ, mult_F
+# and mult_I. Returned with integer bands, sorted by class; NULL when unset, in
+# which case every multiplier is 1.
+normalize_class_mult <- function(cm, bands) {
+  if (is.null(cm)) return(NULL)
+  bad <- function(what) stop("act.class.mult ", what, call. = FALSE)
+  if (!is.data.frame(cm) || !all(c("band", "sex", "occ", "mult_F", "mult_I") %in% names(cm))) {
+    bad("must be a data frame with columns band, sex, occ, mult_F and mult_I")
+  }
+  band <- if (is.numeric(cm$band)) cm$band else match(as.character(cm$band), bands)
+  if (anyNA(band) || any(band != round(band)) || any(band < 1 | band > length(bands))) {
+    bad(paste0("needs each band as its index in age.grps (1 to ", length(bands), ")"))
+  }
+  out <- data.frame(band = as.integer(band), sex = as.character(cm$sex), occ = as.character(cm$occ),
+                    mult_F = as.numeric(cm$mult_F), mult_I = as.numeric(cm$mult_I))
+  if (!all(out$sex %in% sex_levels) || !all(out$occ %in% occ_levels)) {
+    bad(paste0("has a sex other than ", toString(sex_levels), " or an occ other than ",
+               toString(occ_levels)))
+  }
+  m <- c(out$mult_F, out$mult_I)
+  if (!all(is.finite(m)) || any(m <= 0)) bad("multipliers must be positive")
+  if (anyDuplicated(out[c("band", "sex", "occ")]) > 0) bad("has more than one row for a class")
+  out <- out[order(out$band, out$sex, out$occ), , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+# Each node's activity multipliers: the row of its class (age band, sex,
+# occupation class) in the class multiplier table
+class_multipliers <- function(band, sex, occ, cm) {
+  n <- length(band)
+  if (length(sex) != n || length(occ) != n) {
+    stop("the class multipliers (act.class.mult) need each node's sex and occ", call. = FALSE)
+  }
+  if (!is.numeric(cm$band)) {
+    stop("the class multipliers need each band as its index in age.grps", call. = FALSE)
+  }
+  key <- paste(band, sex, occ, sep = "|")
+  row <- match(key, paste(cm$band, cm$sex, cm$occ, sep = "|"))
+  if (anyNA(row)) {
+    miss <- unique(data.frame(band = band, sex = sex, occ = occ)[is.na(row), , drop = FALSE])
+    stop("act.class.mult has no row for ",
+         paste0("band ", miss$band, ", sex ", miss$sex, ", occ ", miss$occ, collapse = "; "),
+         call. = FALSE)
+  }
+  list(mult_F = cm$mult_F[row], mult_I = cm$mult_I[row])
+}
+
+# Newborns draw their traits with their own class: occ "child", in the band of
+# arrival.age, either sex. Checked at initialization rather than at the first
+# birth.
+check_newborn_classes <- function(dat) {
+  cm <- activation_params(dat)$class_mult
+  if (is.null(cm)) return(invisible(TRUE))
+  band <- cut(get_param(dat, "arrival.age"), get_param(dat, "age.breaks"), labels = FALSE, right = FALSE)
+  class_multipliers(rep(band, 2), sex_levels, rep("child", 2), cm)
+  invisible(TRUE)
+}
+
 # The out-propensity and trait parameters act only when a person's traits are
 # drawn (at initialization, and for newborns), and the initial population's
 # relationship traits are those the networks were fitted on. A parameter
@@ -104,7 +167,7 @@ activation_params <- function(dat) {
 # population, so both stop the run.
 check_trait_params <- function(dat) {
   at_start <- c("act.o", "act.kappa", "act.kappa.mult", "act.theta.N", "act.pi.N")
-  traits <- c("act.pi", "act.theta.F", "act.theta.I", "act.rho")
+  traits <- c("act.pi", "act.theta.F", "act.theta.I", "act.rho", "act.class.mult")
   late <- unlist(lapply(dat$param$.param.updater.list, function(u) if (isTRUE(u$at > 1)) names(u$param)))
   hit <- intersect(late, c(at_start, traits))
   if (length(hit)) {
@@ -117,6 +180,13 @@ check_trait_params <- function(dat) {
                 theta_I = get_param(dat, "act.theta.I"), rho = get_param(dat, "act.rho"))
     diff <- names(now)[!vapply(names(now), function(k) isTRUE(all.equal(unname(now[[k]]),
                                                                         unname(fitted[[k]]))), logical(1))]
+    # The sex and occupation class multipliers (GlobalMix India #61): none on
+    # both, or the same table
+    bands <- get_param(dat, "age.grps")
+    if (!isTRUE(all.equal(normalize_class_mult(param_or(dat, "act.class.mult", NULL), bands),
+                          normalize_class_mult(fitted$class_mult, bands)))) {
+      diff <- c(diff, "class_mult")
+    }
     if (length(diff)) {
       stop("the trait parameters (", toString(diff), ") differ from those the networks were fitted ",
            "with; newborns would differ from the initial population. Refit the networks instead.",
@@ -142,13 +212,23 @@ band_index <- function(dat) {
 #' networks carry them as vertex attributes (`never`, `log_aF`, `log_aI`), and
 #' the arrivals module draws them for newborns from the youngest band.
 #'
+#' With class multipliers (`pars$class_mult`, GlobalMix India #61), each
+#' activity is the gamma variate times its class's multiplier, a_F = mult_F
+#' G_F^-1(Phi(z1)) and a_I = mult_I G_I^-1(Phi(z2)): the class sets the mean
+#' within the age band and the shape is unchanged. The never-active share stays
+#' by band. Without them, the draws are those of EpiModelCOVID 1.7.2.
+#'
 #' @param band Age band index of each node (1..6).
 #' @param pars List with `pi` and `theta_F` (one value per band), `theta_I` and
-#'   `rho`.
+#'   `rho`, and optionally `class_mult`: a data frame with one row per class,
+#'   `band` (the band index), `sex`, `occ`, `mult_F` and `mult_I`.
 #' @param seed Optional seed.
+#' @param sex,occ Sex ("F", "M") and occupation class ("child", "student",
+#'   "worker", "home") of each node; required with `pars$class_mult`.
 #' @return A list with `never` (0/1), `log_aF` and `log_aI`.
 #' @export
-draw_relationship_traits <- function(band, pars, seed = NULL) {
+draw_relationship_traits <- function(band, pars, seed = NULL, sex = NULL, occ = NULL) {
+  mult <- if (!is.null(pars$class_mult)) class_multipliers(band, sex, occ, pars$class_mult)
   if (!is.null(seed)) set.seed(seed)
   n <- length(band)
   never <- as.integer(stats::runif(n) < pars$pi[band])
@@ -157,6 +237,10 @@ draw_relationship_traits <- function(band, pars, seed = NULL) {
   thF <- pars$theta_F[band]
   aF <- stats::qgamma(stats::pnorm(z1), shape = thF, rate = thF)
   aI <- stats::qgamma(stats::pnorm(z2), shape = pars$theta_I, rate = pars$theta_I)
+  if (!is.null(mult)) {
+    aF <- aF * mult$mult_F
+    aI <- aI * mult$mult_I
+  }
   list(never = never, log_aF = log(pmax(aF, 1e-8)), log_aI = log(pmax(aI, 1e-8)))
 }
 
