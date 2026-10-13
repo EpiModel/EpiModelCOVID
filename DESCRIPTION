@@ -18,6 +18,7 @@ Imports:
     networkLite (>= 1.0.5),
     statnet.common (>= 4.9.0)
 Suggests:
+    codetools,
     testthat (>= 3.0.0)
 Encoding: UTF-8
 Config/testthat/edition: 3

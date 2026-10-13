@@ -86,10 +86,10 @@ vax_general <- function(dat, at) {
   }
 
   vax.schedule <- build_vax_schedule(dat, get_pathogen(dat)) # data.frame containing vax-related details
-  # vax.schedule stores both dose-administration parameters and per-dose RR values.
-  # mod-vax.R only uses the administration columns: dose, start, interval, rate, annual.
-  # The rr.infect / rr.clinical / rr.hosp columns are consumed downstream in
-  # mod-infection.R and mod-progress.R through compute_ve().
+  # vax.schedule stores both the dose-administration parameters and the per-dose
+  # VE profiles. mod-vax.R only uses the administration columns: dose, start,
+  # interval, rate, annual. The VE columns are read downstream, in
+  # mod-infection.R, mod-progress.R and mod-departure.R, through compute_ve().
   
   n_pop <- sum(active == 1) # active nodes
   
@@ -1040,13 +1040,16 @@ get_ids_eligible_for_dose <- function(
   return(idsElig)
 }
 
-# Compute current vaccine relative risk for each node.
-# This helper is shared by mod-infection.R and mod-progress.R despite saved in mod-vax.R
+# Compute current vaccine relative risk for each node, 1 - VE, from the VE
+# profile (ve.peak, ve.halflife, ve.floor, ve.delay) of its latest dose.
+# This helper is shared by mod-infection.R, mod-progress.R and mod-departure.R
+# despite saved in mod-vax.R
 #
-# rr_col can be:
-#   "rr.infect"   for susceptibility / transmission risk
-#   "rr.clinical" for symptomatic disease risk
-#   "rr.hosp"     for hospitalization risk
+# outcome can be:
+#   "infect"   for susceptibility / transmission risk
+#   "clinical" for symptomatic disease risk
+#   "hosp"     for hospitalization risk
+#   "death"    for the disease-death hazard
 #' @rdname moduleset-gmc19
 #' @export
 compute_ve <- function(at, ids, vax,
@@ -1161,56 +1164,21 @@ get_pathogen <- function(dat) {
   if (is.null(pathogen) || length(pathogen) == 0) "covid" else pathogen
 }
 
-# Build dose-indexed vaccine schedule from model_parameters.csv
+# Build the dose-indexed vaccine schedule from the parameters
+# vax.<disease>.<field>.dose<i>, one row per dose, with the fields in
+# vax_dose_fields (R/params.R). compute_ve() reads the VE columns, and
+# vax_general() the administration columns (start, rate, interval, annual).
 build_vax_schedule <- function(dat, disease = "covid") {
-  
   prefix <- paste0("vax.", disease, ".")
   n_doses <- get_param(dat, paste0(prefix, "n.doses"))
-  
-  get_dose_param <- function(attr, dose_i) {
-    get_param(dat, paste0(prefix, attr, ".dose", dose_i))
+  vax.schedule <- data.frame(dose = seq_len(n_doses))
+  for (field in vax_dose_fields) {
+    values <- lapply(seq_len(n_doses), function(i) {
+      get_param(dat, paste0(prefix, field, ".dose", i))
+    })
+    # start and rate hold one value per vaccine age group
+    vax.schedule[[field]] <- if (field %in% vax_dose_by_age) I(values) else sapply(values, identity)
   }
-  
-  vax.schedule <- data.frame(
-    dose = seq_len(n_doses),
-    interval = sapply(seq_len(n_doses), function(i) get_dose_param("interval", i)),
-    annual = sapply(seq_len(n_doses), function(i) get_dose_param("annual", i)),
-    
-    rr.infect = sapply(seq_len(n_doses), function(i) get_dose_param("rr.infect", i)),
-    rr.clinical = sapply(seq_len(n_doses), function(i) get_dose_param("rr.clinical", i)),
-    rr.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("rr.hosp", i)),
-    
-    ve.peak.infect = sapply(seq_len(n_doses), function(i) get_dose_param("ve.peak.infect", i)),
-    ve.halflife.infect = sapply(seq_len(n_doses), function(i) get_dose_param("ve.halflife.infect", i)),
-    ve.floor.infect = sapply(seq_len(n_doses), function(i) get_dose_param("ve.floor.infect", i)),
-    
-    ve.peak.clinical = sapply(seq_len(n_doses), function(i) get_dose_param("ve.peak.clinical", i)),
-    ve.halflife.clinical = sapply(seq_len(n_doses), function(i) get_dose_param("ve.halflife.clinical", i)),
-    ve.floor.clinical = sapply(seq_len(n_doses), function(i) get_dose_param("ve.floor.clinical", i)),
-    
-    ve.peak.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("ve.peak.hosp", i)),
-    ve.halflife.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("ve.halflife.hosp", i)),
-    ve.floor.hosp = sapply(seq_len(n_doses), function(i) get_dose_param("ve.floor.hosp", i)),
-
-    # Direct severity/mortality protection (death-VE): reduces the disease-death
-    # hazard for a vaccinated case who still develops severe disease. This is the
-    # dominant, durable arm of the real vaccines (covid death-VE ~0.85, rsv ~0.80,
-    # flu ~0.40) and is what lets age-targeting directly protect high-IFR groups.
-    ve.peak.death = sapply(seq_len(n_doses), function(i) get_dose_param("ve.peak.death", i)),
-    ve.halflife.death = sapply(seq_len(n_doses), function(i) get_dose_param("ve.halflife.death", i)),
-    ve.floor.death = sapply(seq_len(n_doses), function(i) get_dose_param("ve.floor.death", i)),
-
-    ve.delay = sapply(seq_len(n_doses), function(i) get_dose_param("ve.delay", i))
-  )
-  
-  vax.schedule$start <- I(lapply(seq_len(n_doses), function(i) {
-    get_dose_param("start", i)
-  }))
-  
-  vax.schedule$rate <- I(lapply(seq_len(n_doses), function(i) {
-    get_dose_param("rate", i)
-  }))
-  
-  return(vax.schedule)
+  vax.schedule
 }
 

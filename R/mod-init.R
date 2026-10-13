@@ -5,6 +5,8 @@ init_gmc19 <- function(x, param, init, control, s) {
   
   ## Master Data List Setup ##
   dat <- create_dat_object(param, init, control)
+  # GlobalMix India #67: a daily time step, and inf.prob from the pathogen scenario
+  check_required_params(dat)
 
   # The household layer used to be an edgelist passed as hh.pairs and appended
   # here; it is now a netclique layer in `x` (GlobalMix India #85). Stop rather
@@ -18,8 +20,10 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- init_nets(dat, x)   
 
   # GlobalMix India #66: no retired CorporateMix parameter in the table, and
-  # the per-layer parameters line up with the layers passed to netsim()
+  # the per-layer parameters line up with the layers passed to netsim(). #67:
+  # one warning naming every parameter that nothing on this design reads.
   check_retired_params(dat)
+  check_known_params(dat)
   dat <- check_layer_params(dat)
 
   # GlobalMix India #61: sex and occupation class come with the population, as
@@ -62,13 +66,7 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- summary_nets(dat, at = 1L)
   
   num <- sum(get_attr(dat, "active") == 1)
-  
-  # Time Unit
-  time.unit <- get_param(dat, "time.unit")
-  # time.unit <- param$epistats$time.unit
-  dat <- set_param(dat, "time.unit",  time.unit #time.unit
-                   )
-  
+
   dat[["temp"]] <- list()
   
  
