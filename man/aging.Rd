@@ -14,8 +14,12 @@ individual-level attributes, and summary statistics.}
 }
 \value{
 This function returns `dat` after updating the nodal attributes `age` and
-`sqrt.age`.
+`age.grp`.
 }
 \description{
 Module for aging over time for active nodes in the population.
+}
+\details{
+Ages advance by `time.unit / 365` years each step, one day on the daily
+model (GlobalMix India #61).
 }

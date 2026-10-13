@@ -45,7 +45,7 @@ infect_general <- function(dat, at) {
   seasonal.phase <- get_param(dat, "seasonal.phase", override.null.error = TRUE)
   if (is.null(seasonal.amp)) seasonal.amp <- 0
   if (is.null(seasonal.phase)) seasonal.phase <- 0
-  season_mult <- 1 + seasonal.amp * cos(2 * pi * (at - seasonal.phase) / 364)
+  season_mult <- 1 + seasonal.amp * cos(2 * pi * (at - seasonal.phase) / days_per_year)
 
   # Tie types (GlobalMix India #63). Without the activation step these are the
   # networks, every tie of which is a contact every day. With it they are the

@@ -37,7 +37,7 @@ vax_general <- function(dat, at) {
   vax.infant.eligible <- get_param(dat, "vax.infant.eligible", override.null.error = TRUE)
   if (is.null(vax.infant.eligible)) vax.infant.eligible <- TRUE
   season.length <- get_param(dat, "vax.season.length", override.null.error = TRUE)
-  if (is.null(season.length)) season.length <- 364  # days per annual vaccination season
+  if (is.null(season.length)) season.length <- days_per_year  # days per annual vaccination season
   # Imperfect hub-targeting (issue #40 / degraded-uptake arm): fraction of doses
   # that reach the intended top-ranked targets under a ranked network strategy;
   # the remainder are mis-allocated to random eligibles. Default 1 = perfect
@@ -985,7 +985,7 @@ get_ids_eligible_for_dose <- function(
     vax,
     last.dose.time = NULL,
     vax.age.group, at,
-    season.length = 364
+    season.length = days_per_year
 ) {
   # Generally eligible: active and not severe (ic/h). There is no testing in
   # this model (GlobalMix India #66), so no "recently diagnosed" exclusion. That
