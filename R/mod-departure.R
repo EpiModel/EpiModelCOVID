@@ -12,21 +12,13 @@ deaths_covid_gmc19 <- function(dat, at) {
   mort.rates <- get_param(dat, "mort.rates")
   age.breaks <- get_param(dat, "age.breaks")
   nAgeGrp <- length(age.breaks) - 1
-  # Direct disease-death hazard for symptomatic cases (clinical "ic" or hospitalized
-  # "h"), by age group, set per-pathogen via the scenario. Decoupled from
-  # hospitalization so the IFR is hit directly while prop.hospit stays a literal
-  # hospitalization rate. The daily hazard is calibrated to age-specific IFR
-  # targets (dis.death.rate_1..6 in scenarios_pathogen.csv). Absent -> no excess.
-  #
-  # ISSUE #49, resolved 2026-08-06: this is the WHOLE IFR, not an out-of-hospital
-  # residual. The `sympt` mask below is `status %in% c("ic", "h")`, so
-  # hospitalized and non-hospitalized symptomatic cases draw the SAME hazard, and
-  # there is no hospital case-fatality anywhere in the model ("h" transitions
-  # only to "r" in mod-progress.R). `prop.hospit` is a severity marker that
-  # carries no mortality of its own. An earlier version of this comment said the
-  # hazard "captures out-of-hospital disease mortality", which contradicted the
-  # line it sat above; the distinction matters because reading it that way
-  # inflates the implied elderly IFR by roughly 55%.
+  # Disease-death hazard by age group (dis.death.rate_1..6, set per pathogen in
+  # scenarios_pathogen.csv; absent, no disease deaths). It carries the whole
+  # infection fatality rate by age (GlobalMix India #49): a daily hazard,
+  # calibrated to age-specific IFR targets, on every symptomatic case, clinical
+  # ("ic") and hospitalized ("h") alike. There is no hospital case fatality: "h"
+  # moves only to "r" (mod-progress.R), and prop.hospit is a hospitalization
+  # rate that carries no mortality of its own.
   dis.death.rate <- get_param(dat, "dis.death.rate", override.null.error = TRUE)
   if (is.null(dis.death.rate)) dis.death.rate <- rep(0, nAgeGrp)
   # Infant-specific disease-death hazard (issue #23), graded by sub-age because
