@@ -167,6 +167,8 @@ form_dyadind <- function(band, la, elig, phi, old_key) {
 start_relationships <- function(dat) {
   band <- band_index(dat)
   elig <- get_attr(dat, "active") == 1 & get_attr(dat, "never") == 0
+  # the eligible population the cross-section is drawn for (cell_theta_shift())
+  dat$run$rel.elig.start <- sum(elig)
   for (layer in rel_layers) {
     k <- match(layer, names(dat$run$el))
     cell <- get_nwparam(dat, network = k)$cell_theta

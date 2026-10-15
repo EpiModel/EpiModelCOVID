@@ -262,8 +262,9 @@ draw_out_propensity <- function(band, o, kappa) {
 
 #' Map relationship traits to a new age band, keeping each person's rank
 #'
-#' When a person crosses a band top (GlobalMix India #64), their traits move to
-#' the new band's distributions with their rank kept: each activity by the
+#' When a person crosses a band top or changes occupation class (GlobalMix
+#' India #64), their traits move to the new band's and class's distributions
+#' with their rank kept: each activity by the
 #' quantile of its gamma variate, under the new band's gamma shape and class
 #' multiplier; the propensity to go out by its Beta quantile; and the
 #' never-active flag re-drawn only as far as the new band's share needs, so a
@@ -277,9 +278,12 @@ draw_out_propensity <- function(band, o, kappa) {
 #'   `theta_F`, `theta_I`, `o`, `kappa` and `class_mult`.
 #' @param sex,occ Each node's sex and occupation class, when `pars$class_mult`
 #'   is set.
+#' @param occ_to Each node's occupation class after the change, when it changes
+#'   with age (GlobalMix India #64); the class multiplier is then the new class's
+#'   in the new band.
 #' @return `traits` with the mapped values.
 #' @export
-remap_relationship_traits <- function(from, to, traits, pars, sex = NULL, occ = NULL) {
+remap_relationship_traits <- function(from, to, traits, pars, sex = NULL, occ = NULL, occ_to = occ) {
   n <- length(from)
   if (n == 0) return(traits)
   if (length(to) != n || any(vapply(traits[c("never", "log_aF", "log_aI", "o_i")], length, 1L) != n)) {
@@ -287,7 +291,7 @@ remap_relationship_traits <- function(from, to, traits, pars, sex = NULL, occ = 
   }
   one <- list(mult_F = rep(1, n), mult_I = rep(1, n))
   m0 <- if (!is.null(pars$class_mult)) class_multipliers(from, sex, occ, pars$class_mult) else one
-  m1 <- if (!is.null(pars$class_mult)) class_multipliers(to, sex, occ, pars$class_mult) else one
+  m1 <- if (!is.null(pars$class_mult)) class_multipliers(to, sex, occ_to, pars$class_mult) else one
   # a = m G^-1(u; theta, theta), so u = G(a / m) and the new a is m' G^-1(u; theta')
   qmap <- function(la, mult0, mult1, th0, th1) {
     move <- mult0 != mult1 | th0 != th1
@@ -335,40 +339,250 @@ remap_relationship_traits <- function(from, to, traits, pars, sex = NULL, occ = 
 
 # Band tops (GlobalMix India #64) -------------------------------------------------
 
-#' People who cross a band top: traits mapped to the new band
+#' People who cross a band top or change class: traits and ties moved to the new band
 #'
 #' Called by [aging()] on the relationship design with the nodes whose age band
-#' changed on this step. Ages are continuous, so people cross band tops during a
-#' run, but each age pair's relationships are fit as if its bands were closed:
-#' a person who kept their ties and traits would carry the old band's
-#' relationships for years, and over a season band degree drifted by up to 8%
-#' and adjacent-band mixing by up to 76%. So a crosser becomes exchangeable with
-#' the band they enter, as a newborn is with the initial infants: their traits
-#' are mapped to the new band here ([remap_relationship_traits()]), and their
-#' relationships are redrawn from the new band's cross-section after the day's
-#' network step ([seed_relationship_ties()]). `rel.cross` records the step.
-#' Off when `act.reset.cross` is FALSE, which keeps the traits and ties of the
-#' engine before 1.9.0.
+#' or occupation class changed on this step, before the day's deaths. Ages are
+#' continuous, so people cross band tops during a run, but each age pair's
+#' relationships are fit as if its bands were closed: a person who kept their
+#' ties and traits would carry the old band's relationships for years, and over a
+#' season band degree drifted by up to 8% and adjacent-band mixing by up to 76%.
+#' So a crosser moves to the cross-section of the band (and class) they enter,
+#' as a newborn starts at it:
+#' 1. their traits are mapped to the new band by quantile
+#'    ([remap_relationship_traits()]);
+#' 2. their ties move from the old cross-section to the new one with as little
+#'    change as the two allow ([move_relationship_ties()]).
+#' `rel.cross` records the step. Off when `act.reset.cross` is FALSE, which keeps
+#' the traits and ties of the engine before 1.9.0.
 #'
 #' @inheritParams aging
 #' @param ids Positional ids of the crossers.
 #' @param from Their age band index before the crossing.
+#' @param occ_from Their occupation class before the step, when it changed
+#'   ([occ_transitions()]); NULL when no class changed.
 #' @return The updated `dat`.
 #' @keywords internal
-cross_band_tops <- function(dat, at, ids, from) {
+cross_band_tops <- function(dat, at, ids, from, occ_from = NULL) {
   if (!length(ids) || isFALSE(as.logical(param_or(dat, "act.reset.cross", TRUE)))) return(dat)
   pars <- activation_params(dat)
   to <- band_index(dat)[ids]
   cls <- has_pop_class(dat)
-  traits <- list(never = get_attr(dat, "never")[ids], log_aF = get_attr(dat, "log_aF")[ids],
-                 log_aI = get_attr(dat, "log_aI")[ids], o_i = get_attr(dat, "o_i")[ids])
-  tr <- remap_relationship_traits(from, to, traits, pars,
+  occ_to <- if (cls) get_attr(dat, "occ")[ids]
+  old <- list(never = get_attr(dat, "never")[ids], log_aF = get_attr(dat, "log_aF")[ids],
+              log_aI = get_attr(dat, "log_aI")[ids], o_i = get_attr(dat, "o_i")[ids])
+  tr <- remap_relationship_traits(from, to, old, pars,
                                   sex = if (cls) get_attr(dat, "sex")[ids],
-                                  occ = if (cls) get_attr(dat, "occ")[ids])
+                                  occ = if (is.null(occ_from)) occ_to else occ_from, occ_to = occ_to)
   for (a in names(tr)) dat <- set_attr(dat, a, tr[[a]], posit_ids = ids)
   dat <- set_attr(dat, "act.eligible", 1 - tr$never, posit_ids = ids)
   dat <- set_attr(dat, "rel.cross", at, posit_ids = ids)
+  move_relationship_ties(dat, ids, from, old)
+}
+
+#' Move the ties of people whose band or traits changed to the new cross-section
+#'
+#' In the cross-section of the dyad-independent relationship networks, a pair is
+#' a tie with probability expit(theta_gh + log a_i + log a_j). When i's band or
+#' activity changes, the pair's probability moves from p0 to p1. The smallest
+#' change that keeps the cross-section is the maximal coupling of the two
+#' Bernoulli states: an existing tie stays with probability min(1, p1 / p0), and
+#' a pair that was not a tie forms one with probability max(0, p1 - p0) /
+#' (1 - p0). If i's ties were distributed as the old cross-section, they are then
+#' distributed as the new one, and a tie ends only where the new band's density
+#' is lower (a school tie of someone who turns 20, not a tie with a partner in
+#' the band they enter). A pair of two movers is drawn once, from the earlier one.
+#' theta is the cross-sectional coefficient stored with the fit, shifted by the
+#' change in the eligible population since the start, as EpiModel's edges
+#' correction shifts formation.
+#'
+#' @inheritParams aging
+#' @param ids Positional ids of the movers.
+#' @param from Their age band index before the change.
+#' @param old Their traits before the change: list with `never`, `log_aF` and
+#'   `log_aI`.
+#' @return The updated `dat`.
+#' @keywords internal
+move_relationship_ties <- function(dat, ids, from, old) {
+  active <- get_attr(dat, "active")
+  never1 <- get_attr(dat, "never")
+  never0 <- never1; never0[ids] <- old$never
+  band1 <- band_index(dat)
+  band0 <- band1; band0[ids] <- from
+  elig1 <- active == 1 & never1 == 0
+  elig0 <- active == 1 & never0 == 0
+  shift <- cell_theta_shift(dat)
+  for (layer in rel_layers) {
+    k <- match(layer, names(dat$run$el))
+    cell <- get_nwparam(dat, network = k)$cell_theta
+    if (is.null(cell)) {
+      stop("the `", layer, "` network has no cell_theta; refit it with the relationship pipeline", call. = FALSE)
+    }
+    cell <- unname(cell) + shift
+    an <- if (layer == rel_layers[["freq"]]) "log_aF" else "log_aI"
+    la1 <- get_attr(dat, an)
+    la0 <- la1; la0[ids] <- old[[an]]
+    pr <- function(i, j, band, la, elig) {
+      ifelse(elig[i] & elig[j], stats::plogis(cell[cbind(band[i], band[j])] + la[i] + la[j]), 0)
+    }
+    el <- dat$run$el[[k]]
+    keep_attr <- attributes(el)[setdiff(names(attributes(el)), c("dim", "dimnames"))]
+    e1 <- as.integer(el[, 1]); e2 <- as.integer(el[, 2])
+    # existing ties of the movers
+    mv <- e1 %in% ids | e2 %in% ids
+    p0 <- pr(e1[mv], e2[mv], band0, la0, elig0)
+    p1 <- pr(e1[mv], e2[mv], band1, la1, elig1)
+    keep <- rep(TRUE, length(e1))
+    keep[mv] <- stats::runif(sum(mv)) < ifelse(p0 > 0, pmin(1, p1 / p0), 0)
+    # pairs of a mover that were not ties
+    tied <- pair_key(e1[mv], e2[mv])
+    cand <- which(elig1)
+    add <- vector("list", length(ids))
+    for (b in seq_along(ids)) {
+      i <- ids[b]
+      if (!elig1[i]) next
+      j <- cand[cand != i & !cand %in% ids[seq_len(b)]]
+      j <- j[!pair_key(pmin(i, j), pmax(i, j)) %in% tied]
+      q0 <- pr(rep(i, length(j)), j, band0, la0, elig0)
+      q1 <- pr(rep(i, length(j)), j, band1, la1, elig1)
+      up <- q1 > q0
+      j <- j[up]
+      if (!length(j)) next
+      hit <- j[stats::runif(length(j)) < (q1[up] - q0[up]) / (1 - q0[up])]
+      if (length(hit)) add[[b]] <- cbind(pmin(i, hit), pmax(i, hit))
+    }
+    add <- do.call(rbind, add)
+    if (all(keep) && is.null(add)) next
+    new <- unique(rbind(cbind(e1, e2)[keep, , drop = FALSE], matrix(as.integer(add), ncol = 2)))
+    new <- new[order(new[, 1], new[, 2]), , drop = FALSE]
+    storage.mode(new) <- "integer"
+    for (a in names(keep_attr)) attr(new, a) <- keep_attr[[a]]
+    dat$run$el[[k]] <- new
+  }
   dat
+}
+
+# The shift of the cross-sectional coefficients for the change in the
+# relationship-eligible population since the start: EpiModel's edges correction
+# moves formation by log(n_prev / n_now) each step, so the cross-section a tie
+# drawn today should match has moved by log(n_start / n_now)
+cell_theta_shift <- function(dat) {
+  n0 <- dat$run$rel.elig.start
+  if (is.null(n0)) return(0)
+  e <- get_attr(dat, "active") == 1 & get_attr(dat, "never") == 0
+  log(n0 / max(sum(e), 1))
+}
+
+# Occupation class by age (GlobalMix India #64) -------------------------------------
+
+# act.occ.age: the probability of each occupation class by sex and age, on a grid
+# of equal age steps from 0, columns sex, age (each step's lower edge) and one per
+# class. Returned as the step and one matrix per sex (rows by age step, columns
+# occ_levels); NULL when unset.
+normalize_occ_age <- function(tab) {
+  if (is.null(tab)) return(NULL)
+  bad <- function(what) stop("act.occ.age ", what, call. = FALSE)
+  need <- c("sex", "age", occ_levels)
+  if (!is.data.frame(tab) || !all(need %in% names(tab))) {
+    bad(paste0("must be a data frame with columns ", toString(need)))
+  }
+  P <- list(); ages <- NULL
+  for (x in sex_levels) {
+    d <- tab[as.character(tab$sex) == x, , drop = FALSE]
+    d <- d[order(d$age), , drop = FALSE]
+    if (nrow(d) < 2) bad(paste0("needs at least two ages for sex ", x))
+    if (is.null(ages)) ages <- as.numeric(d$age)
+    if (!isTRUE(all.equal(as.numeric(d$age), ages))) bad("must have the same ages for each sex")
+    m <- as.matrix(d[, occ_levels])
+    if (anyNA(m) || any(m < 0) || any(abs(rowSums(m) - 1) > 1e-6)) bad("rows must be probabilities summing to 1")
+    P[[x]] <- unname(m)
+  }
+  step <- ages[2] - ages[1]
+  if (ages[1] != 0 || !isTRUE(all.equal(diff(ages), rep(step, length(ages) - 1)))) {
+    bad("ages must be equal steps from 0")
+  }
+  list(step = step, P = P)
+}
+
+# Class probabilities at each age and sex (the last row for every age beyond)
+occ_age_probs <- function(age, sex, oa) {
+  idx <- pmin(floor(age / oa$step + 1e-9) + 1, nrow(oa$P[[1]]))
+  out <- matrix(NA_real_, length(age), length(occ_levels))
+  for (x in names(oa$P)) {
+    j <- which(sex == x)
+    if (length(j)) out[j, ] <- oa$P[[x]][idx[j], , drop = FALSE]
+  }
+  out
+}
+
+#' Occupation class after an age step, keeping as many people in their class as
+#' the class distribution at the new age allows
+#'
+#' The maximal coupling of the class distributions before (P) and after (Q): a
+#' person in class c stays with probability min(1, Q_c / P_c), and a person who
+#' moves takes class d with probability proportional to max(Q_d - P_d, 0). If the
+#' classes were distributed as P, they are then distributed as Q, so the
+#' population keeps the class shares by age it was drawn with (GlobalMix India
+#' #64).
+#'
+#' @param occ Each node's occupation class.
+#' @param P,Q Class probability matrices (one row per node, columns in the order
+#'   of the classes `occ` takes) at the old and the new age.
+#' @return The new occupation class of each node.
+#' @keywords internal
+next_occ <- function(occ, P, Q, levels = occ_levels) {
+  n <- length(occ)
+  if (n == 0) return(occ)
+  ci <- match(occ, levels)
+  pc <- P[cbind(seq_len(n), ci)]; qc <- Q[cbind(seq_len(n), ci)]
+  stay <- stats::runif(n) < ifelse(pc > 0, pmin(1, qc / pmax(pc, 1e-300)), 0)
+  gain <- pmax(Q - P, 0)
+  tot <- rowSums(gain)
+  mv <- which(!stay & tot > 0)
+  if (length(mv)) {
+    cum <- t(apply(gain[mv, , drop = FALSE], 1, cumsum)) / tot[mv]
+    k <- rowSums(stats::runif(length(mv)) > cum) + 1
+    occ[mv] <- levels[pmin(k, length(levels))]
+  }
+  occ
+}
+
+#' Occupation class transitions with age
+#'
+#' The population draws each person's occupation class from its distribution by
+#' sex and age (`act.occ.age`, GlobalMix India #61), so a class is tied to an age:
+#' children enroll, students leave school, workers retire. Without transitions a
+#' band would lose the classes of its oldest members at its top and gain only
+#' newborns, who are children, and its activity would drift with its class mix.
+#' Each step, a person whose class distribution changes with the day's aging
+#' moves class by [next_occ()]. Off without `act.occ.age` or when
+#' `act.reset.cross` is FALSE.
+#'
+#' @inheritParams aging
+#' @param active,age_before,age The nodes' active flags and ages before and after
+#'   the step.
+#' @return A list: `dat` with the new classes, `changed` (positional ids of the
+#'   nodes whose class changed) and `occ_before` (every node's class before the
+#'   step, or NULL when nothing ran).
+#' @keywords internal
+occ_transitions <- function(dat, active, age_before, age) {
+  none <- list(dat = dat, changed = integer(0), occ_before = NULL)
+  if (isFALSE(as.logical(param_or(dat, "act.reset.cross", TRUE))) || !has_pop_class(dat)) return(none)
+  oa <- normalize_occ_age(get_param(dat, "act.occ.age", override.null.error = TRUE))
+  if (is.null(oa)) return(none)
+  occ <- get_attr(dat, "occ")
+  sex <- get_attr(dat, "sex")
+  live <- which(active == 1)
+  P <- occ_age_probs(age_before[live], sex[live], oa)
+  Q <- occ_age_probs(age[live], sex[live], oa)
+  d <- which(rowSums(abs(P - Q)) > 0)
+  if (!length(d)) return(none)
+  ids <- live[d]
+  new <- next_occ(occ[ids], P[d, , drop = FALSE], Q[d, , drop = FALSE])
+  occ_before <- occ
+  occ[ids] <- new
+  dat <- set_attr(dat, "occ", occ)
+  list(dat = dat, changed = ids[new != occ_before[ids]], occ_before = occ_before)
 }
 
 # The day's contacts --------------------------------------------------------------
@@ -696,7 +910,7 @@ activation_diagnostics <- function(dat, at, day, uid, out, live, degF, degI, deg
   dat
 }
 
-#' Relationships of newborns and of people who crossed a band top
+#' Relationships of newborns at arrival
 #'
 #' The relationship networks are dyad independent, so a node's ties at
 #' equilibrium are independent draws with probability
@@ -707,21 +921,17 @@ activation_diagnostics <- function(dat, at, day, uid, out, live, degF, degI, deg
 #' infants exchangeable (GlobalMix India #65). Off when `act.seed.newborns` is
 #' FALSE.
 #'
-#' A person who crossed a band top on this step (`rel.cross`, set by
-#' [cross_band_tops()]) loses their ties and draws new ones the same way, from
-#' the band they entered, so the band's relationships stay at its
-#' cross-section (GlobalMix India #64).
+#' The draw uses the cross-sectional coefficients shifted for the change in the
+#' eligible population since the start ([cell_theta_shift()]). People who cross
+#' a band top move to the new cross-section in [cross_band_tops()].
 #'
 #' @inheritParams aging
 #' @return The updated `dat`.
 #' @keywords internal
 seed_relationship_ties <- function(dat, at) {
   active <- get_attr(dat, "active")
-  newborn <- if (isFALSE(as.logical(param_or(dat, "act.seed.newborns", TRUE)))) integer(0) else
-    which(active == 1 & get_attr(dat, "entrTime") == at)
-  rc <- get_attr(dat, "rel.cross", override.null.error = TRUE)
-  crossed <- if (is.null(rc)) integer(0) else which(active == 1 & !is.na(rc) & rc == at)
-  seeded <- unique(c(newborn, crossed))
+  if (isFALSE(as.logical(param_or(dat, "act.seed.newborns", TRUE)))) return(dat)
+  seeded <- which(active == 1 & get_attr(dat, "entrTime") == at)
   if (length(seeded) == 0) return(dat)
   never <- get_attr(dat, "never")
   band <- band_index(dat)
@@ -732,25 +942,23 @@ seed_relationship_ties <- function(dat, at) {
     if (is.null(cell)) {
       stop("the `", layer, "` network has no cell_theta; refit it with the relationship pipeline", call. = FALSE)
     }
+    cell <- cell + cell_theta_shift(dat)
     la <- get_attr(dat, if (layer == rel_layers[["freq"]]) "log_aF" else "log_aI")
     add <- vector("list", length(seeded))
     for (b in seq_along(seeded)) {
       i <- seeded[b]
       if (never[i] == 1) next
-      # a pair of nodes seeded on the same day is drawn once, from the earlier one
+      # a pair of same-day newborns is drawn once, from the earlier one
       j <- elig[elig != i & !elig %in% seeded[seq_len(b)]]
       p <- stats::plogis(cell[band[i], band[j]] + la[i] + la[j])
       hit <- j[stats::runif(length(j)) < p]
       if (length(hit)) add[[b]] <- cbind(pmin(i, hit), pmax(i, hit))
     }
     add <- do.call(rbind, add)
+    if (is.null(add)) next
     el <- dat$run$el[[k]]
-    gone <- length(crossed) > 0 && any(el[, 1] %in% crossed | el[, 2] %in% crossed)
-    if (is.null(add) && !gone) next
     keep_attr <- attributes(el)[setdiff(names(attributes(el)), c("dim", "dimnames"))]
-    old <- matrix(as.integer(el), ncol = 2)
-    if (length(crossed)) old <- old[!(old[, 1] %in% crossed | old[, 2] %in% crossed), , drop = FALSE]
-    new <- unique(rbind(old, matrix(as.integer(add), ncol = 2)))
+    new <- unique(rbind(matrix(as.integer(el), ncol = 2), matrix(as.integer(add), ncol = 2)))
     new <- new[order(new[, 1], new[, 2]), , drop = FALSE]
     for (a in names(keep_attr)) attr(new, a) <- keep_attr[[a]]
     dat$run$el[[k]] <- new

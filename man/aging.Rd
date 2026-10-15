@@ -23,11 +23,11 @@ Module for aging over time for active nodes in the population.
 Ages advance by `time.unit / 365` years each step, one day on the daily
 model (GlobalMix India #61).
 
-The infant flag `is_infant` is recomputed from age every step
-(`age < infant.age.max`; GlobalMix India #64).
+On the relationship design the infant flag `is_infant` is recomputed from age
+every step (`age < infant.age.max`; GlobalMix India #64).
 
-On the relationship design, a person whose age band changes on the step has
-their relationship traits mapped to the new band and, later in the step,
-their relationships redrawn from its cross-section ([cross_band_tops()],
-GlobalMix India #64).
+On the relationship design, a person whose age band or occupation class
+changes on the step has their relationship traits and ties moved to the new
+band's cross-section ([occ_transitions()], [cross_band_tops()], GlobalMix
+India #64).
 }

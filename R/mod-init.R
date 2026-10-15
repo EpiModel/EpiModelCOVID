@@ -46,6 +46,9 @@ init_gmc19 <- function(x, param, init, control, s) {
       stop("a relationship trait (never, log_aF, log_aI) is NA for some node", call. = FALSE)
     }
     check_newborn_classes(dat)
+    # #64: the class distribution by age, checked once here rather than at the
+    # first transition
+    normalize_occ_age(get_param(dat, "act.occ.age", override.null.error = TRUE))
   }
 
   

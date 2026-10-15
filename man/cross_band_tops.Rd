@@ -2,9 +2,9 @@
 % Please edit documentation in R/mod-activation.R
 \name{cross_band_tops}
 \alias{cross_band_tops}
-\title{People who cross a band top: traits mapped to the new band}
+\title{People who cross a band top or change class: traits and ties moved to the new band}
 \usage{
-cross_band_tops(dat, at, ids, from)
+cross_band_tops(dat, at, ids, from, occ_from = NULL)
 }
 \arguments{
 \item{dat}{Main data object of class `netsim_dat` containing networks,
@@ -15,22 +15,27 @@ individual-level attributes, and summary statistics.}
 \item{ids}{Positional ids of the crossers.}
 
 \item{from}{Their age band index before the crossing.}
+
+\item{occ_from}{Their occupation class before the step, when it changed
+([occ_transitions()]); NULL when no class changed.}
 }
 \value{
 The updated `dat`.
 }
 \description{
 Called by [aging()] on the relationship design with the nodes whose age band
-changed on this step. Ages are continuous, so people cross band tops during a
-run, but each age pair's relationships are fit as if its bands were closed:
-a person who kept their ties and traits would carry the old band's
-relationships for years, and over a season band degree drifted by up to 8%
-and adjacent-band mixing by up to 76%. So a crosser becomes exchangeable with
-the band they enter, as a newborn is with the initial infants: their traits
-are mapped to the new band here ([remap_relationship_traits()]), and their
-relationships are redrawn from the new band's cross-section after the day's
-network step ([seed_relationship_ties()]). `rel.cross` records the step.
-Off when `act.reset.cross` is FALSE, which keeps the traits and ties of the
-engine before 1.9.0.
+or occupation class changed on this step, before the day's deaths. Ages are
+continuous, so people cross band tops during a run, but each age pair's
+relationships are fit as if its bands were closed: a person who kept their
+ties and traits would carry the old band's relationships for years, and over a
+season band degree drifted by up to 8% and adjacent-band mixing by up to 76%.
+So a crosser moves to the cross-section of the band (and class) they enter,
+as a newborn starts at it:
+1. their traits are mapped to the new band by quantile
+   ([remap_relationship_traits()]);
+2. their ties move from the old cross-section to the new one with as little
+   change as the two allow ([move_relationship_ties()]).
+`rel.cross` records the step. Off when `act.reset.cross` is FALSE, which keeps
+the traits and ties of the engine before 1.9.0.
 }
 \keyword{internal}

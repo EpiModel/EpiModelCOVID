@@ -36,7 +36,7 @@ gmc19_params_relationship <- c(
   "act.o", "act.kappa", "act.kappa.mult", "act.q", "act.q.mult", "act.p11", "act.s",
   "act.pi", "act.theta.F", "act.theta.I", "act.rho", "act.class.mult", "act.theta.N",
   "act.pi.N", "act.episodes", "act.window", "act.schedule", "act.diagnostics",
-  "act.seed.newborns", "act.reset.cross", "new.rate", "new.rate.mult", "new.mix", "new.share.norel"
+  "act.seed.newborns", "act.reset.cross", "act.occ.age", "new.rate", "new.rate.mult", "new.mix", "new.share.norel"
 )
 
 # Set by EpiModel itself: param.net() adds act.rate (1) and vital, init_nets()

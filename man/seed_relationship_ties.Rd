@@ -2,7 +2,7 @@
 % Please edit documentation in R/mod-activation.R
 \name{seed_relationship_ties}
 \alias{seed_relationship_ties}
-\title{Relationships of newborns and of people who crossed a band top}
+\title{Relationships of newborns at arrival}
 \usage{
 seed_relationship_ties(dat, at)
 }
@@ -26,9 +26,8 @@ infants exchangeable (GlobalMix India #65). Off when `act.seed.newborns` is
 FALSE.
 }
 \details{
-A person who crossed a band top on this step (`rel.cross`, set by
-[cross_band_tops()]) loses their ties and draws new ones the same way, from
-the band they entered, so the band's relationships stay at its
-cross-section (GlobalMix India #64).
+The draw uses the cross-sectional coefficients shifted for the change in the
+eligible population since the start ([cell_theta_shift()]). People who cross
+a band top move to the new cross-section in [cross_band_tops()].
 }
 \keyword{internal}

@@ -4,7 +4,15 @@
 \alias{remap_relationship_traits}
 \title{Map relationship traits to a new age band, keeping each person's rank}
 \usage{
-remap_relationship_traits(from, to, traits, pars, sex = NULL, occ = NULL)
+remap_relationship_traits(
+  from,
+  to,
+  traits,
+  pars,
+  sex = NULL,
+  occ = NULL,
+  occ_to = occ
+)
 }
 \arguments{
 \item{from, to}{Age band index of each node before and after the crossing.}
@@ -17,13 +25,18 @@ node.}
 
 \item{sex, occ}{Each node's sex and occupation class, when `pars$class_mult`
 is set.}
+
+\item{occ_to}{Each node's occupation class after the change, when it changes
+with age (GlobalMix India #64); the class multiplier is then the new class's
+in the new band.}
 }
 \value{
 `traits` with the mapped values.
 }
 \description{
-When a person crosses a band top (GlobalMix India #64), their traits move to
-the new band's distributions with their rank kept: each activity by the
+When a person crosses a band top or changes occupation class (GlobalMix
+India #64), their traits move to the new band's and class's distributions
+with their rank kept: each activity by the
 quantile of its gamma variate, under the new band's gamma shape and class
 multiplier; the propensity to go out by its Beta quantile; and the
 never-active flag re-drawn only as far as the new band's share needs, so a

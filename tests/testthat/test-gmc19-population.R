@@ -362,30 +362,64 @@ test_that("a person crossing a band top takes the new band's traits and relation
   tr0 <- lapply(c(never = "never", log_aF = "log_aF", o_i = "o_i"), function(a) get_attr(dat, a))
   dat <- set_current_timestep(dat, 2)
   set.seed(12)
-  dat <- aging(dat, 2)
-  expect_identical(which(get_attr(dat, "rel.cross") == 2), cross)
-  expect_true(all(get_attr(dat, "age.grp")[cross] == "10-19y"))
-  expect_equal(get_epi(dat, "n.band.cross", at = 2), 20)
+  dat1 <- aging(dat, 2)
+  expect_identical(which(get_attr(dat1, "rel.cross") == 2), cross)
+  expect_true(all(get_attr(dat1, "age.grp")[cross] == "10-19y"))
+  expect_equal(get_epi(dat1, "n.band.cross", at = 2), 20)
   # only the crossers' traits move; band 1 and 2 share theta_F and the class
   # multipliers here, so the activity is mapped only through o and pi
   others <- setdiff(seq_len(N), cross)
-  for (a in names(tr0)) expect_identical(get_attr(dat, a)[others], tr0[[a]][others], info = a)
-  expect_true(all(get_attr(dat, "o_i")[cross] != tr0$o_i[cross]))
-  expect_identical(get_attr(dat, "act.eligible"), 1 - get_attr(dat, "never"))
-
-  # after the network step, the crossers' ties are redrawn and no one else's change
-  dat <- EpiModelCOVID:::seed_relationship_ties(dat, 2)
+  for (a in names(tr0)) expect_identical(get_attr(dat1, a)[others], tr0[[a]][others], info = a)
+  expect_true(all(get_attr(dat1, "o_i")[cross] != tr0$o_i[cross]))
+  expect_identical(get_attr(dat1, "act.eligible"), 1 - get_attr(dat1, "never"))
+  # no one else's ties move, and the edgelists stay sorted and unique
   for (L in c("freq", "infreq")) {
-    el <- dat$run$el[[L]]
+    el <- dat1$run$el[[L]]
     expect_identical(key_of(el[!(el[, 1] %in% cross | el[, 2] %in% cross), , drop = FALSE]),
                      key_of(el0[[L]][!(el0[[L]][, 1] %in% cross | el0[[L]][, 2] %in% cross), , drop = FALSE]))
-    new <- ties_of(el, cross)
-    expect_gt(nrow(new), 0)
-    expect_false(identical(key_of(new), key_of(ties_of(el0[[L]], cross))))
     expect_true(all(el[, 1] < el[, 2]))
     expect_false(anyDuplicated(key_of(el)) > 0)
     expect_identical(order(el[, 1], el[, 2]), seq_len(nrow(el)))
   }
+  # the newborn draw leaves the crossers' ties alone
+  expect_identical(EpiModelCOVID:::seed_relationship_ties(dat1, 2)$run$el, dat1$run$el)
+})
+
+test_that("a mover's ties change only as far as the new cross-section needs", {
+  dat <- pop_init()
+  dat <- set_current_timestep(dat, 2)
+  band <- EpiModelCOVID:::band_index(dat)
+  ids <- which(band == 1 & get_attr(dat, "never") == 0)[1:15]
+  old <- list(never = get_attr(dat, "never")[ids], log_aF = get_attr(dat, "log_aF")[ids],
+              log_aI = get_attr(dat, "log_aI")[ids])
+  # no change in band or traits: nothing moves
+  expect_identical(EpiModelCOVID:::move_relationship_ties(dat, ids, band[ids], old)$run$el, dat$run$el)
+
+  # the movers enter band 3 with a new activity; the expected ties of each
+  # mover after the move, given the ties before it, against the simulated mean
+  grp <- get_attr(dat, "age.grp"); grp[ids] <- bands[3]
+  dat <- set_attr(dat, "age.grp", grp)
+  dat <- set_attr(dat, "log_aF", get_attr(dat, "log_aF")[ids] + log(1.5), posit_ids = ids)
+  band1 <- EpiModelCOVID:::band_index(dat)
+  la0 <- get_attr(dat, "log_aF"); la0[ids] <- old$log_aF
+  la1 <- get_attr(dat, "log_aF")
+  elig <- which(get_attr(dat, "never") == 0)
+  cell <- unname(nets_class$freq$cell_theta)
+  el0 <- dat$run$el$freq
+  expected <- vapply(ids, function(i) {
+    j <- setdiff(elig, i)
+    p0 <- plogis(cell[cbind(rep(1, length(j)), band1[j])] + la0[i] + la0[j])
+    p0[j %in% ids] <- plogis(cell[1, 1] + la0[i] + la0[j[j %in% ids]])
+    p1 <- plogis(cell[cbind(rep(3, length(j)), band1[j])] + la1[i] + la1[j])
+    tied <- j %in% c(el0[el0[, 1] == i, 2], el0[el0[, 2] == i, 1])
+    sum(ifelse(tied, pmin(1, p1 / p0), pmax(0, p1 - p0) / (1 - p0)))
+  }, numeric(1))
+  sims <- replicate(300, {
+    out <- EpiModelCOVID:::move_relationship_ties(dat, ids, rep(1L, length(ids)), old)$run$el$freq
+    tabulate(c(out[out[, 1] %in% ids, 1], out[out[, 2] %in% ids, 2]), nbins = N)[ids]
+  })
+  # pairs of two movers count for both, so compare the total
+  expect_equal(sum(rowMeans(sims)), sum(expected), tolerance = 0.03)
 })
 
 test_that("with act.reset.cross FALSE a crosser keeps their traits and ties", {
@@ -403,4 +437,81 @@ test_that("with act.reset.cross FALSE a crosser keeps their traits and ties", {
   expect_identical(get_attr(dat, "o_i"), o0)
   dat <- EpiModelCOVID:::seed_relationship_ties(dat, 2)
   expect_identical(dat$run$el, el0)
+})
+
+# Occupation class by age (GlobalMix India #64) --------------------------------------
+
+# Class multipliers in which a student is more active than a child in band 1
+cross_mult <- function() {
+  cm <- classes
+  cm$mult_F[cm$occ == "student"] <- 1.3
+  cm$mult_F[cm$occ == "child"] <- 0.7
+  cm
+}
+
+
+# Class shares by age on a 0.5-year grid to 100: children to 5, then students,
+# workers from 20 and at home from 60
+occ_age_tab <- function() {
+  ages <- seq(0, 100, by = 0.5)
+  p <- function(a) {
+    if (a < 5) c(1, 0, 0, 0) else if (a < 20) c(0, 1, 0, 0) else if (a < 60) c(0, 0.2, 0.6, 0.2)
+    else c(0, 0, 0.3, 0.7)
+  }
+  m <- t(vapply(ages, p, numeric(4)))
+  do.call(rbind, lapply(c("F", "M"), function(x) {
+    data.frame(sex = x, age = ages, child = m[, 1], student = m[, 2], worker = m[, 3], home = m[, 4])
+  }))
+}
+
+test_that("class transitions carry the class shares from one age to the next", {
+  n <- 100000
+  P <- matrix(c(0.5, 0.3, 0.2, 0), n, 4, byrow = TRUE)
+  Q <- matrix(c(0.2, 0.3, 0.3, 0.2), n, 4, byrow = TRUE)
+  lv <- EpiModelCOVID:::occ_levels
+  occ <- lv[sample.int(4, n, replace = TRUE, prob = P[1, ])]
+  set.seed(3)
+  out <- EpiModelCOVID:::next_occ(occ, P, Q)
+  expect_equal(as.numeric(table(factor(out, lv)) / n), Q[1, ], tolerance = 0.01)
+  # only the excess moves: nobody leaves student or worker, whose shares do not fall
+  expect_true(all(out[occ %in% c("student", "worker")] == occ[occ %in% c("student", "worker")]))
+  expect_equal(mean(out != occ), 0.3, tolerance = 0.01)
+  # no change in the distribution, no change of class
+  expect_identical(EpiModelCOVID:::next_occ(occ, P, P), occ)
+})
+
+test_that("act.occ.age is checked and looked up by age step", {
+  oa <- EpiModelCOVID:::normalize_occ_age(occ_age_tab())
+  expect_equal(oa$step, 0.5)
+  pr <- EpiModelCOVID:::occ_age_probs(c(4.99, 5, 25, 150), c("F", "M", "F", "M"), oa)
+  expect_equal(pr[, 1], c(1, 0, 0, 0))
+  expect_equal(pr[, 2], c(0, 1, 0.2, 0))
+  bad <- occ_age_tab(); bad$home[3] <- 0.5
+  expect_error(EpiModelCOVID:::normalize_occ_age(bad), "summing to 1")
+  expect_error(EpiModelCOVID:::normalize_occ_age(occ_age_tab()[-2, ]), "same ages for each sex")
+  expect_error(pop_init(param = pop_param(act.occ.age = bad)), "summing to 1")
+})
+
+test_that("a child who reaches school age enrolls and takes a student's traits and ties", {
+  dat <- pop_init(param = pop_param(act.class.mult = cross_mult(), act.occ.age = occ_age_tab()))
+  age <- get_attr(dat, "age")
+  occ <- get_attr(dat, "occ")
+  kids <- which(age < 10)[1:20]
+  age[kids] <- 5 - 0.5 / 365
+  occ[kids] <- "child"
+  dat <- set_attr(dat, "age", age)
+  dat <- set_attr(dat, "occ", occ)
+  aF0 <- get_attr(dat, "log_aF")
+  dat <- set_current_timestep(dat, 2)
+  dat <- aging(dat, 2)
+  expect_true(all(get_attr(dat, "occ")[kids] == "student"))
+  expect_equal(get_epi(dat, "n.class.change", at = 2), 20)
+  expect_identical(which(get_attr(dat, "rel.cross") == 2), kids)
+  # same band, so the activity moves by the class multiplier ratio
+  cm <- cross_mult()
+  r <- cm$mult_F[cm$band == 1 & cm$occ == "student"][1] / cm$mult_F[cm$band == 1 & cm$occ == "child"][1]
+  expect_equal(get_attr(dat, "log_aF")[kids] - aF0[kids], rep(log(r), 20), tolerance = 1e-8)
+  # nobody else changes class: their distribution is flat over the step
+  others <- setdiff(seq_len(N), kids)
+  expect_identical(get_attr(dat, "occ")[others], occ[others])
 })
