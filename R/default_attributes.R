@@ -38,6 +38,8 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     act.new.contacts = 0,
     act.recent = 0,
     act.recent.new = 0,
+    # step on which the node last crossed a band top (GlobalMix India #64)
+    rel.cross = NA,
     # cross-layer bridge indicators
     is_bridge = FALSE,
     n_layers_active =0,

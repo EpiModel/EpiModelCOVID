@@ -40,9 +40,17 @@ deaths_covid_gmc19 <- function(dat, at) {
   infant_disdep <- logical(0)
 
   if (length(idsElig) > 0) {
-    # Age-indexed background mortality (ages >= 86y use index 86).
-    age_idx_elig <- pmin(ceiling(age[idsElig]), 86)
+    # Background mortality by single year of age: the daily rate at index
+    # ceiling(age), the last element for every age beyond the vector. The floor
+    # at 1 keeps a node of age exactly 0 (a newborn, if a module order ever put
+    # departures before aging) on the first year's rate rather than dropping it
+    # from the index (GlobalMix India #64).
+    age_idx_elig <- pmin(pmax(ceiling(age[idsElig]), 1), length(mort.rates))
     bg_rates <- mort.rates[age_idx_elig]
+    if (length(bg_rates) != length(idsElig) || anyNA(bg_rates)) {
+      stop("background mortality has no rate for some living node; mort.rates has ",
+           length(mort.rates), " elements", call. = FALSE)
+    }
 
     # Disease-death hazard applies to symptomatic cases only (ic or h), indexed by
     # model age group (not hospitalization status).

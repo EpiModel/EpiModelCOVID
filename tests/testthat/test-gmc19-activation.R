@@ -251,7 +251,7 @@ test_that("newborns get relationships at arrival and the edgelists stay sorted",
   }
   dat <- EpiModel::nwupdate.net(dat, 2)
   before <- nrow(dat$run$el$freq)
-  dat <- EpiModelCOVID:::seed_newborn_ties(dat, 2)
+  dat <- EpiModelCOVID:::seed_relationship_ties(dat, 2)
   el <- dat$run$el$freq
   expect_gt(nrow(el), before)
   expect_true(all(el[, 1] < el[, 2]))

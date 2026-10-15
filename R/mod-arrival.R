@@ -3,22 +3,24 @@
 #' @rdname moduleset-gmc19
 #' @export
 arrival <- function(dat, at) {
-  # if (at>200) browser()
-  
-  ## Input
-  # Attributes
-  
-  ## Process
-  # Stationary-population demography: replace this step's departures so the
-  # population size stays constant. The age-structured death rate makes a fixed
-  # per-capita a.rate drift (Phase 2 review), so arrivals track departures, which
-  # the departures module records as d.flow before this module runs.
-  nDep <- get_epi(dat, "d.flow", at = at)
-  nNew <- if (is.null(nDep) || is.na(nDep)) 0L else as.integer(nDep)
-  
-  
 
-  
+  ## Births (GlobalMix India #64). birth.rate is the crude birth rate per
+  ## person-day: each person alive after this step's deaths has a birth with
+  ## that probability, so births do not depend on deaths, and the population
+  ## size drifts by the difference of the two. 0 closes the population (the
+  ## closed-cohort design, with background mortality also at 0). The relationship
+  ## design must set it (init_gmc19() stops otherwise). The legacy four-layer
+  ## model sets none and keeps its pre-redo design, in which births replace the
+  ## step's deaths, so that a legacy run still reproduces the Redo 08 runs.
+  birth.rate <- get_param(dat, "birth.rate", override.null.error = TRUE)
+  if (is.null(birth.rate)) {
+    nDep <- get_epi(dat, "d.flow", at = at)
+    nNew <- if (is.null(nDep) || is.na(nDep)) 0L else as.integer(nDep)
+  } else {
+    nAlive <- sum(get_attr(dat, "active") == 1)
+    nNew <- stats::rbinom(1, nAlive, birth.rate)
+  }
+
   # Update Attr. The new nodes join the networks in nwupdate.FUN (EpiModel's
   # nwupdate.net), which runs after this module, so this module only appends
   # their attributes. On the household clique layer, nwupdate.FUN places them

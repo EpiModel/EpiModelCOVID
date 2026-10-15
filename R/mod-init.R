@@ -7,6 +7,8 @@ init_gmc19 <- function(x, param, init, control, s) {
   dat <- create_dat_object(param, init, control)
   # GlobalMix India #67: a daily time step, and inf.prob from the pathogen scenario
   check_required_params(dat)
+  # #64: births at the crude birth rate, and the background mortality vector
+  check_demography(dat)
 
   # The household layer used to be an edgelist passed as hh.pairs and appended
   # here; it is now a netclique layer in `x` (GlobalMix India #85). Stop rather

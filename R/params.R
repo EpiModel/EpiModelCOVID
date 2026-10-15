@@ -15,7 +15,7 @@
 gmc19_params_common <- c(
   # demography and aging
   "time.unit", "age.breaks", "age.grps", "arrival.age", "birth.prop.male", "infant.age.max",
-  "mort.rates",
+  "mort.rates", "birth.rate",
   # layers and transmission
   "layer.names", "inf.prob", "exposure.rate", "inf.prob.a.rr", "sympt.contact.rr", "susc.age.rr",
   "contact.weight", "contact.weight.equal", "seasonal.amp", "seasonal.phase", "import.rate",
@@ -36,7 +36,7 @@ gmc19_params_relationship <- c(
   "act.o", "act.kappa", "act.kappa.mult", "act.q", "act.q.mult", "act.p11", "act.s",
   "act.pi", "act.theta.F", "act.theta.I", "act.rho", "act.class.mult", "act.theta.N",
   "act.pi.N", "act.episodes", "act.window", "act.schedule", "act.diagnostics",
-  "act.seed.newborns", "new.rate", "new.rate.mult", "new.mix", "new.share.norel"
+  "act.seed.newborns", "act.reset.cross", "new.rate", "new.rate.mult", "new.mix", "new.share.norel"
 )
 
 # Set by EpiModel itself: param.net() adds act.rate (1) and vital, init_nets()
@@ -137,6 +137,33 @@ check_required_params <- function(dat) {
   if (is.null(inf.prob) || anyNA(inf.prob)) {
     stop("inf.prob is set by the pathogen scenario, scenarios_pathogen.csv; the registry ",
          "default is NA. Apply the pathogen's scenario with use_scenario() before netsim().",
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+# Births and background deaths (GlobalMix India #64). Births are at the crude
+# birth rate, independent of deaths, so the relationship design must set
+# birth.rate (0 for the closed cohort); births used to replace each step's
+# deaths, which only the legacy four-layer model still does. mort.rates is the
+# daily death probability by single year of age.
+check_demography <- function(dat) {
+  birth.rate <- get_param(dat, "birth.rate", override.null.error = TRUE)
+  if (is.null(birth.rate)) {
+    if (activation_on(dat)) {
+      stop("the relationship design needs birth.rate, the crude birth rate per person-day ",
+           "(0 for a closed population); births no longer replace deaths (GlobalMix India #64)",
+           call. = FALSE)
+    }
+  } else if (!(is.numeric(birth.rate) && length(birth.rate) == 1 && is.finite(birth.rate) &&
+               birth.rate >= 0 && birth.rate < 1)) {
+    stop("birth.rate must be one daily probability in [0, 1), not ", toString(birth.rate),
+         call. = FALSE)
+  }
+  mort.rates <- get_param(dat, "mort.rates", override.null.error = TRUE)
+  if (!is.null(mort.rates) && !(is.numeric(mort.rates) && length(mort.rates) > 0 &&
+                                !anyNA(mort.rates) && all(mort.rates >= 0 & mort.rates <= 1))) {
+    stop("mort.rates must be daily death probabilities by single year of age, each in [0, 1]",
          call. = FALSE)
   }
   invisible(TRUE)

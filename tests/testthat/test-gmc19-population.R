@@ -1,5 +1,5 @@
 # Aging, sex and occupation class, and the class multipliers of the relationship
-# activities (GlobalMix India #61)
+# activities (GlobalMix India #61); births and background deaths (#64)
 
 bands <- c("0-9y", "10-19y", "20-29y", "30-39y", "40-59y", "60+y")
 act_pars <- list(o = c(0.9, 0.95, 0.9, 0.85, 0.9, 0.8), kappa = 5, q = rep(0.75, 6),
@@ -56,7 +56,7 @@ pop_param <- function(...) {
     time.unit = 1, inf.prob = rep(0.1, 4), exposure.rate = rep(1, 4), inf.prob.a.rr = 0.5,
     layer.names = c("freq", "infreq", "new", "home"),
     age.breaks = c(0, 10, 20, 30, 40, 60, Inf), age.grps = bands, arrival.age = 0,
-    birth.prop.male = 0.52,
+    birth.prop.male = 0.52, birth.rate = 12 / 1000 / 365, mort.rates = rep(1e-4, 86),
     act.o = act_pars$o, act.kappa = act_pars$kappa, act.q = act_pars$q, act.p11 = act_pars$p11,
     act.s = act_pars$s, act.pi = act_pars$pi, act.theta.F = act_pars$theta_F,
     act.theta.I = act_pars$theta_I, act.rho = act_pars$rho, new.rate = act_pars$new_rate,
@@ -216,4 +216,191 @@ test_that("class multipliers must be those the networks were fitted with", {
   fitted$freq$trait_pars$class_mult <- NULL
   expect_error(pop_init(fitted, pop_param(act.class.mult = classes)), "\\(class_mult\\) differ")
   expect_silent(pop_init(fitted))
+})
+
+# Births and background deaths (GlobalMix India #64) ------------------------------
+
+test_that("births are binomial on the living at birth.rate, whatever the deaths", {
+  dat <- pop_init(param = pop_param(birth.rate = 0.2))
+  dat <- set_current_timestep(dat, 2)
+  # this step's dead are marked but still in the attributes until nwupdate.FUN
+  dat <- set_attr(dat, "active", 0, posit_ids = 1:100)
+  dat <- set_epi(dat, "d.flow", 100, at = 2)
+  set.seed(31)
+  out <- arrival(dat, 2)
+  set.seed(31)
+  n_new <- rbinom(1, N - 100, 0.2)
+  expect_equal(get_epi(out, "nNew", at = 2), n_new)
+  expect_length(get_attr(out, "active"), N + n_new)
+  # the same draw with no deaths marked: births do not follow d.flow
+  dat <- set_epi(dat, "d.flow", 0, at = 2)
+  set.seed(31)
+  expect_equal(get_epi(arrival(dat, 2), "nNew", at = 2), n_new)
+  # a closed population has none
+  dat <- set_param(dat, "birth.rate", 0)
+  expect_equal(get_epi(arrival(dat, 2), "nNew", at = 2), 0L)
+})
+
+test_that("without birth.rate births replace deaths, as on the legacy model", {
+  dat <- pop_init()
+  dat <- set_current_timestep(dat, 2)
+  dat$param$birth.rate <- NULL
+  dat <- set_epi(dat, "d.flow", 7, at = 2)
+  expect_equal(get_epi(arrival(dat, 2), "nNew", at = 2), 7L)
+})
+
+test_that("the relationship design needs birth.rate, and both rates are checked", {
+  expect_error(pop_init(param = pop_param(birth.rate = NULL)), "needs birth.rate")
+  for (bad in list(-0.1, 1, c(0.1, 0.2), NA_real_, "0.1")) {
+    expect_error(pop_init(param = pop_param(birth.rate = bad)), "birth.rate must be one daily probability")
+  }
+  for (bad in list(c(1e-4, NA), c(1e-4, -1e-4), 2, numeric(0))) {
+    expect_error(pop_init(param = pop_param(mort.rates = bad)), "mort.rates must be daily death probabilities")
+  }
+  expect_silent(pop_init(param = pop_param(birth.rate = 0, mort.rates = rep(0, 86))))
+})
+
+test_that("background mortality is indexed by single year of age, floored at 1 and capped", {
+  dat <- pop_init(param = pop_param(mort.rates = c(1, rep(0, 84), 1)))
+  dat <- set_current_timestep(dat, 2)
+  age <- rep(5.5, N)
+  age[1] <- 0          # index 1, not dropped from the index
+  age[2] <- 0.4        # index 1
+  age[3] <- 85.2       # index 86
+  age[4] <- 120        # beyond the vector: its last element
+  dat <- set_attr(dat, "age", age)
+  out <- deaths_covid_gmc19(dat, 2)
+  expect_identical(which(get_attr(out, "active") == 0), 1:4)
+  expect_identical(get_attr(out, "exitTime")[1:4], rep(2, 4))
+  expect_equal(get_epi(out, "d.flow", at = 2), 4)
+  # a vector with no rate for an age stops the run rather than dropping the node
+  dat <- set_param(dat, "mort.rates", c(1e-4, NA))
+  expect_error(deaths_covid_gmc19(dat, 2), "no rate for some living node")
+})
+
+test_that("aging keeps the infant flag on age", {
+  dat <- pop_init()
+  age <- get_attr(dat, "age")
+  age[1:3] <- c(0.2, 1 - 0.5 / 365, 1.5)
+  dat <- set_attr(dat, "age", age)
+  dat <- set_attr(dat, "is_infant", age < 1 | seq_len(N) == 3)     # a stale flag on node 3
+  dat <- set_attr(dat, "active", 0, posit_ids = 4)
+  dat <- set_attr(dat, "is_infant", TRUE, posit_ids = 4)
+  dat <- aging(dat, 2)
+  inf <- get_attr(dat, "is_infant")
+  expect_identical(inf[1:3], c(TRUE, FALSE, FALSE))
+  alive <- get_attr(dat, "active") == 1
+  expect_identical(inf[alive], get_attr(dat, "age")[alive] < 1)
+  # the dead keep the flag they died with
+  expect_true(inf[4])
+})
+
+# Band tops (GlobalMix India #64) ----------------------------------------------------
+
+# Trait parameters that differ by band, so a crossing has something to map
+cross_pars <- function() {
+  p <- act_pars
+  p$theta_F <- c(2, 4, 1, 3, 2, 1.5)
+  p$pi <- c(0.1, 0, 0, 0.2, 0, 0.3)
+  p$o <- c(0.9, 0.95, 0.9, 0.7, 0.9, 0.8)
+  cm <- classes
+  cm$mult_F <- cm$mult_F * c(1, 1.2, 0.9, 1.1, 1, 0.8)[cm$band]
+  p$class_mult <- EpiModelCOVID:::normalize_class_mult(cm, bands)
+  p
+}
+
+test_that("traits keep their values within a band and their rank across a band top", {
+  p <- cross_pars()
+  n <- 60000
+  s <- rep(c("F", "M"), n / 2)
+  o <- rep(c("worker", "home", "student"), n / 3)
+  draw <- function(b, seed) {
+    tr <- draw_relationship_traits(rep(b, n), p, seed = seed, sex = s, occ = o)
+    tr$o_i <- draw_out_propensity(rep(b, n), p$o, p$kappa)
+    tr
+  }
+  x <- draw(3, 4)
+  # no crossing, no change
+  expect_identical(remap_relationship_traits(rep(3L, n), rep(3L, n), x, p, s, o), x)
+
+  # 3 -> 4: the mapped traits have band 4's distributions...
+  set.seed(8)
+  y <- remap_relationship_traits(rep(3L, n), rep(4L, n), x, p, s, o)
+  z <- draw(4, 5)
+  expect_equal(mean(y$never), p$pi[4], tolerance = 0.02)
+  expect_true(all(y$never[x$never == 1] == 1))          # pi rises, so nobody becomes active
+  for (k in unique(paste(s, o))) {
+    j <- paste(s, o) == k
+    expect_equal(mean(exp(y$log_aF[j])), mean(exp(z$log_aF[j])), tolerance = 0.03, info = k)
+    expect_equal(var(exp(y$log_aF[j])) / mean(exp(y$log_aF[j]))^2, 1 / p$theta_F[4], tolerance = 0.06, info = k)
+    # ...and each person keeps their rank within their class
+    expect_equal(cor(y$log_aF[j], x$log_aF[j], method = "spearman"), 1, tolerance = 1e-6, info = k)
+  }
+  expect_identical(y$log_aI, x$log_aI)                  # theta_I and mult_I do not change
+  expect_equal(mean(y$o_i), p$o[4], tolerance = 0.005)
+  expect_equal(cor(y$o_i, x$o_i, method = "spearman"), 1, tolerance = 1e-6)
+
+  # 4 -> 5: pi falls to 0, so every never-active person becomes active
+  y5 <- remap_relationship_traits(rep(4L, n), rep(5L, n), y, p, s, o)
+  expect_identical(sum(y5$never), 0L)
+  # with no variation in going out, the new band's mean
+  p$kappa <- 1e4
+  expect_identical(remap_relationship_traits(rep(4L, n), rep(5L, n), y, p, s, o)$o_i, rep(p$o[5], n))
+})
+
+# Ties of a set of nodes in a relationship network's edgelist
+ties_of <- function(el, ids) el[el[, 1] %in% ids | el[, 2] %in% ids, , drop = FALSE]
+key_of <- function(el) paste(el[, 1], el[, 2])
+
+test_that("a person crossing a band top takes the new band's traits and relationships", {
+  dat <- pop_init(param = pop_param(act.class.mult = classes))
+  age <- get_attr(dat, "age")
+  cross <- which(age < 10)[1:20]
+  age[cross] <- 10 - 0.5 / 365
+  dat <- set_attr(dat, "age", age)
+  el0 <- dat$run$el
+  tr0 <- lapply(c(never = "never", log_aF = "log_aF", o_i = "o_i"), function(a) get_attr(dat, a))
+  dat <- set_current_timestep(dat, 2)
+  set.seed(12)
+  dat <- aging(dat, 2)
+  expect_identical(which(get_attr(dat, "rel.cross") == 2), cross)
+  expect_true(all(get_attr(dat, "age.grp")[cross] == "10-19y"))
+  expect_equal(get_epi(dat, "n.band.cross", at = 2), 20)
+  # only the crossers' traits move; band 1 and 2 share theta_F and the class
+  # multipliers here, so the activity is mapped only through o and pi
+  others <- setdiff(seq_len(N), cross)
+  for (a in names(tr0)) expect_identical(get_attr(dat, a)[others], tr0[[a]][others], info = a)
+  expect_true(all(get_attr(dat, "o_i")[cross] != tr0$o_i[cross]))
+  expect_identical(get_attr(dat, "act.eligible"), 1 - get_attr(dat, "never"))
+
+  # after the network step, the crossers' ties are redrawn and no one else's change
+  dat <- EpiModelCOVID:::seed_relationship_ties(dat, 2)
+  for (L in c("freq", "infreq")) {
+    el <- dat$run$el[[L]]
+    expect_identical(key_of(el[!(el[, 1] %in% cross | el[, 2] %in% cross), , drop = FALSE]),
+                     key_of(el0[[L]][!(el0[[L]][, 1] %in% cross | el0[[L]][, 2] %in% cross), , drop = FALSE]))
+    new <- ties_of(el, cross)
+    expect_gt(nrow(new), 0)
+    expect_false(identical(key_of(new), key_of(ties_of(el0[[L]], cross))))
+    expect_true(all(el[, 1] < el[, 2]))
+    expect_false(anyDuplicated(key_of(el)) > 0)
+    expect_identical(order(el[, 1], el[, 2]), seq_len(nrow(el)))
+  }
+})
+
+test_that("with act.reset.cross FALSE a crosser keeps their traits and ties", {
+  dat <- pop_init(param = pop_param(act.reset.cross = FALSE))
+  age <- get_attr(dat, "age")
+  cross <- which(age < 10)[1:20]
+  age[cross] <- 10 - 0.5 / 365
+  dat <- set_attr(dat, "age", age)
+  el0 <- dat$run$el
+  o0 <- get_attr(dat, "o_i")
+  dat <- set_current_timestep(dat, 2)
+  dat <- aging(dat, 2)
+  expect_true(all(get_attr(dat, "age.grp")[cross] == "10-19y"))
+  expect_true(all(is.na(get_attr(dat, "rel.cross"))))
+  expect_identical(get_attr(dat, "o_i"), o0)
+  dat <- EpiModelCOVID:::seed_relationship_ties(dat, 2)
+  expect_identical(dat$run$el, el0)
 })
