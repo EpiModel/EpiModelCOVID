@@ -434,24 +434,22 @@ move_relationship_ties <- function(dat, ids, from, old) {
     p1 <- pr(e1[mv], e2[mv], band1, la1, elig1)
     keep <- rep(TRUE, length(e1))
     keep[mv] <- stats::runif(sum(mv)) < ifelse(p0 > 0, pmin(1, p1 / p0), 0)
-    # pairs of a mover that were not ties
+    # pairs of a mover that were not ties: with a partner who did not move,
+    # by Poisson thinning (form_new_ties()); between two movers, directly
     tied <- pair_key(e1[mv], e2[mv])
-    cand <- which(elig1)
-    add <- vector("list", length(ids))
-    for (b in seq_along(ids)) {
-      i <- ids[b]
-      if (!elig1[i]) next
-      j <- cand[cand != i & !cand %in% ids[seq_len(b)]]
-      j <- j[!pair_key(pmin(i, j), pmax(i, j)) %in% tied]
-      q0 <- pr(rep(i, length(j)), j, band0, la0, elig0)
-      q1 <- pr(rep(i, length(j)), j, band1, la1, elig1)
-      up <- q1 > q0
-      j <- j[up]
-      if (!length(j)) next
-      hit <- j[stats::runif(length(j)) < (q1[up] - q0[up]) / (1 - q0[up])]
-      if (length(hit)) add[[b]] <- cbind(pmin(i, hit), pmax(i, hit))
+    add <- list(form_new_ties(ids, band0, band1, la0, la1, elig0, elig1, cell))
+    pairs <- if (length(ids) > 1) utils::combn(ids, 2) else matrix(integer(0), 2, 0)
+    if (ncol(pairs)) {
+      q0 <- pr(pairs[1, ], pairs[2, ], band0, la0, elig0)
+      q1 <- pr(pairs[1, ], pairs[2, ], band1, la1, elig1)
+      up <- q1 > q0 & stats::runif(ncol(pairs)) < (q1 - q0) / pmax(1 - q0, 1e-300)
+      add[[2]] <- cbind(pmin(pairs[1, up], pairs[2, up]), pmax(pairs[1, up], pairs[2, up]))
     }
     add <- do.call(rbind, add)
+    if (!is.null(add) && nrow(add)) {
+      add <- add[!pair_key(add[, 1], add[, 2]) %in% tied, , drop = FALSE]
+    }
+    if (!is.null(add) && !nrow(add)) add <- NULL
     if (all(keep) && is.null(add)) next
     new <- unique(rbind(cbind(e1, e2)[keep, , drop = FALSE], matrix(as.integer(add), ncol = 2)))
     new <- new[order(new[, 1], new[, 2]), , drop = FALSE]
@@ -460,6 +458,48 @@ move_relationship_ties <- function(dat, ids, from, old) {
     dat$run$el[[k]] <- new
   }
   dat
+}
+
+# New ties between movers and people who did not move, for the coupling in
+# move_relationship_ties(). For a mover i and a partner j in band h who did not
+# move, the pair forms with probability f = (expit(x1) - expit(x0)) /
+# (1 - expit(x0)), x = theta_gh + log a_i + log a_j before (0) and after (1);
+# the sign of x1 - x0 does not depend on j, so a band either gains ties for i or
+# none. Drawn by Poisson thinning, as form_dyadind(): a Poisson number of
+# candidates with mean e^(theta_gh + log a_i) S_h (S_h the band's sum of
+# activities), each drawn in proportion to a_j and kept with probability
+# -log(1 - f) / e^x1, so that the pair forms at least once with probability
+# exactly f. One weighted draw per band covers every mover, so the cost does not
+# grow with the population for each mover. Pairs that were ties before are
+# dropped by the caller.
+form_new_ties <- function(ids, band0, band1, la0, la1, elig0, elig1, cell) {
+  stay <- which(elig1)
+  stay <- stay[!stay %in% ids]
+  ok <- ids[elig1[ids]]
+  if (!length(ok) || !length(stay)) return(NULL)
+  nb <- nrow(cell)
+  out <- list()
+  for (h in seq_len(nb)) {
+    jh <- stay[band1[stay] == h]
+    if (!length(jh)) next
+    a <- exp(la1[jh])
+    x1 <- cell[cbind(band1[ok], h)] + la1[ok]
+    x0 <- ifelse(elig0[ok], cell[cbind(band0[ok], h)] + la0[ok], -Inf)
+    n <- ifelse(x1 > x0, stats::rpois(length(ok), exp(x1) * sum(a)), 0L)
+    if (!sum(n)) next
+    owner <- rep(seq_along(ok), n)
+    j <- jh[sample.int(length(jh), sum(n), replace = TRUE, prob = a)]
+    y1 <- x1[owner] + la1[j]
+    y0 <- x0[owner] + la1[j]
+    f <- (stats::plogis(y1) - stats::plogis(y0)) / (1 - stats::plogis(y0))
+    r <- pmin(1, -log1p(-pmin(f, 1 - 1e-15)) / exp(y1))
+    hit <- stats::runif(length(j)) < r
+    i <- ok[owner[hit]]; j <- j[hit]
+    out[[h]] <- cbind(pmin(i, j), pmax(i, j))
+  }
+  out <- do.call(rbind, out)
+  if (is.null(out)) return(NULL)
+  out[!duplicated(pair_key(out[, 1], out[, 2])), , drop = FALSE]
 }
 
 # The shift of the cross-sectional coefficients for the change in the
