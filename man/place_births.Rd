@@ -28,5 +28,8 @@ with weight `birth.age.weight` of their five-year age group times
 aged 0-9, 10-19, women and men 20-39, 40-59 and 60 and over, and whether no
 member is under 10). Each newborn takes its mother's `hh.ids`, and the
 household layer's arrival rule, [hh_join_birth()], keeps it.
+
+The step's births by the mother's five-year age group are the epi series
+`nNew.mage1` to `nNew.mage7` (15-19 to 45-49).
 }
 \keyword{internal}

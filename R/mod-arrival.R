@@ -115,6 +115,14 @@ check_birth_placement <- function(dat) {
     stop("birth.interval.min must be one non-negative number of days (GlobalMix India #65)",
          call. = FALSE)
   }
+  # Household ids index the composition table by row, so they must be positive
+  # whole numbers
+  hh.ids <- get_attr(dat, "hh.ids", override.null.error = TRUE)
+  if (is.null(hh.ids) || !is.numeric(hh.ids) ||
+      any(!is.na(hh.ids) & (hh.ids < 1 | hh.ids != round(hh.ids)))) {
+    stop("the birth placement needs hh.ids to be positive whole numbers (GlobalMix India #65)",
+         call. = FALSE)
+  }
   hh <- hh_layer(dat)
   if (!is.na(hh)) {
     fun <- get_nwparam(dat, network = hh)$arrivals.FUN
@@ -169,6 +177,9 @@ birth_age_wt <- function(age, w) {
 #' member is under 10). Each newborn takes its mother's `hh.ids`, and the
 #' household layer's arrival rule, [hh_join_birth()], keeps it.
 #'
+#' The step's births by the mother's five-year age group are the epi series
+#' `nNew.mage1` to `nNew.mage7` (15-19 to 45-49).
+#'
 #' @return `dat` with the newborns' `hh.ids` and the mothers' `last.birth` set.
 #' @keywords internal
 place_births <- function(dat, at, new_ids) {
@@ -197,15 +208,21 @@ place_births <- function(dat, at, new_ids) {
   hh[new_ids] <- hh[mothers]
   last.birth[mothers] <- at
   dat <- set_attr(dat, "hh.ids", hh)
-  set_attr(dat, "last.birth", last.birth)
+  dat <- set_attr(dat, "last.birth", last.birth)
+  by_age <- tabulate(findInterval(age[mothers], birth_age_breaks), nbins = length(birth_age_breaks) - 1)
+  for (g in seq_along(by_age)) {
+    dat <- set_epi(dat, paste0("nNew.mage", g), by_age[g], at = at)
+  }
+  dat
 }
 
 # Mothers of the starting population's youngest children (GlobalMix India #65).
 # Each child younger than birth.interval.min days is attributed to a woman of
 # their household who was 15-49 at the birth, drawn by birth.age.weight at her
 # age then, youngest child first and at most one child per woman, so that she
-# is not a mother again within the interval. A child with no such woman (twins,
-# or a cousin of the same age) has no mother on record. last.birth is the step
+# is not a mother again within the interval. A second such child in a household
+# (a cousin, or a twin) goes to another woman who was 15-49 at the birth if
+# there is one, and otherwise has no mother on record. last.birth is the step
 # of the birth: 1 less the child's age in days.
 init_last_birth <- function(dat) {
   active <- get_attr(dat, "active")

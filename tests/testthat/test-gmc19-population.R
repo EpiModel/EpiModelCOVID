@@ -539,6 +539,9 @@ test_that("each newborn joins the household of a mother aged 15-49, who records 
   expect_length(mothers, 20)
   expect_true(all(sex[mothers] == "F" & age[mothers] >= 15 & age[mothers] < 50))
   expect_equal(sort(hh1[new_ids]), sort(hh1[mothers]))
+  # births by the mother's age group
+  mage <- vapply(1:7, function(g) get_epi(out, paste0("nNew.mage", g), at = 2), numeric(1))
+  expect_equal(mage, tabulate(findInterval(age[mothers], seq(15, 50, 5)), 7))
   # no newborn is a mother, and nobody else's household changed
   expect_true(all(is.na(lb[new_ids])))
   expect_identical(hh1[seq_len(N)], get_attr(dat, "hh.ids")[seq_len(N)])
@@ -610,6 +613,11 @@ test_that("the placement parameters and the household layer's rule are checked",
   expect_error(pop_init(param = pop_param(birth.age.weight = rep(0, 7))), "birth.age.weight must be 7")
   expect_error(pop_init(param = pop_param(birth.hh.coef = rep(0, 7))), "birth.hh.coef must be")
   expect_error(pop_init(param = pop_param(birth.interval.min = -1)), "birth.interval.min must be")
+  bad <- nets_class
+  nw_bad <- network_initialize(n = N)
+  nw_bad <- set_vertex_attribute(nw_bad, "hh.ids", rep(c(0.5, 1:149), each = 4))
+  bad$home <- netclique(nw_bad, "hh.ids", arrivals = "join", arrivals.FUN = hh_join_birth)
+  expect_error(pop_init(x = bad), "hh.ids to be positive whole numbers")
   nets <- nets_class
   nw_hh <- network_initialize(n = N)
   nw_hh <- set_vertex_attribute(nw_hh, "hh.ids", rep(seq_len(N / 4), each = 4))
