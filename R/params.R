@@ -18,6 +18,7 @@ gmc19_params_common <- c(
   "mort.rates", "birth.rate",
   # layers and transmission
   "layer.names", "inf.prob", "exposure.rate", "inf.prob.a.rr", "sympt.contact.rr", "susc.age.rr",
+  "susc.infant.rr", "susc.infant.age",
   "contact.weight", "contact.weight.equal", "seasonal.amp", "seasonal.phase", "import.rate",
   "bg.hazard", "bg.mix",
   # natural history and severity
@@ -31,12 +32,15 @@ gmc19_params_common <- c(
 )
 
 # Read only by the relationship model (#63): the activation step, the traits and
-# the new contacts. No name is read by the legacy four-layer design alone.
+# the new contacts, and the birth placement (#65). No name is read by the legacy
+# four-layer design alone.
 gmc19_params_relationship <- c(
   "act.o", "act.kappa", "act.kappa.mult", "act.q", "act.q.mult", "act.p11", "act.s",
   "act.pi", "act.theta.F", "act.theta.I", "act.rho", "act.class.mult", "act.theta.N",
   "act.pi.N", "act.episodes", "act.window", "act.schedule", "act.diagnostics",
-  "act.seed.newborns", "act.reset.cross", "act.occ.age", "new.rate", "new.rate.mult", "new.mix", "new.share.norel"
+  "act.seed.newborns", "act.reset.cross", "act.occ.age", "new.rate", "new.rate.mult", "new.mix", "new.share.norel",
+  # birth placement (#65), with a population that carries sex
+  "birth.age.weight", "birth.hh.coef", "birth.interval.min"
 )
 
 # Set by EpiModel itself: param.net() adds act.rate (1) and vital, init_nets()
@@ -84,7 +88,9 @@ corporate_params <- c(
 #' @details
 #' The relationship design (GlobalMix India #63) reads every name the legacy
 #' four-layer design reads, plus the activation, trait and new-contact
-#' parameters (`act.*`, `new.*`); no name is read by the legacy design alone.
+#' parameters (`act.*`, `new.*`) and the birth placement (`birth.age.weight`,
+#' `birth.hh.coef`, `birth.interval.min`; #65); no name is read by the legacy
+#' design alone.
 #' `groups`, `vital`, `act.rate`, `.param.updater.list` and `.scenario.id` are
 #' set by EpiModel itself, and none is a row of a parameter table. The per-dose
 #' vaccine schedule is read as `vax.<pathogen>.<field>.dose<i>`, for doses 1 to

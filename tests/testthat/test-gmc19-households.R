@@ -16,7 +16,7 @@ est_com <- suppressMessages(netest(nw, formation = ~edges, target.stats = 40,
 nw_hh <- network_initialize(n = N)
 nw_hh <- set_vertex_attribute(nw_hh, "hh.ids", hh)
 est_hh <- netclique(nw_hh, "hh.ids", arrivals = "join",
-                    arrivals.FUN = hh_join_young)
+                    arrivals.FUN = hh_join_birth)
 
 # A tergmLite netsim_dat object at t = 1, school-style layer first and the
 # household clique layer second
@@ -62,7 +62,7 @@ test_that("hh_layer finds the household layer by its grouping attribute", {
   expect_true(is.na(EpiModelCOVID:::hh_layer(dat_at_start(list(est_com)))))
 })
 
-test_that("hh_join_young draws only living, existing 0-9y members' households", {
+test_that("hh_join_birth draws only living, existing 0-9y members' households", {
   dat <- dat_at_start()
   dat <- set_current_timestep(dat, 2)
   # kill every 0-9y member except household 7's
@@ -73,11 +73,30 @@ test_that("hh_join_young draws only living, existing 0-9y members' households", 
   dat <- append_attr(dat, "hh.ids", NA, 3)
   new_ids <- N + 1:3
   # a length-1 pool must not trigger sample()'s 1:value behavior
-  expect_equal(hh_join_young(dat, 2, new_ids, 2), rep(7, 3))
+  expect_equal(hh_join_birth(dat, 2, new_ids, 2), rep(7, 3))
 
   # an empty pool leaves the newborns in no household
   dat <- set_attr(dat, "active", 0, posit_ids = which(hh == 7))
-  expect_equal(hh_join_young(dat, 2, new_ids, 2), rep(NA, 3))
+  expect_true(all(is.na(hh_join_birth(dat, 2, new_ids, 2))))
+})
+
+test_that("hh_join_birth keeps a household the arrivals module set", {
+  dat <- dat_at_start()
+  dat <- set_current_timestep(dat, 2)
+  dat <- append_core_attr(dat, 2, 3)
+  dat <- append_attr(dat, "age.grp", "0-9y", 3)
+  dat <- append_attr(dat, "hh.ids", c(2, NA, 9), 3)
+  new_ids <- N + 1:3
+  set.seed(4)
+  out <- hh_join_birth(dat, 2, new_ids, 2)
+  expect_equal(out[c(1, 3)], c(2, 9))
+  # the unplaced one is drawn among the 0-9y members' households, as before
+  expect_true(out[2] %in% hh[age.grp == "0-9y"])
+  # with every newborn placed, no random number is drawn
+  dat <- set_attr(dat, "hh.ids", 5, posit_ids = N + 2)
+  set.seed(4); r0 <- runif(1)
+  set.seed(4); hh_join_birth(dat, 2, new_ids, 2); r1 <- runif(1)
+  expect_identical(r0, r1)
 })
 
 test_that("nwupdate.net removes the dead and wires newborns into full cliques", {

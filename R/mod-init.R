@@ -15,7 +15,7 @@ init_gmc19 <- function(x, param, init, control, s) {
   # than run without households if a caller still passes the old form.
   if (!is.null(get_param(dat, "hh.pairs", override.null.error = TRUE))) {
     stop("hh.pairs is no longer read: pass the household layer to netsim() as ",
-         "netclique(nw, \"hh.ids\", arrivals = \"join\", arrivals.FUN = hh_join_young)")
+         "netclique(nw, \"hh.ids\", arrivals = \"join\", arrivals.FUN = hh_join_birth)")
   }
 
   ## network and stats initialization
@@ -46,6 +46,8 @@ init_gmc19 <- function(x, param, init, control, s) {
       stop("a relationship trait (never, log_aF, log_aI) is NA for some node", call. = FALSE)
     }
     check_newborn_classes(dat)
+    # #65: births placed with a mother, and a household layer that keeps it
+    check_birth_placement(dat)
     # #64: the class distribution by age, checked once here rather than at the
     # first transition
     normalize_occ_age(get_param(dat, "act.occ.age", override.null.error = TRUE))
@@ -55,6 +57,9 @@ init_gmc19 <- function(x, param, init, control, s) {
   ## Initialize all remaining attributes in default values
   dat <- init_attrs(dat)
   dat <- overwrite_attrs(dat)
+  # #65: the mothers of the youngest children, who cannot give birth again
+  # within the birth interval
+  if (births_placed(dat)) dat <- init_last_birth(dat)
   
   # # Infection status and related
   # dat <- init_status_gmc19(dat)

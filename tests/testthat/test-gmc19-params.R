@@ -4,7 +4,7 @@
 # The GMC19 model's modules (make_control_gmc19() in GlobalMix-India-NetVax) and
 # the household layer's arrival rule. Every function they call is part of the
 # model; the package's other functions are the CorporateMix modules.
-gmc19_modules <- c("init_gmc19", "aging", "deaths_covid_gmc19", "arrival", "hh_join_young",
+gmc19_modules <- c("init_gmc19", "aging", "deaths_covid_gmc19", "arrival", "hh_join_birth",
                    "resim_relationships", "activate_contacts", "netdegree", "infect_general",
                    "progress_general", "vax_general", "prevalence_covid_corporate")
 
@@ -59,12 +59,12 @@ test_that("every parameter the modules read is listed, and every listed one is r
   expect_identical(intersect(listed, refused), character(0))
 })
 
-test_that("the relationship design reads the legacy design's names plus act.* and new.*", {
+test_that("the relationship design reads the legacy design's names plus act.*, new.* and birth.*", {
   rel <- gmc19_known_params("relationship")
   legacy <- gmc19_known_params("legacy")
   expect_identical(gmc19_known_params(), rel)
   expect_true(all(legacy %in% rel))
-  expect_true(all(grepl("^(act|new)\\.", setdiff(rel, legacy))))
+  expect_true(all(grepl("^(act|new|birth)\\.", setdiff(rel, legacy))))
 })
 
 test_that("the CorporateMix modules' own parameters are listed apart", {

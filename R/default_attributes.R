@@ -43,8 +43,9 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     # cross-layer bridge indicators
     is_bridge = FALSE,
     n_layers_active =0,
-    # household id and age. NA is "in no household"; the household clique
-    # layer's arrival rule (hh_join_young) sets it for new nodes.
+    # household id and age. NA is "in no household"; a newborn takes its
+    # mother's (place_births(), GlobalMix India #65) or, on the legacy model,
+    # the household clique layer's arrival rule (hh_join_birth) draws one.
     hh.ids = NA,
     age = get_param(dat, "arrival.age"), 
     age.grp = NA,
@@ -77,6 +78,12 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
   if (has_pop_class(dat)) {
     defaults$sex <- NA_character_
     defaults$occ <- "child"
+  }
+  # Step of a woman's most recent birth, NA if none is on record (GlobalMix
+  # India #65): place_births() sets it, and init_last_birth() for the mothers of
+  # the starting population's youngest children
+  if (births_placed(dat)) {
+    defaults$last.birth <- NA_real_
   }
   defaults
 }

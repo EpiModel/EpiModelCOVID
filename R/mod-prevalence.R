@@ -134,6 +134,16 @@ prevalence_covid_corporate <- function(dat, at) {
     if (!is.null(ever.inf)) {
       dat <- set_epi(dat, "ever.inf.infant", sum(inf_alive & ever.inf == 1, na.rm = TRUE), at = at)
     }
+    ## Infant households (GlobalMix India #65, #77): the households with a
+    ## living infant, and the living people other than infants who share one,
+    ## the pool a cocoon is drawn from
+    hh.ids <- get_attr(dat, "hh.ids", override.null.error = TRUE)
+    if (!is.null(hh.ids)) {
+      hh_inf <- unique(hh.ids[inf_alive & !is.na(hh.ids)])
+      dat <- set_epi(dat, "n.infant.hh", length(hh_inf), at = at)
+      dat <- set_epi(dat, "n.infant.hh.res",
+                     sum(alive & !is_infant & !is.na(hh.ids) & hh.ids %in% hh_inf), at = at)
+    }
   }
 
   return(dat)

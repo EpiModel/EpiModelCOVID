@@ -31,7 +31,9 @@ updaters (GlobalMix India #67).
 \details{
 The relationship design (GlobalMix India #63) reads every name the legacy
 four-layer design reads, plus the activation, trait and new-contact
-parameters (`act.*`, `new.*`); no name is read by the legacy design alone.
+parameters (`act.*`, `new.*`) and the birth placement (`birth.age.weight`,
+`birth.hh.coef`, `birth.interval.min`; #65); no name is read by the legacy
+design alone.
 `groups`, `vital`, `act.rate`, `.param.updater.list` and `.scenario.id` are
 set by EpiModel itself, and none is a row of a parameter table. The per-dose
 vaccine schedule is read as `vax.<pathogen>.<field>.dose<i>`, for doses 1 to

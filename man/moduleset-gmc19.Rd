@@ -6,7 +6,7 @@
 \alias{moduleset-gmc19}
 \alias{activate_contacts}
 \alias{arrival}
-\alias{hh_join_young}
+\alias{hh_join_birth}
 \alias{deaths_covid_gmc19}
 \alias{infect_general}
 \alias{init_gmc19}
@@ -21,7 +21,7 @@ activate_contacts(dat, at)
 
 arrival(dat, at)
 
-hh_join_young(dat, at, new_ids, network)
+hh_join_birth(dat, at, new_ids, network)
 
 deaths_covid_gmc19(dat, at)
 
@@ -87,10 +87,13 @@ network exactly with [step_relationships()] and any other layer with
 EpiModel's own simulation (the household clique layer has none).
 }
 \details{
-\code{hh_join_young} is the \code{arrivals.FUN} of the household layer, built
+\code{hh_join_birth} is the \code{arrivals.FUN} of the household layer, built
 with \code{netclique(nw, "hh.ids", arrivals = "join", arrivals.FUN =
-hh_join_young)}. Each newborn joins the household of a uniformly drawn
-existing 0-9y member, so households are drawn in proportion to their number
-of 0-9y members. EpiModel then connects the newborn to every active member of
-that household, including other newborns placed there in the same step.
+hh_join_birth)}. A newborn whose household the arrivals module set (its
+mother's, on the relationship design; GlobalMix India #65) keeps it. Any
+other newborn joins the household of a uniformly drawn existing 0-9y member,
+so households are drawn in proportion to their number of 0-9y members (the
+rule before engine 1.10.0, which the legacy four-layer model keeps). EpiModel
+then connects the newborn to every active member of that household,
+including other newborns placed there in the same step.
 }

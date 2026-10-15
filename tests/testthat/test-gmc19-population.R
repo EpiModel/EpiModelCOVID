@@ -46,7 +46,7 @@ pop_nets <- function(with_class = TRUE) {
   nw_hh <- network_initialize(n = N)
   nw_hh <- set_vertex_attribute(nw_hh, "hh.ids", rep(seq_len(N / 4), each = 4))
   list(freq = fit("log_aF", 900), infreq = fit("log_aI", 600),
-       home = netclique(nw_hh, "hh.ids", arrivals = "join", arrivals.FUN = hh_join_young))
+       home = netclique(nw_hh, "hh.ids", arrivals = "join", arrivals.FUN = hh_join_birth))
 }
 nets_class <- pop_nets(TRUE)
 nets_plain <- pop_nets(FALSE)
@@ -60,7 +60,9 @@ pop_param <- function(...) {
     act.o = act_pars$o, act.kappa = act_pars$kappa, act.q = act_pars$q, act.p11 = act_pars$p11,
     act.s = act_pars$s, act.pi = act_pars$pi, act.theta.F = act_pars$theta_F,
     act.theta.I = act_pars$theta_I, act.rho = act_pars$rho, new.rate = act_pars$new_rate,
-    new.mix = act_pars$new_mix, new.share.norel = act_pars$new_share, ...)
+    new.mix = act_pars$new_mix, new.share.norel = act_pars$new_share,
+    birth.age.weight = c(5.9, 84.7, 94.9, 48.8, 12.0, 3.5, 0.8),
+    birth.hh.coef = setNames(rep(0, 7), EpiModelCOVID:::birth_hh_terms), birth.interval.min = 304, ...)
 }
 
 # init_gmc19() on the small model, as netsim() calls it
@@ -221,7 +223,7 @@ test_that("class multipliers must be those the networks were fitted with", {
 # Births and background deaths (GlobalMix India #64) ------------------------------
 
 test_that("births are binomial on the living at birth.rate, whatever the deaths", {
-  dat <- pop_init(param = pop_param(birth.rate = 0.2))
+  dat <- pop_init(param = pop_param(birth.rate = 0.1))
   dat <- set_current_timestep(dat, 2)
   # this step's dead are marked but still in the attributes until nwupdate.FUN
   dat <- set_attr(dat, "active", 0, posit_ids = 1:100)
@@ -229,7 +231,7 @@ test_that("births are binomial on the living at birth.rate, whatever the deaths"
   set.seed(31)
   out <- arrival(dat, 2)
   set.seed(31)
-  n_new <- rbinom(1, N - 100, 0.2)
+  n_new <- rbinom(1, N - 100, 0.1)
   expect_equal(get_epi(out, "nNew", at = 2), n_new)
   expect_length(get_attr(out, "active"), N + n_new)
   # the same draw with no deaths marked: births do not follow d.flow
@@ -514,4 +516,161 @@ test_that("a child who reaches school age enrolls and takes a student's traits a
   # nobody else changes class: their distribution is flat over the step
   others <- setdiff(seq_len(N), kids)
   expect_identical(get_attr(dat, "occ")[others], occ[others])
+})
+
+# Birth placement (GlobalMix India #65) ---------------------------------------------
+
+terms <- EpiModelCOVID:::birth_hh_terms
+pairs_of <- function(el) {
+  el <- matrix(as.integer(el), ncol = 2)
+  sort(paste(pmin(el[, 1], el[, 2]), pmax(el[, 1], el[, 2])))
+}
+
+test_that("each newborn joins the household of a mother aged 15-49, who records the birth", {
+  dat <- pop_init()
+  set.seed(11)
+  dat <- add_newborns(dat, 20)
+  new_ids <- N + 1:20
+  expect_true(all(is.na(get_attr(dat, "hh.ids")[new_ids])))
+  out <- EpiModelCOVID:::place_births(dat, 2, new_ids)
+  lb <- get_attr(out, "last.birth"); hh1 <- get_attr(out, "hh.ids")
+  age <- get_attr(out, "age"); sex <- get_attr(out, "sex")
+  mothers <- which(lb == 2)
+  expect_length(mothers, 20)
+  expect_true(all(sex[mothers] == "F" & age[mothers] >= 15 & age[mothers] < 50))
+  expect_equal(sort(hh1[new_ids]), sort(hh1[mothers]))
+  # no newborn is a mother, and nobody else's household changed
+  expect_true(all(is.na(lb[new_ids])))
+  expect_identical(hh1[seq_len(N)], get_attr(dat, "hh.ids")[seq_len(N)])
+})
+
+test_that("a woman is not a mother again within birth.interval.min days", {
+  dat <- pop_init(param = pop_param(birth.interval.min = 10))
+  age <- get_attr(dat, "age"); sex <- get_attr(dat, "sex")
+  women <- which(sex == "F" & age >= 15 & age < 50)
+  free <- women[1:3]
+  lb <- rep(NA_real_, N)
+  lb[setdiff(women, free)] <- -4                  # 6 days before step 2
+  lb[free[3]] <- -8                               # exactly 10 days before: eligible again
+  dat <- set_attr(dat, "last.birth", lb)
+  dat <- add_newborns(dat, 3)
+  out <- EpiModelCOVID:::place_births(dat, 2, N + 1:3)
+  expect_setequal(which(get_attr(out, "last.birth") == 2), free)
+  dat4 <- add_newborns(dat, 4)
+  expect_error(EpiModelCOVID:::place_births(dat4, 2, N + 1:4), "only 3 women can be mothers")
+})
+
+test_that("mothers are drawn by age group and household composition", {
+  # households of nodes 5-8 and 9-12 (and every third after) have a member 60+
+  coef <- setNames(rep(0, 7), terms)
+  coef[["n60"]] <- -50
+  dat <- pop_init(param = pop_param(birth.hh.coef = coef))
+  set.seed(3)
+  dat <- add_newborns(dat, 30)
+  out <- EpiModelCOVID:::place_births(dat, 2, N + 1:30)
+  mothers <- which(get_attr(out, "last.birth") == 2)
+  hh1 <- get_attr(out, "hh.ids"); age <- get_attr(out, "age")
+  has60 <- tapply(age[seq_len(N)] >= 60, hh1[seq_len(N)], any)
+  expect_false(any(has60[as.character(hh1[mothers])]))
+  # a zero age weight leaves that age group out: only women 15-19 here
+  dat <- pop_init(param = pop_param(birth.age.weight = c(1, 0, 0, 0, 0, 0, 0)))
+  dat <- add_newborns(dat, 10)
+  out <- EpiModelCOVID:::place_births(dat, 2, N + 1:10)
+  mothers <- which(get_attr(out, "last.birth") == 2)
+  expect_true(all(get_attr(out, "age")[mothers] < 20))
+  # the household terms
+  x <- EpiModelCOVID:::birth_hh_features(age = c(5, 15, 25, 25, 45, 70, 30), sex = c("F", "M", "F", "M", "F", "M", "F"),
+                                        hh = c(1, 1, 1, 1, 1, 1, 2), live = c(rep(TRUE, 6), TRUE))
+  expect_equal(unname(x[1, ]), c(1, 1, 1, 1, 1, 1, 0))
+  expect_equal(unname(x[2, ]), c(0, 0, 1, 0, 0, 0, 1))
+  expect_identical(colnames(x), terms)
+})
+
+test_that("the youngest children of the starting population have a mother on record", {
+  # household 1 is nodes 1-4 (a child and women 15.5, 25.5 and 35.5); household 2
+  # nodes 5-8 (women 50.5 and 70.5, a child, a woman 15.5); household 4 nodes 13-16
+  age <- c(5, 15, 25, 35, 50, 70)[band] + 0.5
+  age[1] <- 0.15
+  age[7] <- 0.2; age[6] <- 0.3      # two infants with one possible mother (node 8)
+  age[13] <- 0.9                    # older than the interval
+  dat <- pop_init()
+  dat <- set_attr(dat, "age", age)
+  set.seed(2)
+  dat <- EpiModelCOVID:::init_last_birth(dat)
+  lb <- get_attr(dat, "last.birth")
+  expect_true(which(lb == 1 - round(0.15 * 365)) %in% 2:4)
+  expect_equal(lb[8], 1 - round(0.2 * 365))
+  # node 6 has no mother: node 8 is node 7's, and node 5 was 50 at the birth
+  expect_equal(sum(!is.na(lb)), 2)
+  expect_true(is.na(lb[5]))
+})
+
+test_that("the placement parameters and the household layer's rule are checked", {
+  expect_error(pop_init(param = pop_param(birth.age.weight = c(1, 2))), "birth.age.weight must be 7")
+  expect_error(pop_init(param = pop_param(birth.age.weight = rep(0, 7))), "birth.age.weight must be 7")
+  expect_error(pop_init(param = pop_param(birth.hh.coef = rep(0, 7))), "birth.hh.coef must be")
+  expect_error(pop_init(param = pop_param(birth.interval.min = -1)), "birth.interval.min must be")
+  nets <- nets_class
+  nw_hh <- network_initialize(n = N)
+  nw_hh <- set_vertex_attribute(nw_hh, "hh.ids", rep(seq_len(N / 4), each = 4))
+  nets$home <- netclique(nw_hh, "hh.ids", arrivals = "join",
+                         arrivals.FUN = function(dat, at, new_ids, network) rep(1, length(new_ids)))
+  expect_error(pop_init(x = nets), "arrivals.FUN = hh_join_birth")
+  # a population without sex keeps the pre-#65 rule and needs none of this
+  dat <- pop_init(x = nets_plain, param = pop_param(birth.age.weight = NULL, birth.hh.coef = NULL,
+                                                    birth.interval.min = NULL))
+  expect_null(get_attr(dat, "last.birth", override.null.error = TRUE))
+  dat <- set_current_timestep(dat, 2)
+  dat <- set_param(dat, "birth.rate", 0.05)
+  set.seed(8)
+  out <- arrival(dat, 2)
+  expect_true(all(is.na(get_attr(out, "hh.ids")[-seq_len(N)])))
+})
+
+test_that("over a run every living person is in a household and the layer is its cliques", {
+  dat <- pop_init(param = pop_param(birth.rate = 0.003, mort.rates = rep(0, 86)))
+  dat$control$nsteps <- 40
+  set.seed(9)
+  for (at in 2:40) {
+    dat <- set_current_timestep(dat, at)
+    dat <- aging(dat, at)
+    dat <- deaths_covid_gmc19(dat, at)
+    dat <- arrival(dat, at)
+    dat <- nwupdate.net(dat, at)
+  }
+  a <- get_attr_list(dat)
+  newborns <- which(a$entrTime > 1)
+  expect_gt(length(newborns), 20)
+  expect_true(all(a$active == 1))
+  expect_false(anyNA(a$hh.ids))
+  expect_true(all(a$hh.ids > 0))
+  el <- dat$run$el[[EpiModelCOVID:::hh_layer(dat)]]
+  expect_false(any(el[, 1] == el[, 2]))
+  expect_equal(pairs_of(el), pairs_of(EpiModel:::group_edgelist(a$hh.ids)))
+  # the infant flag follows age
+  expect_identical(a$is_infant, a$age < 1)
+  # each newborn shares a household with the woman whose birth it was
+  has_mother <- vapply(newborns, function(i) any(a$hh.ids == a$hh.ids[i] & a$last.birth %in% a$entrTime[i] &
+                                                   a$sex == "F"), logical(1))
+  expect_true(all(has_mother))
+  # births equal the mothers' records
+  expect_equal(sum(a$last.birth > 1, na.rm = TRUE), length(newborns))
+
+  # the infant-household counts
+  dat <- prevalence_covid_corporate(dat, 40)
+  inf_hh <- unique(a$hh.ids[a$is_infant])
+  expect_equal(get_epi(dat, "n.infant.hh", at = 40), length(inf_hh))
+  expect_equal(get_epi(dat, "n.infant.hh.res", at = 40), sum(!a$is_infant & a$hh.ids %in% inf_hh))
+})
+
+test_that("infant susceptibility is inert at 1 and scales infants under the cutoff", {
+  dat <- pop_init()
+  expect_null(EpiModelCOVID:::infant_susc_rr(dat, c(0.1, 0.5, 30)))
+  dat <- set_param(dat, "susc.infant.rr", 1)
+  expect_null(EpiModelCOVID:::infant_susc_rr(dat, c(0.1, 0.5, 30)))
+  dat <- set_param(dat, "susc.infant.rr", 0.4)
+  dat <- set_param(dat, "susc.infant.age", 0.25)
+  expect_equal(EpiModelCOVID:::infant_susc_rr(dat, c(0.1, 0.25, 30)), c(0.4, 1, 1))
+  dat <- set_param(dat, "susc.infant.rr", -1)
+  expect_error(EpiModelCOVID:::infant_susc_rr(dat, 0.1), "susc.infant.rr must be")
 })

@@ -142,6 +142,9 @@ infect_general <- function(dat, at) {
           rr_sus[is.na(rr_sus)] <- 1
           del$transProb <- del$transProb * rr_sus
         }
+        # Young infants (GlobalMix India #65), inert unless susc.infant.rr is set
+        rr_young <- infant_susc_rr(dat, age[del$sus])
+        if (!is.null(rr_young)) del$transProb <- del$transProb * rr_young
 
         # Asymptomatic infection
         del$stat <- status[del$inf]
@@ -222,6 +225,8 @@ infect_general <- function(dat, at) {
         rs[is.na(rs)] <- 1
         rr <- rr * rs
       }
+      rr_young <- infant_susc_rr(dat, age[idsSus])
+      if (!is.null(rr_young)) rr <- rr * rr_young
       idsBg <- idsSus[stats::runif(length(idsSus)) < 1 - exp(-lambda_b[bnd[idsSus]] * rr)]
       if (length(idsBg) > 0) {
         dat <- set_attr(dat, "status", "e", idsBg)
@@ -542,3 +547,18 @@ infect_covid_corporate <- function(dat, at) { #maria's repo
   return(dat)
 }
 
+# Relative per-contact acquisition probability of an infant younger than
+# susc.infant.age years: a place for protection by maternal antibody (GlobalMix
+# India #65). Whether the infant severity inputs are already net of it, and the
+# value if not, are #71's; at the default, 1, it has no effect and returns NULL.
+infant_susc_rr <- function(dat, age) {
+  rr <- get_param(dat, "susc.infant.rr", override.null.error = TRUE)
+  if (is.null(rr) || isTRUE(all(rr == 1))) return(NULL)
+  cut_age <- get_param(dat, "susc.infant.age", override.null.error = TRUE)
+  if (!(is.numeric(rr) && length(rr) == 1 && is.finite(rr) && rr >= 0) ||
+      !(is.numeric(cut_age) && length(cut_age) == 1 && is.finite(cut_age) && cut_age > 0)) {
+    stop("susc.infant.rr must be one non-negative relative risk and susc.infant.age one ",
+         "positive age in years (GlobalMix India #65)", call. = FALSE)
+  }
+  ifelse(age < cut_age, rr, 1)
+}
