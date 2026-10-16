@@ -65,7 +65,107 @@ infect_general <- function(dat, at) {
   nLayers <- length(types)
   nInf <- rep(0, nLayers)
   allNewInf <- integer(0)  # newly infected across all layers + imports, for stratified incidence
- 
+
+  # Daily transmission probability on each discordant pair (sus, inf) of one tie
+  # type, with every per-contact multiplier. The transmission draws and the
+  # discordant-contact counters below both use it, so they cannot drift apart.
+  pair_prob <- function(del, layer) {
+    # Per-act transmission probability on this layer (seasonally forced).
+    # inf.prob and exposure.rate are the only terms that depend on the layer,
+    # so when both are equal across layers every tie carries the same daily
+    # hazard. The CorporateMix modifiers that used to sit in this loop are
+    # removed (GlobalMix India #66): inf.add/inf.sub windows on days 40-80
+    # and 120-160, a 40% cut from day 15 on every layer but the first, and
+    # isolation and masking of cases found by the testing module.
+    del$transProb <- inf.prob[[layer]] * season_mult
+
+    # Vaccine effect on susceptibility/transmission
+    # Dose allocation is handled in mod-vax.R; this infection module only
+    # applies vaccine-derived protection when calculating per-edge transmission.
+    #
+    # compute_ve() uses each susceptible node's current vaccine dose,
+    # dose timing, age group, and the VE parameters stored in vax.schedule
+    # to return the current relative risk for infection.
+    #
+    # rr = 1 means no vaccine-derived protection.
+    # rr < 1 reduces the susceptible node's transmission probability.
+    vax_eff <-
+      compute_ve(
+        at = at,
+        ids = del$sus,
+        vax = vax,
+        last.dose.time = last.dose.time,
+        vax.schedule = vax.schedule,
+        outcome = "infect",
+        vax.age.group = vax.age.group)
+    # Store vaccination status and time since latest dose
+    del$vaxSus <- vax[del$sus]
+    # Direct infant product (issue #41): strip infection-VE for dosed infants,
+    # so a severity-dominant monoclonal/maternal product does not spuriously
+    # cut infant acquisition; adult recipients (e.g. the cocooning co-residents)
+    # keep their normal infection VE.
+    if (isTRUE(vax.infant.product) && !is.null(is_infant)) {
+      inf_sus <- which(is_infant[del$sus])
+      if (length(inf_sus) > 0) vax_eff$rr[inf_sus] <- 1
+    }
+    # Apply vaccine-derived susceptibility reduction to transmission probability for each discordant edge.
+    del$transProb <- del$transProb * vax_eff$rr
+
+    # Age-specific susceptibility (issue #45 trajectory knob). A relative
+    # risk on the SUSCEPTIBLE node's age group, applied multiplicatively to
+    # the per-contact transmission probability. Absent, all-NA or all-ones
+    # means no effect, which is the current behaviour, so this stays inert
+    # unless a scenario sets it.
+    #
+    # It exists because the model's influenza age gradient is emergent from
+    # network structure alone: rural flu incidence peaks in 10-19y because
+    # that is where the school layer concentrates contact, whereas Krishnan
+    # 2018, Sullender 2019 and PHIRST all give the opposite ordering. There
+    # was no other lever on that gradient, since inf.prob is per-layer and
+    # carries no age dimension. Sweeping susc.age.rr from all-ones to a
+    # monotone decline is the "corrected" arm of that axis.
+    susc.age.rr <- get_param(dat, "susc.age.rr", override.null.error = TRUE)
+    if (!is.null(susc.age.rr) && !all(is.na(susc.age.rr)) &&
+        any(susc.age.rr != 1, na.rm = TRUE)) {
+      ag_sus <- cut(age[del$sus], get_param(dat, "age.breaks"),
+                    labels = FALSE, right = FALSE)
+      rr_sus <- susc.age.rr[ag_sus]
+      rr_sus[is.na(rr_sus)] <- 1
+      del$transProb <- del$transProb * rr_sus
+    }
+    # Young infants (GlobalMix India #65), inert unless susc.infant.rr is set
+    rr_young <- infant_susc_rr(dat, age[del$sus])
+    if (!is.null(rr_young)) del$transProb <- del$transProb * rr_young
+
+    # Asymptomatic infection
+    del$stat <- status[del$inf]
+    del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *
+      inf.prob.a.rr
+
+    # Daily probability over exposure.rate acts on the tie, each act scaled
+    # by the age pair's relative intensity on this tie type and, while the
+    # infector is symptomatic, by the symptomatic contact multiplier
+    w <- if (is.null(weights)) 1 else weights[[layer]][cbind(band[del$sus], band[del$inf])]
+    rr_ic <- if (is.null(sympt.rr)) 1 else ifelse(del$stat == "ic", sympt.rr[[layer]], 1)
+    del$finalProb <- 1 - (1 - del$transProb)^(exposure.rate[[layer]] * w * rr_ic)
+    del
+  }
+
+  # Discordant contacts by tie type at the start of the step (GlobalMix India
+  # #77, for the #68 check of infections by tie type against the weights). Per
+  # tie type: the contacts between an infectious and a susceptible person
+  # (disc.<type>), their summed daily hazard, -log(1 - p) (disc.haz.<type>), and
+  # the infections the tie type carries if all of a person's exposures compete
+  # at once (disc.exp.<type>: each susceptible is infected with probability
+  # 1 - exp(-H), H their total hazard, attributed in proportion to hazard).
+  # Taken before any transmission draw and with no random numbers, so the run
+  # is unchanged.
+  disc <- disc_counts(if (length(idsInf) > 0) lapply(seq_len(nLayers), function(layer) {
+    el <- if (is.null(contacts)) get_edgelist(dat, layer) else contacts[[layer]]
+    del <- discord_pairs(el, status, active, c("a", "ic", "ip"), at, shuffle = FALSE)
+    if (!is.null(del)) pair_prob(del, layer)
+  }), nLayers, length(active))
+
   if (length(idsInf) > 0) {
     for (layer in seq_len(nLayers)) {
       ## Look up discordant edgelist ##
@@ -79,84 +179,7 @@ infect_general <- function(dat, at) {
       if (!(is.null(del))
       ) {
 
-        # Per-act transmission probability on this layer (seasonally forced).
-        # inf.prob and exposure.rate are the only terms that depend on the layer,
-        # so when both are equal across layers every tie carries the same daily
-        # hazard. The CorporateMix modifiers that used to sit in this loop are
-        # removed (GlobalMix India #66): inf.add/inf.sub windows on days 40-80
-        # and 120-160, a 40% cut from day 15 on every layer but the first, and
-        # isolation and masking of cases found by the testing module.
-        del$transProb <- inf.prob[[layer]] * season_mult
-
-        # Vaccine effect on susceptibility/transmission
-        # Dose allocation is handled in mod-vax.R; this infection module only
-        # applies vaccine-derived protection when calculating per-edge transmission.
-        #
-        # compute_ve() uses each susceptible node's current vaccine dose,
-        # dose timing, age group, and the VE parameters stored in vax.schedule
-        # to return the current relative risk for infection.
-        #
-        # rr = 1 means no vaccine-derived protection.
-        # rr < 1 reduces the susceptible node's transmission probability.
-        vax_eff <-
-          compute_ve(
-            at = at,
-            ids = del$sus,
-            vax = vax,
-            last.dose.time = last.dose.time,
-            vax.schedule = vax.schedule,
-            outcome = "infect",
-            vax.age.group = vax.age.group)
-        # Store vaccination status and time since latest dose
-        del$vaxSus <- vax[del$sus]
-        # Direct infant product (issue #41): strip infection-VE for dosed infants,
-        # so a severity-dominant monoclonal/maternal product does not spuriously
-        # cut infant acquisition; adult recipients (e.g. the cocooning co-residents)
-        # keep their normal infection VE.
-        if (isTRUE(vax.infant.product) && !is.null(is_infant)) {
-          inf_sus <- which(is_infant[del$sus])
-          if (length(inf_sus) > 0) vax_eff$rr[inf_sus] <- 1
-        }
-        # Apply vaccine-derived susceptibility reduction to transmission probability for each discordant edge.
-        del$transProb <- del$transProb * vax_eff$rr
-
-        # Age-specific susceptibility (issue #45 trajectory knob). A relative
-        # risk on the SUSCEPTIBLE node's age group, applied multiplicatively to
-        # the per-contact transmission probability. Absent, all-NA or all-ones
-        # means no effect, which is the current behaviour, so this stays inert
-        # unless a scenario sets it.
-        #
-        # It exists because the model's influenza age gradient is emergent from
-        # network structure alone: rural flu incidence peaks in 10-19y because
-        # that is where the school layer concentrates contact, whereas Krishnan
-        # 2018, Sullender 2019 and PHIRST all give the opposite ordering. There
-        # was no other lever on that gradient, since inf.prob is per-layer and
-        # carries no age dimension. Sweeping susc.age.rr from all-ones to a
-        # monotone decline is the "corrected" arm of that axis.
-        susc.age.rr <- get_param(dat, "susc.age.rr", override.null.error = TRUE)
-        if (!is.null(susc.age.rr) && !all(is.na(susc.age.rr)) &&
-            any(susc.age.rr != 1, na.rm = TRUE)) {
-          ag_sus <- cut(age[del$sus], get_param(dat, "age.breaks"),
-                        labels = FALSE, right = FALSE)
-          rr_sus <- susc.age.rr[ag_sus]
-          rr_sus[is.na(rr_sus)] <- 1
-          del$transProb <- del$transProb * rr_sus
-        }
-        # Young infants (GlobalMix India #65), inert unless susc.infant.rr is set
-        rr_young <- infant_susc_rr(dat, age[del$sus])
-        if (!is.null(rr_young)) del$transProb <- del$transProb * rr_young
-
-        # Asymptomatic infection
-        del$stat <- status[del$inf]
-        del$transProb[del$stat == "a"] <- del$transProb[del$stat == "a"] *
-          inf.prob.a.rr
-
-        # Daily probability over exposure.rate acts on the tie, each act scaled
-        # by the age pair's relative intensity on this tie type and, while the
-        # infector is symptomatic, by the symptomatic contact multiplier
-        w <- if (is.null(weights)) 1 else weights[[layer]][cbind(band[del$sus], band[del$inf])]
-        rr_ic <- if (is.null(sympt.rr)) 1 else ifelse(del$stat == "ic", sympt.rr[[layer]], 1)
-        del$finalProb <- 1 - (1 - del$transProb)^(exposure.rate[[layer]] * w * rr_ic)
+        del <- pair_prob(del, layer)
 
         # rbinom() would turn these into NAs with only a warning, and the NA
         # draws would then drop out of the which() below as non-transmissions
@@ -269,6 +292,11 @@ infect_general <- function(dat, at) {
   # The same counts named by tie type (GlobalMix India #63), so a reader never has
   # to know which position a layer took
   for (k in seq_along(types)) dat <- set_epi(dat, paste0("se.flow.", types[k]), nInf[k], at = at)
+  for (k in seq_along(types)) {
+    dat <- set_epi(dat, paste0("disc.", types[k]), disc$n[k], at = at)
+    dat <- set_epi(dat, paste0("disc.haz.", types[k]), disc$haz[k], at = at)
+    dat <- set_epi(dat, paste0("disc.exp.", types[k]), disc$exp[k], at = at)
+  }
   dat <- set_epi(dat, "se.import.flow", nImport, at = at)
   if (bg.hazard > 0) dat <- set_epi(dat, "se.flow.bg", nBg, at = at)
 
@@ -364,10 +392,11 @@ infect_general <- function(dat, at) {
 
 # Discordant pairs of an edgelist of the day's contacts, as EpiModel's
 # discord_edgelist() builds them from a network: rows in random order, the
-# susceptible end first, both ends active.
-discord_pairs <- function(el, status, active, infstat, at) {
+# susceptible end first, both ends active. shuffle = FALSE keeps the edgelist
+# order and draws no random numbers.
+discord_pairs <- function(el, status, active, infstat, at, shuffle = TRUE) {
   if (is.null(el) || nrow(el) == 0) return(NULL)
-  el <- el[sample(seq_len(nrow(el))), , drop = FALSE]
+  if (shuffle) el <- el[sample(seq_len(nrow(el))), , drop = FALSE]
   stat <- matrix(status[el], ncol = 2)
   isInf <- matrix(stat %in% infstat, ncol = 2)
   isSus <- matrix(stat %in% "s", ncol = 2)
@@ -378,6 +407,32 @@ discord_pairs <- function(el, status, active, infstat, at) {
   del <- data.frame(at = at, sus = pairs[, 1], inf = pairs[, 2])
   del <- del[active[del$sus] == 1 & active[del$inf] == 1, , drop = FALSE]
   if (nrow(del) == 0) NULL else del
+}
+
+# Discordant-contact counters by tie type from each tie type's discordant pairs
+# with their daily transmission probability (NULL for none): the number of
+# pairs, the summed hazard -log(1 - p), and the competing-risk expected
+# infections, sum over susceptibles of (1 - exp(-H)) h / H. A probability of 1
+# is held just below it, so its hazard stays finite.
+disc_counts <- function(dels, nLayers, n) {
+  out <- list(n = numeric(nLayers), haz = numeric(nLayers), exp = numeric(nLayers))
+  if (is.null(dels)) return(out)
+  for (k in seq_len(nLayers)) {
+    if (!is.null(dels[[k]])) dels[[k]]$h <- -log1p(-pmin(dels[[k]]$finalProb, 1 - 1e-12))
+  }
+  sus <- unlist(lapply(dels, function(d) d$sus))
+  if (length(sus) == 0) return(out)
+  h <- unlist(lapply(dels, function(d) d$h))
+  type <- rep(seq_len(nLayers), vapply(dels, NROW, integer(1)))
+  H <- numeric(n)
+  agg <- rowsum(h, sus)
+  H[as.integer(rownames(agg))] <- agg[, 1]
+  Hi <- H[sus]
+  share <- ifelse(Hi > 0, -expm1(-Hi) * h / Hi, 0)
+  out$n <- tabulate(type, nLayers)
+  out$haz <- vapply(seq_len(nLayers), function(k) sum(h[type == k]), numeric(1))
+  out$exp <- vapply(seq_len(nLayers), function(k) sum(share[type == k]), numeric(1))
+  out
 }
 
 # Relative per-contact daily hazard by age pair (#68): `contact.weight` is a

@@ -342,6 +342,52 @@ test_that("the #68 hooks at their neutral values leave the run unchanged", {
   expect_identical(run(dat), run(neutral))
 })
 
+test_that("the discordant-contact counters count the step's contacts and leave the run unchanged", {
+  dat <- inf_dat()
+  W <- matrix(1, 6, 6)
+  dat <- set_param(dat, "contact.weight", list(freq = W / 2, infreq = W / 2, new = W / 2, home = 1.5 * W))
+  dat <- set_param(dat, "sympt.contact.rr", c(0.9, 0.9, 0.9, 1))
+  run <- function(d, seed, count = TRUE) {
+    local_mocked_bindings(
+      build_vax_schedule = function(dat, disease) NULL,
+      compute_ve = function(at, ids, ...) list(rr = rep(1, length(ids))),
+      vax_age_group_for = function(dat) rep(NA_integer_, length(get_attr(dat, "active"))),
+      .package = "EpiModelCOVID"
+    )
+    # This mock never evaluates its first argument, so the counting pass is skipped
+    if (!count) local_mocked_bindings(disc_counts = function(dels, nLayers, n) {
+      list(n = numeric(nLayers), haz = numeric(nLayers), exp = numeric(nLayers))
+    }, .package = "EpiModelCOVID")
+    set.seed(seed)
+    infect_general(d, 2)
+  }
+  types <- c("freq", "infreq", "new", "home")
+  out <- run(dat, 11)
+  expect_identical(get_attr(out, "status"), get_attr(run(dat, 11, count = FALSE), "status"))
+
+  # Every infector is symptomatic, so a contact's hazard is -log(0.9) x weight x rr
+  status <- get_attr(dat, "status")
+  h <- -log(0.9) * c(0.5 * 0.9, 0.5 * 0.9, 0.5 * 0.9, 1.5)
+  sus <- lapply(dat$run$contacts, function(el) {
+    st <- matrix(status[el], ncol = 2)
+    c(el[st[, 1] == "s" & st[, 2] == "ic", 1], el[st[, 1] == "ic" & st[, 2] == "s", 2])
+  })
+  n <- lengths(sus)
+  expect_true(all(n > 0))
+  for (k in seq_along(types)) {
+    expect_equal(get_epi(out, paste0("disc.", types[k]), 2), n[[k]])
+    expect_equal(get_epi(out, paste0("disc.haz.", types[k]), 2), n[[k]] * h[k])
+  }
+  # Under competing risks each susceptible is infected with probability
+  # 1 - exp(-H), which is also the chance over the engine's sequential draws
+  H <- tapply(rep(h, n), unlist(sus), sum)
+  ex <- vapply(types, function(k) get_epi(out, paste0("disc.exp.", k), 2), numeric(1))
+  expect_equal(sum(ex), sum(1 - exp(-H)))
+  expect_true(all(ex < n * h))
+  real <- mean(vapply(1:300, function(r) get_epi(run(dat, r), "se.flow", 2), numeric(1)))
+  expect_equal(real, sum(ex), tolerance = 0.03)
+})
+
 test_that("the background hazard infects without any contact", {
   dat <- inf_dat()
   dat <- set_param(dat, "inf.prob", rep(0, 4))
