@@ -287,6 +287,15 @@ immune_weight_attr <- function(dat) {
   if (is.null(a) || is.na(a) || identical(as.character(a), "")) NULL else as.character(a)
 }
 
+# Every propensity attribute the population carries, not only the one this run
+# names. The population is drawn once and carries one propensity per pathogen
+# (immune.w.flu, immune.w.rsv), so a run of one pathogen still holds the others
+# and init_new_nodes_attrs() needs a default for each of them.
+immune_weight_attrs <- function(dat) {
+  union(grep("^immune\\.w\\.", names(get_attr_list(dat)), value = TRUE),
+        immune_weight_attr(dat))
+}
+
 # Inclusion probabilities min(1, c w) with mean `share`, c found by bisection
 weighted_inclusion <- function(w, share) {
   n <- length(w)

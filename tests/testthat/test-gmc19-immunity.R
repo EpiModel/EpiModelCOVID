@@ -279,6 +279,24 @@ test_that("prior immunity holds each band's target share and follows the propens
   expect_error(EpiModelCOVID:::weighted_inclusion(c(0, 0, 0, 1), 0.5), "positive propensity")
 })
 
+test_that("newborns get a default for every propensity the population carries", {
+  # The population is drawn once and carries one propensity per pathogen, so a
+  # run of one pathogen holds the others too, and the arrivals module needs a
+  # default for each: without them a two-pathogen population died at the first
+  # step with a birth rather than at initialization
+  dat <- nh_dat(5, init.immune.attr = "immune.w.flu")
+  dat <- set_attr(dat, "immune.w.flu", rep(1, 5))
+  dat <- set_attr(dat, "immune.w.rsv", rep(1, 5))
+  expect_setequal(EpiModelCOVID:::immune_weight_attrs(dat), c("immune.w.flu", "immune.w.rsv"))
+  d <- EpiModelCOVID:::get_default_attrs(dat)
+  expect_identical(d$immune.w.flu, NA_real_)
+  expect_identical(d$immune.w.rsv, NA_real_)
+  # a run naming none of them still carries what the population holds
+  no_attr <- set_attr(nh_dat(5), "immune.w.rsv", rep(1, 5))
+  expect_identical(EpiModelCOVID:::immune_weight_attrs(no_attr), "immune.w.rsv")
+  expect_identical(EpiModelCOVID:::get_default_attrs(no_attr)$immune.w.rsv, NA_real_)
+})
+
 test_that("the severity, immunity, import and prior-immunity parameters are checked", {
   ok <- nh_dat(5)
   expect_true(EpiModelCOVID:::check_severity_params(ok))

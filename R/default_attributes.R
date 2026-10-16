@@ -83,10 +83,10 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     prior.immune = 0
 
   )
-  # The propensity attribute prior immunity is drawn with (init.immune.attr,
-  # #70), carried by the population; newborns are born after the draw
-  w_attr <- immune_weight_attr(dat)
-  if (!is.null(w_attr)) defaults[[w_attr]] <- NA_real_
+  # The propensity attributes prior immunity is drawn with (init.immune.attr,
+  # #70), carried by the population, one per pathogen; newborns are born after
+  # the draw, so each of them gets no value
+  for (w_attr in immune_weight_attrs(dat)) defaults[[w_attr]] <- NA_real_
   # Sex and occupation class (GlobalMix India #61), when the population carries
   # them: newborns are children, and make_computed_attrs() draws their sex
   if (has_pop_class(dat)) {
