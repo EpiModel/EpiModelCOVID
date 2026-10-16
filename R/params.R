@@ -20,11 +20,16 @@ gmc19_params_common <- c(
   "layer.names", "inf.prob", "exposure.rate", "inf.prob.a.rr", "sympt.contact.rr", "susc.age.rr",
   "susc.infant.rr", "susc.infant.age",
   "contact.weight", "contact.weight.equal", "seasonal.amp", "seasonal.phase", "import.rate",
-  "bg.hazard", "bg.mix",
-  # natural history and severity
-  "ea.rate", "ar.rate", "eip.rate", "ipic.rate", "ich.rate", "icr.rate", "hr.rate", "rs.rate",
-  "prop.clinical", "prop.hospit", "prop.hospit.infant", "prop.hospit.infant6",
-  "dis.death.rate", "dis.death.rate.infant", "dis.death.rate.infant6",
+  "import.pulse", "import.pulse.start", "import.pulse.days", "bg.hazard", "bg.mix",
+  # natural history and severity per infection by severity band (#71)
+  "ea.rate", "ar.rate", "eip.rate", "ipic.rate", "ich.rate", "icr.rate", "hr.rate",
+  "sev.age.breaks", "prop.clinical", "ihr", "ifr", "death.hosp.rr", "sev.diagnostics",
+  # post-infection and prior immunity (#69, #70)
+  "immune.full", "immune.peak.infect", "immune.halflife.infect", "immune.floor.infect",
+  "immune.peak.clinical", "immune.halflife.clinical", "immune.floor.clinical",
+  "immune.peak.hosp", "immune.halflife.hosp", "immune.floor.hosp",
+  "immune.peak.death", "immune.halflife.death", "immune.floor.death",
+  "init.immune", "init.immune.attr",
   # vaccination and targeting; the per-dose schedule is in vax_dose_fields
   "pathogen", "vax.strategy", "vax.supply.rate", "vax.supply.total", "vax.age.breaks",
   "vax.infant.eligible", "vax.infant.product", "vax.season.length", "vax.target.uptake",
@@ -96,8 +101,9 @@ corporate_params <- c(
 #' vaccine schedule is read as `vax.<pathogen>.<field>.dose<i>`, for doses 1 to
 #' `vax.<pathogen>.n.doses`.
 #'
-#' Not listed: `hh.pairs` and the parameters of the removed CorporateMix
-#' modifiers, which are read only to stop a run that sets them, and the
+#' Not listed: `hh.pairs`, the parameters of the removed CorporateMix
+#' modifiers and the parameters the redo replaced (`rs.rate`, `prop.hospit`,
+#' `dis.death.rate`, ...), which are read only to stop a run that sets them, and the
 #' parameters read only by the CorporateMix modules still in the package
 #' (`vax1.rate`, `half.life`, ...), which are not part of the GMC19 model.
 #'

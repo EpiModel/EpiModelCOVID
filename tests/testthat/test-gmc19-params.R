@@ -47,7 +47,7 @@ while (length(todo) > 0) {
 gmc19_reads <- unique(unlist(reads[reachable]))
 corporate_reads <- unique(unlist(reads[setdiff(pkg_funs, reachable)]))
 # read only to stop a run that sets them
-refused <- c(EpiModelCOVID:::retired_params, "hh.pairs")
+refused <- c(EpiModelCOVID:::retired_params, names(EpiModelCOVID:::replaced_params), "hh.pairs")
 
 test_that("every parameter the modules read is listed, and every listed one is read", {
   expect_true(all(gmc19_modules %in% pkg_funs))

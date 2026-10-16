@@ -63,16 +63,30 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     vax4Time= NA,
     last.dose.time = NA,
     # Person-level cumulative flags (issue #46). Everything else the model emits
-    # is an episode flow, so with reinfection on (`rs.rate` non-zero) the per-100
-    # infection numbers exceed the number of infected PEOPLE and cannot be
-    # compared to any seroprevalence or cohort attack rate. These two make the
-    # person the unit: ever.inf is set once on a node's first S->E transition and
-    # never cleared, ever.sympt once on its first entry to "ic". New arrivals
-    # start at 0, which is correct: they are born into the simulation susceptible.
+    # is an episode flow, so with reinfection the per-100 infection numbers
+    # exceed the number of infected PEOPLE and cannot be compared to any
+    # seroprevalence or cohort attack rate. These two make the person the unit:
+    # ever.inf is set once on a node's first S->E transition (and for the seeds
+    # at initialization) and never cleared, ever.sympt once on its first entry
+    # to "ic". New arrivals start at 0: they are born into the simulation
+    # susceptible.
     ever.inf = 0,
-    ever.sympt = 0
+    ever.sympt = 0,
+    # Episodes and immunity (GlobalMix India #69, #70, #71): whether the
+    # current episode is fatal (drawn at onset with hospit), the step of the
+    # last recovery (the clock of post-infection protection), the number of
+    # infections in the run, and immunity from before the run. Newborns have
+    # none of them.
+    fatal = NA,
+    recTime = NA,
+    inf.count = 0,
+    prior.immune = 0
 
   )
+  # The propensity attribute prior immunity is drawn with (init.immune.attr,
+  # #70), carried by the population; newborns are born after the draw
+  w_attr <- immune_weight_attr(dat)
+  if (!is.null(w_attr)) defaults[[w_attr]] <- NA_real_
   # Sex and occupation class (GlobalMix India #61), when the population carries
   # them: newborns are children, and make_computed_attrs() draws their sex
   if (has_pop_class(dat)) {

@@ -124,7 +124,7 @@ prevalence_covid_corporate <- function(dat, at) {
   ## could only be reported per 100 of the WHOLE population, which buries the
   ## estimand. Summing these over time gives person-days; RSV severity is
   ## sharply front-loaded, hence the 0-6 / 6-12 split that matches
-  ## dis.death.rate.infant / .infant6 and prop.hospit.infant / .infant6.
+  ## the 0-6 and 6-12 month severity bands (sev.age.breaks, #71).
   is_infant <- get_attr(dat, "is_infant")
   if (!is.null(is_infant)) {
     inf_alive <- alive & is_infant

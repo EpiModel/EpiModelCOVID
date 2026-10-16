@@ -52,7 +52,7 @@ nets_class <- pop_nets(TRUE)
 nets_plain <- pop_nets(FALSE)
 
 pop_param <- function(...) {
-  param.net(
+  do.call(param.net, c(list(
     time.unit = 1, inf.prob = rep(0.1, 4), exposure.rate = rep(1, 4), inf.prob.a.rr = 0.5,
     layer.names = c("freq", "infreq", "new", "home"),
     age.breaks = c(0, 10, 20, 30, 40, 60, Inf), age.grps = bands, arrival.age = 0,
@@ -62,7 +62,8 @@ pop_param <- function(...) {
     act.theta.I = act_pars$theta_I, act.rho = act_pars$rho, new.rate = act_pars$new_rate,
     new.mix = act_pars$new_mix, new.share.norel = act_pars$new_share,
     birth.age.weight = c(5.9, 84.7, 94.9, 48.8, 12.0, 3.5, 0.8),
-    birth.hh.coef = setNames(rep(0, 7), EpiModelCOVID:::birth_hh_terms), birth.interval.min = 304, ...)
+    birth.hh.coef = setNames(rep(0, 7), EpiModelCOVID:::birth_hh_terms), birth.interval.min = 304),
+    sev_test_params(), list(...)))
 }
 
 # init_gmc19() on the small model, as netsim() calls it

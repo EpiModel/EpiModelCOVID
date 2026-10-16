@@ -35,6 +35,7 @@ layer_dat <- function(x = list(community = est_com, home = est_hh),
   dat <- set_attr(dat, "status", status)
   dat <- set_attr(dat, "vax", rep(0, N))
   dat <- set_attr(dat, "ever.inf", rep(0, N))
+  dat <- set_attr(dat, "inf.count", rep(0, N))
   dat <- set_attr(dat, "last.dose.time", rep(NA, N))
   dat <- set_attr(dat, "age", rep(30, N))
   dat <- set_attr(dat, "is_infant", rep(FALSE, N))

@@ -12,22 +12,20 @@ deaths_covid_gmc19 <- function(dat, at) {
   mort.rates <- get_param(dat, "mort.rates")
   age.breaks <- get_param(dat, "age.breaks")
   nAgeGrp <- length(age.breaks) - 1
-  # Disease-death hazard by age group (dis.death.rate_1..6, set per pathogen in
-  # scenarios_pathogen.csv; absent, no disease deaths). It carries the whole
-  # infection fatality rate by age (GlobalMix India #49): a daily hazard,
-  # calibrated to age-specific IFR targets, on every symptomatic case, clinical
-  # ("ic") and hospitalized ("h") alike. There is no hospital case fatality: "h"
-  # moves only to "r" (mod-progress.R), and prop.hospit is a hospitalization
-  # rate that carries no mortality of its own.
-  dis.death.rate <- get_param(dat, "dis.death.rate", override.null.error = TRUE)
-  if (is.null(dis.death.rate)) dis.death.rate <- rep(0, nAgeGrp)
-  # Infant-specific disease-death hazard (issue #23), graded by sub-age because
-  # RSV severity is sharply front-loaded: 0-6mo carries ~64-80% of infant burden
-  # (dis.death.rate.infant), 6-12mo is intermediate (dis.death.rate.infant6).
-  # Both set per pathogen in scenarios_pathogen.csv; absent (covid/flu) -> infants
-  # use the age-band rate.
-  dis.death.rate.infant  <- get_param(dat, "dis.death.rate.infant", override.null.error = TRUE)
-  dis.death.rate.infant6 <- get_param(dat, "dis.death.rate.infant6", override.null.error = TRUE)
+  # Disease deaths (GlobalMix India #71). Whether an episode is fatal is drawn
+  # once, at symptom onset, in progress_general(), with probability ifr /
+  # prop.clinical by severity band and the vaccine's and prior infection's
+  # protection against death applied there, so the IFR per infection is the
+  # input whatever the stage durations. A fatal case dies when it would
+  # otherwise have recovered: at the end of its symptomatic stay (icr.rate) if
+  # not admitted, or of its hospital stay (hr.rate). This replaces a daily
+  # hazard on every day in ic or h, which made the IFR per infection 2.2 to
+  # 4.4 times the daily input, and moved with any change to the stage
+  # durations, prop.hospit or hospitalization VE.
+  fatal <- get_attr(dat, "fatal")
+  hospit <- get_attr(dat, "hospit")
+  statusTime <- get_attr(dat, "statusTime")
+  inf.count <- get_attr(dat, "inf.count")
   is_infant <- get_attr(dat, "is_infant")
 
   idsElig <- which(as.logical(active))
@@ -52,35 +50,13 @@ deaths_covid_gmc19 <- function(dat, at) {
            length(mort.rates), " elements", call. = FALSE)
     }
 
-    # Disease-death hazard applies to symptomatic cases only (ic or h), indexed by
-    # model age group (not hospitalization status).
-    age_grp_elig <- cut(age[idsElig], age.breaks, labels = FALSE, right = FALSE)
-    sympt <- status[idsElig] %in% c("ic", "h")
+    # A fatal episode ends in death at the rate it would have ended in recovery
+    st <- status[idsElig]
+    due <- fatal[idsElig] %in% 1 & statusTime[idsElig] < at
     dis_rates <- numeric(length(idsElig))
-    dis_rates[sympt] <- pmin(1, dis.death.rate[age_grp_elig[sympt]])
-    # Infant override (before death-VE), graded by sub-age: 0-6mo (age < 0.5) take
-    # the higher dis.death.rate.infant, 6-12mo take dis.death.rate.infant6. Applied
-    # to the base rate so a (rare) vaccinated infant still gets the death-VE
-    # reduction below.
-    .ok <- function(x) !is.null(x) && !is.na(x) && x > 0
-    if (!is.null(is_infant) && (.ok(dis.death.rate.infant) || .ok(dis.death.rate.infant6))) {
-      inf <- is_infant[idsElig]
-      young <- sympt & inf & age[idsElig] <  0.5    # 0-6 months
-      older <- sympt & inf & age[idsElig] >= 0.5    # 6-12 months
-      if (.ok(dis.death.rate.infant))  dis_rates[young] <- pmin(1, dis.death.rate.infant)
-      if (.ok(dis.death.rate.infant6)) dis_rates[older] <- pmin(1, dis.death.rate.infant6)
-    }
-
-    # Direct severity/mortality protection: a vaccinated symptomatic case dies at
-    # the VE-reduced rate (death-VE), the dominant arm of the real vaccines and the
-    # mechanism by which directly vaccinating high-IFR groups averts their deaths.
-    if (any(sympt)) {
-      ve_death <- compute_ve(at = at, ids = idsElig[sympt], vax = vax,
-        vax.age.group = vax_age_group_for(dat),
-        last.dose.time = get_attr(dat, "last.dose.time"),
-        vax.schedule = build_vax_schedule(dat, get_pathogen(dat)),
-        outcome = "death")
-      dis_rates[sympt] <- dis_rates[sympt] * ve_death$rr
+    if (any(due)) {
+      dis_rates[due & st == "ic" & hospit[idsElig] %in% 0] <- get_param(dat, "icr.rate")
+      dis_rates[due & st == "h"] <- get_param(dat, "hr.rate")
     }
 
     # Background and disease deaths are independent competing draws; a node that
@@ -100,6 +76,7 @@ deaths_covid_gmc19 <- function(dat, at) {
         vax_disdep <- vax[dd] >= 1   # vaccinated at death?
         if (!is.null(is_infant)) infant_disdep <- is_infant[dd]
         age_disdep <- age[dd]   # issue #46: for the infant 0-6 / 6-12mo split
+        if (sev_diagnostics(dat)) dat <- sev_flows(dat, at, "death", dd, inf.count[dd] == 1)
       }
       # Mark the dead only. nwupdate.FUN removes them from every layer after
       # the arrivals module has run (EpiModel's convention), so a module that
@@ -122,7 +99,7 @@ deaths_covid_gmc19 <- function(dat, at) {
   # diluted in the coarse youngest age band (d.dis.flow.age1).
   dat <- set_epi(dat, "d.dis.flow.infant", sum(infant_disdep, na.rm = TRUE), at = at)
   # Issue #46: infant deaths split at 6 months, matching the graded severity
-  # inputs (dis.death.rate.infant / .infant6). Pooling under 1y hid the fact
+  # inputs (the 0-6 and 6-12 month severity bands, #71). Pooling under 1y hid the fact
   # that 0-6mo carries most of the RSV burden, which is exactly the quantity the
   # direct-infant-product arms are meant to move.
   dat <- set_epi(dat, "d.dis.flow.infant.young",

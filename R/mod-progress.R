@@ -8,24 +8,26 @@ progress_general <- function(dat, at) {
   statusTime <- get_attr(dat, "statusTime")
   clinical <- get_attr(dat, "clinical")
   hospit <- get_attr(dat, "hospit")
+  fatal <- get_attr(dat, "fatal")
+  recTime <- get_attr(dat, "recTime")
+  inf.count <- get_attr(dat, "inf.count")
   age <- get_attr(dat, "age")
-  vax.age.breaks <- get_param(dat, "vax.age.breaks")
   vax.age.group <- vax_age_group_for(dat)
   vax <- get_attr(dat, "vax")
   last.dose.time <- get_attr(dat, "last.dose.time")
   deg_work <- get_attr(dat, "deg_work")
   non.office <- ifelse(deg_work > 0, 0, 1)  # 0=office, 1=non-office
-  
-  
-  ## Parameters
-  prop.clinical <- get_param(dat, "prop.clinical")
-  prop.hospit <- get_param(dat, "prop.hospit")
-  # Infant-specific hospitalization (issue #23), graded by sub-age: 0-6mo via
-  # prop.hospit.infant (highest), 6-12mo via prop.hospit.infant6 (intermediate).
-  # Set per pathogen; absent (covid/flu) -> infants use the age-band value.
-  prop.hospit.infant  <- get_param(dat, "prop.hospit.infant", override.null.error = TRUE)
-  prop.hospit.infant6 <- get_param(dat, "prop.hospit.infant6", override.null.error = TRUE)
   is_infant <- get_attr(dat, "is_infant")
+
+  ## Parameters
+  # Severity per infection by severity band (GlobalMix India #71; see
+  # mod-immunity.R): the symptomatic share, and the admission and death
+  # probabilities per infection, which a symptomatic case takes divided by the
+  # symptomatic share
+  prop.clinical <- get_param(dat, "prop.clinical")
+  ihr <- get_param(dat, "ihr")
+  ifr <- get_param(dat, "ifr")
+  death.hosp.rr <- param_or(dat, "death.hosp.rr", 1)
   ea.rate <- get_param(dat, "ea.rate")
   ar.rate <- get_param(dat, "ar.rate")
   eip.rate <- get_param(dat, "eip.rate")
@@ -33,34 +35,23 @@ progress_general <- function(dat, at) {
   ich.rate <- get_param(dat, "ich.rate")
   icr.rate <- get_param(dat, "icr.rate")
   hr.rate <- get_param(dat, "hr.rate")
-  rs.rate <- get_param(dat, "rs.rate")
-  age.breaks<- get_param(dat, "age.breaks")
+  # Days of full protection after recovery (#69); Inf, no return to s
+  immune.full <- param_or(dat, "immune.full", Inf)
+  age.breaks <- get_param(dat, "age.breaks")
   vax.schedule <- build_vax_schedule(dat, get_pathogen(dat)) # get vaccination schedule
-  
-  ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway
+  sevdiag <- sev_diagnostics(dat)
+  nonfatal <- !(fatal %in% 1)
+
+  ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway, once per
+  ## episode (#69): start_episode() clears clinical at every infection
   ids.newInf <- which(active == 1 & status == "e" & statusTime <= at & is.na(clinical))
   num.newInf <- length(ids.newInf)
   if (num.newInf > 0) {
-    age.group <- 
-      cut(
-        age[ids.newInf],
-        breaks = age.breaks,
-        right = F,
-        labels = 1:6
-        
-      ) |> as.character() |> as.integer()
-    prop.clin.vec <- prop.clinical[age.group]
-    
-    # Vaccination effect on clinical disease
-    # Dose allocation is handled in mod-vax.R. Here, mod-progress.R only
-    # applies vaccine-derived protection to the probability of becoming clinical.
-    #
-    # compute_ve() uses each newly infected node's current vaccine dose,
-    # dose timing, vaccination age group, and the VE parameters stored in
-    # vax.schedule to return the current relative risk for clinical disease.
-    #
-    # rr = 1 means no vaccine-derived protection.
-    # rr < 1 reduces the probability of clinical disease.
+    prop.clin.vec <- prop.clinical[sev_band(dat, age[ids.newInf])]
+
+    # Vaccine protection against symptomatic disease (compute_ve(), mod-vax.R;
+    # dose allocation is in mod-vax.R) and protection from an earlier infection
+    # in the run (#69), each a relative risk given infection
     vax_eff_clinical <- compute_ve(
       at = at,
       ids = ids.newInf,
@@ -70,15 +61,14 @@ progress_general <- function(dat, at) {
       outcome = "clinical",
       vax.age.group = vax.age.group
     )
-    
-    prop.clin.vec <- prop.clin.vec * vax_eff_clinical$rr
-    
+    prop.clin.vec <- prop.clin.vec * vax_eff_clinical$rr * immune_rr(dat, ids.newInf, "clinical")
+
     if (any(is.na(prop.clin.vec))) stop("error in prop.clin.vec")
-    
+
     vec.new.clinical <- rbinom(num.newInf, 1, prop.clin.vec)
     clinical[ids.newInf] <- vec.new.clinical
   }
-  
+
   ## Subclinical Pathway
   # E to A: latent move to asymptomatic infectious
   num.new.EtoA <- 0
@@ -93,7 +83,7 @@ progress_general <- function(dat, at) {
       statusTime[ids.new.A] <- at
     }
   }
-  
+
   # A to R: asymptomatic infectious move to recovered
   num.new.AtoR <- 0
   ids.A <- which(active == 1 & status == "a" & statusTime < at & clinical == 0)
@@ -105,9 +95,10 @@ progress_general <- function(dat, at) {
       num.new.AtoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      recTime[ids.new.R] <- at
     }
   }
-  
+
   ## Clinical Pathway
   # E to Ip: latent move to preclinical infectious
   num.new.EtoIp <- 0
@@ -122,11 +113,12 @@ progress_general <- function(dat, at) {
       statusTime[ids.new.Ip] <- at
     }
   }
-  
+
   # Ip to Ic: preclinical infectious move to clinical infectious
   num.new.IptoIc <- 0
   num.new.IptoIc.w <- 0
-  
+  num.new.IptoIc.first <- 0
+
   ids.Ip <- which(active == 1 & status == "ip" & statusTime < at & clinical == 1)
   num.Ip <- length(ids.Ip)
   if (num.Ip > 0) {
@@ -144,9 +136,11 @@ progress_general <- function(dat, at) {
       ## input that never surfaced as an output. Flag the first symptomatic
       ## episode per person and emit onset by age band, so the clinical fraction
       ## becomes observable and the age distribution of symptomatic disease is
-      ## readable rather than inferred from total incidence.
+      ## readable rather than inferred from total incidence. ipic.flow.first
+      ## counts a person's first symptomatic episode (#69, #77).
       ever.sympt <- get_attr(dat, "ever.sympt")
       if (!is.null(ever.sympt)) {
+        num.new.IptoIc.first <- sum(ever.sympt[ids.new.Ic] == 0, na.rm = TRUE)
         ever.sympt[ids.new.Ic] <- 1
         dat <- set_attr(dat, "ever.sympt", ever.sympt)
       }
@@ -160,40 +154,29 @@ progress_general <- function(dat, at) {
         dat <- set_epi(dat, "ipic.flow.infant.young", sum(i_ic & a_ic <  0.5, na.rm = TRUE), at = at)
         dat <- set_epi(dat, "ipic.flow.infant.old",   sum(i_ic & a_ic >= 0.5, na.rm = TRUE), at = at)
       }
+      if (sevdiag) dat <- sev_flows(dat, at, "sympt", ids.new.Ic, inf.count[ids.new.Ic] == 1)
     }
   }
-  
-  ## Determine Hospitalized (Ic to H) or Recovered (Ic to R) pathway
+
+  ## Admission and death, drawn once per episode at onset (#71). A symptomatic
+  ## case is admitted with probability ihr / prop.clinical and dies with
+  ## probability ifr / prop.clinical, each scaled by the vaccine's and by prior
+  ## infection's protection given symptomatic disease. A fatal case dies when it
+  ## would otherwise have recovered, at the end of its symptomatic stay or of
+  ## its hospital stay (deaths_covid_gmc19(), mod-departure.R). The daily
+  ## disease-death hazard in ic and h this replaces made the IFR depend on how
+  ## long cases stayed symptomatic.
   ids.newIc <- which(active == 1 & status == "ic" & statusTime <= at & is.na(hospit))
   num.newIc <- length(ids.newIc)
   if (num.newIc > 0) {
-    age.group <- 
-      cut(
-        age[ids.newIc],
-        breaks = age.breaks,
-        right = F,
-        labels = 1:6
-        
-      ) |> as.character() |> as.integer()
-    prop.hosp.vec <- prop.hospit[age.group]
-    .okh <- function(x) !is.null(x) && !is.na(x) && x > 0
-    if (!is.null(is_infant) && (.okh(prop.hospit.infant) || .okh(prop.hospit.infant6))) {
-      inf <- is_infant[ids.newIc]; a <- age[ids.newIc]
-      if (.okh(prop.hospit.infant))  prop.hosp.vec[inf & a <  0.5] <- prop.hospit.infant
-      if (.okh(prop.hospit.infant6)) prop.hosp.vec[inf & a >= 0.5] <- prop.hospit.infant6
-    }
-    if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
+    b <- sev_band(dat, age[ids.newIc])
+    pc <- prop.clinical[b]
+    prop.hosp.vec <- ifelse(pc > 0, ihr[b] / pc, 0)
+    prop.death.vec <- ifelse(pc > 0, ifr[b] / pc, 0)
+    if (any(is.na(prop.hosp.vec)) || any(is.na(prop.death.vec))) stop("error in prop.hosp.vec")
 
-    # Vaccination effect on hospitalization
-    # Dose allocation is handled in mod-vax.R. Here, mod-progress.R only
-    # applies vaccine-derived protection to the probability of hospitalization.
-    #
-    # compute_ve() uses each clinical infectious node's current vaccine dose,
-    # dose timing, vaccination age group, and the VE parameters stored in
-    # vax.schedule to return the current relative risk for hospitalization.
-    #
-    # rr = 1 means no vaccine-derived protection.
-    # rr < 1 reduces the probability of hospitalization.
+    # Vaccine protection against admission and death given symptomatic disease
+    # (compute_ve(), mod-vax.R), and protection from an earlier infection (#69)
     vax_eff_hosp <- compute_ve(
       at = at,
       ids = ids.newIc,
@@ -203,23 +186,24 @@ progress_general <- function(dat, at) {
       outcome = "hosp",
       vax.age.group = vax.age.group
     )
-    
-    prop.hosp.vec <- prop.hosp.vec * vax_eff_hosp$rr
+    vax_eff_death <- compute_ve(
+      at = at, ids = ids.newIc, vax = vax, last.dose.time = last.dose.time,
+      vax.schedule = vax.schedule, outcome = "death", vax.age.group = vax.age.group)
+    prop.hosp.vec <- pmin(1, prop.hosp.vec * vax_eff_hosp$rr * immune_rr(dat, ids.newIc, "hosp"))
+    prop.death.vec <- prop.death.vec * vax_eff_death$rr * immune_rr(dat, ids.newIc, "death")
 
-    # prop.hospit is the admission probability per symptomatic onset and
-    # nothing else scales it. The CorporateMix window that multiplied it by
-    # hosp.boost.mult (5) from day 211 is removed (GlobalMix India #66).
-
-    #Set pathway
-    if (any(is.na(prop.hosp.vec))) stop("error in prop.hosp.vec")
     vec.new.hospit <- rbinom(num.newIc, 1, prop.hosp.vec)
     hospit[ids.newIc] <- vec.new.hospit
+    fatal[ids.newIc] <- rbinom(num.newIc, 1,
+                               death_given_admission(prop.death.vec, prop.hosp.vec, vec.new.hospit,
+                                                     death.hosp.rr))
+    nonfatal <- !(fatal %in% 1)
   }
-  
+
   # Ic to H: clinical infectious move to hospitalized
   num.new.IctoH <- 0
   num.new.IctoH.w <- 0
-  
+
   ids.Ich <- which(active == 1 & status == "ic" & statusTime < at & hospit == 1)
   num.Ich <- length(ids.Ich)
   if (num.Ich > 0) {
@@ -246,13 +230,15 @@ progress_general <- function(dat, at) {
         dat <- set_epi(dat, "ich.flow.infant.young", sum(i_h & a_h <  0.5, na.rm = TRUE), at = at)
         dat <- set_epi(dat, "ich.flow.infant.old",   sum(i_h & a_h >= 0.5, na.rm = TRUE), at = at)
       }
+      if (sevdiag) dat <- sev_flows(dat, at, "hosp", ids.new.H, inf.count[ids.new.H] == 1)
     }
   }
-  
-  # H to R: hospitalized move to recovered
+
+  # H to R: hospitalized move to recovered; a fatal case dies instead
+  # (deaths_covid_gmc19())
   num.new.HtoR <- 0
   num.new.HtoR.w <- 0
-  ids.H <- which(active == 1 & status == "h" & statusTime < at & hospit == 1)
+  ids.H <- which(active == 1 & status == "h" & statusTime < at & hospit == 1 & nonfatal)
   num.H <- length(ids.H)
   if (num.H > 0) {
     vec.new.R <- which(rbinom(num.H, 1, hr.rate) == 1)
@@ -261,15 +247,16 @@ progress_general <- function(dat, at) {
       num.new.HtoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      recTime[ids.new.R] <- at
       ids.new.R.w <- intersect(ids.new.R,which(non.office == 0))
       num.new.HtoR.w <- length(ids.new.R.w)
     }
   }
-  
-  # Ic to R: clinical infectious move to recovered
+
+  # Ic to R: clinical infectious move to recovered; a fatal case dies instead
   num.new.IctoR <- 0
   num.new.IctoR.w <- 0
-  ids.Icr <- which(active == 1 & status == "ic" & statusTime < at & hospit == 0)
+  ids.Icr <- which(active == 1 & status == "ic" & statusTime < at & hospit == 0 & nonfatal)
   num.Icr <- length(ids.Icr)
   if (num.Icr > 0) {
     vec.new.R <- which(rbinom(num.Icr, 1, icr.rate) == 1)
@@ -278,49 +265,50 @@ progress_general <- function(dat, at) {
       num.new.IctoR <- length(ids.new.R)
       status[ids.new.R] <- "r"
       statusTime[ids.new.R] <- at
+      recTime[ids.new.R] <- at
       ids.new.R.w <- intersect(ids.new.R, which(non.office == 0))
       num.new.IctoR.w <- length(ids.new.R.w)
     }
   }
-  
-  #R to S: become susceptible again after infection
+
+  # R to S (#69): back to susceptible immune.full days after recovery, with the
+  # partial protection of mod-immunity.R. It replaces a daily return
+  # probability (rs.rate), under which a quarter to almost half of the
+  # recovered were fully susceptible again within 90 days. The prior-immune
+  # (#70) have no recovery in the run and stay in r.
   num.new.RtoS <- 0
-  ids.RS <- which(active == 1 & status == "r" & statusTime < at)
-  num.RS <- length(ids.RS)
-  if (num.RS > 0) {
-    vec.new.RS <- which(rbinom(num.RS, 1, rs.rate) == 1)
-    if (length(vec.new.RS) > 0) {
-      ids.new.RS <- ids.RS[vec.new.RS]
-      num.new.RtoS <- length(ids.new.RS)
-      status[ids.new.RS] <- "s"
-      statusTime[ids.new.RS] <- at
-    }
+  ids.new.RS <- which(active == 1 & status == "r" & !is.na(recTime) & at - recTime >= immune.full)
+  if (length(ids.new.RS) > 0) {
+    num.new.RtoS <- length(ids.new.RS)
+    status[ids.new.RS] <- "s"
+    statusTime[ids.new.RS] <- at
   }
-  
-  
-  
+
   ## Save updated attributes
   dat <- set_attr(dat, "status", status)
   dat <- set_attr(dat, "statusTime", statusTime)
   dat <- set_attr(dat, "clinical", clinical)
   dat <- set_attr(dat, "hospit", hospit)
-  
+  dat <- set_attr(dat, "fatal", fatal)
+  dat <- set_attr(dat, "recTime", recTime)
+
   ## Save summary statistics
   dat <- set_epi(dat, "ea.flow", num.new.EtoA, at = at)
   dat <- set_epi(dat, "ar.flow", num.new.AtoR, at = at)
   dat <- set_epi(dat, "eip.flow", num.new.EtoIp, at = at)
   dat <- set_epi(dat, "ipic.flow", num.new.IptoIc, at = at)
+  dat <- set_epi(dat, "ipic.flow.first", num.new.IptoIc.first, at = at)
   dat <- set_epi(dat, "icr.flow", num.new.IctoR, at = at)
   dat <- set_epi(dat, "ich.flow", num.new.IctoH, at = at)
   dat <- set_epi(dat, "hr.flow", num.new.HtoR, at = at)
   dat <- set_epi(dat, "rs.flow", num.new.RtoS, at = at)
-  
+
   dat <- set_epi(dat, "ipic.flow.w", num.new.IptoIc.w, at = at)
   dat <- set_epi(dat, "icr.flow.w", num.new.IctoR.w, at = at)
   dat <- set_epi(dat, "ich.flow.w", num.new.IctoH.w, at = at)
   dat <- set_epi(dat, "hr.flow.w", num.new.HtoR.w, at = at)
-  
-  
+
+
   return(dat)
 }
 

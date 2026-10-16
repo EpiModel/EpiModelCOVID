@@ -7,20 +7,6 @@ infect_general <- function(dat, at) {
   status <- get_attr(dat, "status")
 
   vax <- get_attr(dat, "vax")
-  last.dose.time <- get_attr(dat, "last.dose.time")
-  vax.age.group <- vax_age_group_for(dat)
-  # Fetched here rather than after the transmission loop because the issue #45
-  # age-specific susceptibility knob needs it per discordant edge.
-  age <- get_attr(dat, "age")
-
-  # Direct infant product (issue #41): when TRUE (the RSV infant_direct /
-  # infant_direct_cocoon arms) a nirsevimab/maternal-like product is severity-
-  # dominant, so dosed infants receive NO infection-VE (little effect on
-  # acquisition) while their severity VE still applies downstream in mod-progress
-  # and mod-departure. Default FALSE leaves every other arm unchanged.
-  is_infant <- get_attr(dat, "is_infant")
-  vax.infant.product <- get_param(dat, "vax.infant.product", override.null.error = TRUE)
-  if (is.null(vax.infant.product)) vax.infant.product <- FALSE
 
   ## Find infected nodes ##
   idsInf <- which(active == 1 & status %in% c("a", "ic", "ip"))
@@ -79,63 +65,14 @@ infect_general <- function(dat, at) {
     # isolation and masking of cases found by the testing module.
     del$transProb <- inf.prob[[layer]] * season_mult
 
-    # Vaccine effect on susceptibility/transmission
-    # Dose allocation is handled in mod-vax.R; this infection module only
-    # applies vaccine-derived protection when calculating per-edge transmission.
-    #
-    # compute_ve() uses each susceptible node's current vaccine dose,
-    # dose timing, age group, and the VE parameters stored in vax.schedule
-    # to return the current relative risk for infection.
-    #
-    # rr = 1 means no vaccine-derived protection.
-    # rr < 1 reduces the susceptible node's transmission probability.
-    vax_eff <-
-      compute_ve(
-        at = at,
-        ids = del$sus,
-        vax = vax,
-        last.dose.time = last.dose.time,
-        vax.schedule = vax.schedule,
-        outcome = "infect",
-        vax.age.group = vax.age.group)
-    # Store vaccination status and time since latest dose
+    # The susceptible's relative acquisition probability: the vaccine (dose
+    # allocation is in mod-vax.R; the direct infant product carries no infection
+    # VE, #41), the age band (susc.age.rr, the #45 knob and the #70 COVID-19
+    # gradient), young infants (susc.infant.rr, #65) and immunity from an
+    # earlier infection in the run (#69). susceptibility_rr() is in
+    # mod-immunity.R; the background hazard and the imports take the same one.
     del$vaxSus <- vax[del$sus]
-    # Direct infant product (issue #41): strip infection-VE for dosed infants,
-    # so a severity-dominant monoclonal/maternal product does not spuriously
-    # cut infant acquisition; adult recipients (e.g. the cocooning co-residents)
-    # keep their normal infection VE.
-    if (isTRUE(vax.infant.product) && !is.null(is_infant)) {
-      inf_sus <- which(is_infant[del$sus])
-      if (length(inf_sus) > 0) vax_eff$rr[inf_sus] <- 1
-    }
-    # Apply vaccine-derived susceptibility reduction to transmission probability for each discordant edge.
-    del$transProb <- del$transProb * vax_eff$rr
-
-    # Age-specific susceptibility (issue #45 trajectory knob). A relative
-    # risk on the SUSCEPTIBLE node's age group, applied multiplicatively to
-    # the per-contact transmission probability. Absent, all-NA or all-ones
-    # means no effect, which is the current behaviour, so this stays inert
-    # unless a scenario sets it.
-    #
-    # It exists because the model's influenza age gradient is emergent from
-    # network structure alone: rural flu incidence peaks in 10-19y because
-    # that is where the school layer concentrates contact, whereas Krishnan
-    # 2018, Sullender 2019 and PHIRST all give the opposite ordering. There
-    # was no other lever on that gradient, since inf.prob is per-layer and
-    # carries no age dimension. Sweeping susc.age.rr from all-ones to a
-    # monotone decline is the "corrected" arm of that axis.
-    susc.age.rr <- get_param(dat, "susc.age.rr", override.null.error = TRUE)
-    if (!is.null(susc.age.rr) && !all(is.na(susc.age.rr)) &&
-        any(susc.age.rr != 1, na.rm = TRUE)) {
-      ag_sus <- cut(age[del$sus], get_param(dat, "age.breaks"),
-                    labels = FALSE, right = FALSE)
-      rr_sus <- susc.age.rr[ag_sus]
-      rr_sus[is.na(rr_sus)] <- 1
-      del$transProb <- del$transProb * rr_sus
-    }
-    # Young infants (GlobalMix India #65), inert unless susc.infant.rr is set
-    rr_young <- infant_susc_rr(dat, age[del$sus])
-    if (!is.null(rr_young)) del$transProb <- del$transProb * rr_young
+    del$transProb <- del$transProb * susceptibility_rr(dat, del$sus, at, vax.schedule)
 
     # Asymptomatic infection
     del$stat <- status[del$inf]
@@ -202,11 +139,9 @@ infect_general <- function(dat, at) {
         idsNewInf <- unique(del$sus)
         nInf[layer] <- length(idsNewInf)
 
-        # Set new attributes for those newly infected
+        # Each infection starts an episode with its own severity (#69)
         if (nInf[layer] > 0) {
-          dat <- set_attr(dat, "status", "e", idsNewInf)
-          dat <- set_attr(dat, "infTime", at, idsNewInf)
-          dat <- set_attr(dat, "statusTime", at, idsNewInf)
+          dat <- start_episode(dat, idsNewInf, at)
           allNewInf <- c(allNewInf, idsNewInf)
         }
       }
@@ -239,43 +174,38 @@ infect_general <- function(dat, at) {
     lambda_b <- bg.hazard * season_mult * as.numeric(W %*% prev)
     idsSus <- which(live & status_now == "s")
     if (length(idsSus) > 0) {
-      rr <- compute_ve(at = at, ids = idsSus, vax = vax, last.dose.time = last.dose.time,
-                       vax.schedule = vax.schedule, outcome = "infect", vax.age.group = vax.age.group)$rr
-      if (isTRUE(vax.infant.product) && !is.null(is_infant)) rr[is_infant[idsSus]] <- 1
-      susc.age.rr <- get_param(dat, "susc.age.rr", override.null.error = TRUE)
-      if (!is.null(susc.age.rr) && !all(is.na(susc.age.rr)) && any(susc.age.rr != 1, na.rm = TRUE)) {
-        rs <- susc.age.rr[cut(age[idsSus], get_param(dat, "age.breaks"), labels = FALSE, right = FALSE)]
-        rs[is.na(rs)] <- 1
-        rr <- rr * rs
-      }
-      rr_young <- infant_susc_rr(dat, age[idsSus])
-      if (!is.null(rr_young)) rr <- rr * rr_young
+      rr <- susceptibility_rr(dat, idsSus, at, vax.schedule)
       idsBg <- idsSus[stats::runif(length(idsSus)) < 1 - exp(-lambda_b[bnd[idsSus]] * rr)]
       if (length(idsBg) > 0) {
-        dat <- set_attr(dat, "status", "e", idsBg)
-        dat <- set_attr(dat, "infTime", at, idsBg)
-        dat <- set_attr(dat, "statusTime", at, idsBg)
+        dat <- start_episode(dat, idsBg, at)
         nBg <- length(idsBg)
         allNewInf <- c(allNewInf, idsBg)
       }
     }
   }
 
-  ## External re-importation (seasonal): a small per-step hazard of infection from
-  ## outside the modeled population, so seasonal epidemics can re-ignite and zero
-  ## prevalence is not absorbing. Defaults to 0 (off) when import.rate is unset.
-  import.rate <- get_param(dat, "import.rate", override.null.error = TRUE)
+  ## Infections from outside the population (#70). import.rate is a daily
+  ## probability per susceptible, seasonally forced, all year round, so a
+  ## seasonal epidemic can ignite whenever transmission allows it and zero
+  ## prevalence is not absorbing. The introduction pulse adds import.pulse
+  ## expected introductions into a fully susceptible population over
+  ## import.pulse.days days from import.pulse.start: the introduction of a novel
+  ## pathogen, or the seeding of a season. Both scale with the susceptible's
+  ## relative acquisition probability, so the vaccine, the age gradient and
+  ## immunity protect against an imported infection as against a local one
+  ## (they used to ignore all three).
+  import.rate <- param_or(dat, "import.rate", 0)
+  pulse <- import_pulse_prob(dat, at)
   nImport <- 0L
-  if (!is.null(import.rate) && import.rate > 0) {
+  if (import.rate > 0 || pulse > 0) {
     status_now <- get_attr(dat, "status")
     idsSus <- which(active == 1 & status_now == "s")
     if (length(idsSus) > 0) {
-      import_prob <- min(1, import.rate * season_mult)
+      rr <- susceptibility_rr(dat, idsSus, at, vax.schedule)
+      import_prob <- pmin(1, (import.rate * season_mult + pulse) * rr)
       idsImp <- idsSus[runif(length(idsSus)) < import_prob]
       if (length(idsImp) > 0) {
-        dat <- set_attr(dat, "status", "e", idsImp)
-        dat <- set_attr(dat, "infTime", at, idsImp)
-        dat <- set_attr(dat, "statusTime", at, idsImp)
+        dat <- start_episode(dat, idsImp, at)
         nImport <- length(idsImp)
         allNewInf <- c(allNewInf, idsImp)
       }
@@ -300,13 +230,22 @@ infect_general <- function(dat, at) {
   dat <- set_epi(dat, "se.import.flow", nImport, at = at)
   if (bg.hazard > 0) dat <- set_epi(dat, "se.flow.bg", nBg, at = at)
 
+  ## First infections and reinfections (#69, the #77 se.flow.first): a first
+  ## infection is a person's first episode in the run. Persons ever infected
+  ## are the primary infection outcome (#58 item 5); se.flow counts episodes.
+  first <- get_attr(dat, "inf.count")[allNewInf] == 1
+  dat <- set_epi(dat, "se.flow.first", sum(first), at = at)
+  dat <- set_epi(dat, "se.flow.reinf", sum(!first), at = at)
+
   ## Stratified incidence: by age group, vaccination status, and network position
   age <- get_attr(dat, "age")
   age.breaks <- get_param(dat, "age.breaks")
   ag <- cut(age[allNewInf], age.breaks, labels = FALSE, right = FALSE)
   for (g in seq_len(length(age.breaks) - 1)) {
     dat <- set_epi(dat, paste0("se.flow.age", g), sum(ag == g, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, paste0("se.flow.first.age", g), sum(ag == g & first, na.rm = TRUE), at = at)
   }
+  if (sev_diagnostics(dat)) dat <- sev_flows(dat, at, "inf", allNewInf, first)
   vaxed_new <- vax[allNewInf] >= 1
   dat <- set_epi(dat, "se.flow.vax", sum(vaxed_new, na.rm = TRUE), at = at)
   dat <- set_epi(dat, "se.flow.unvax", sum(!vaxed_new, na.rm = TRUE), at = at)

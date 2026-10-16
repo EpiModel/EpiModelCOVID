@@ -27,6 +27,12 @@ init_gmc19 <- function(x, param, init, control, s) {
   check_retired_params(dat)
   check_known_params(dat)
   dat <- check_layer_params(dat)
+  # #69, #70, #71: severity per infection by severity band, post-infection
+  # immunity, imports and prior immunity (mod-immunity.R)
+  check_severity_params(dat)
+  check_immunity_params(dat)
+  check_import_params(dat)
+  check_prior_immunity(dat)
 
   # GlobalMix India #61: sex and occupation class come with the population, as
   # vertex attributes of the networks, like age and hh.ids
@@ -57,6 +63,9 @@ init_gmc19 <- function(x, param, init, control, s) {
   ## Initialize all remaining attributes in default values
   dat <- init_attrs(dat)
   dat <- overwrite_attrs(dat)
+  # #69, #70: the seeds are the run's first infections, and init.immune makes
+  # a share of each severity band immune for the run
+  dat <- init_immunity(dat)
   # #65: the mothers of the youngest children, who cannot give birth again
   # within the birth interval
   if (births_placed(dat)) dat <- init_last_birth(dat)
@@ -223,14 +232,33 @@ retired_params <- c(
   "act.rate.sympt.inter.rr", "act.rate.sympt.inter.time"
 )
 
+# Parameters the redo replaced with others (GlobalMix India #69, #71), each with
+# what replaced it. A table that still sets one would run as if it had an effect.
+replaced_params <- c(
+  rs.rate = "immune.full and immune.peak/halflife/floor.* (#69): a full protection period, then partial protection",
+  prop.hospit = "ihr, admissions per infection by severity band (#71)",
+  prop.hospit.infant = "ihr on the infant severity bands (#71)",
+  prop.hospit.infant6 = "ihr on the infant severity bands (#71)",
+  dis.death.rate = "ifr, deaths per infection by severity band, drawn once per episode (#71)",
+  dis.death.rate.infant = "ifr on the infant severity bands (#71)",
+  dis.death.rate.infant6 = "ifr on the infant severity bands (#71)"
+)
+
 check_retired_params <- function(dat) {
   updated <- unlist(lapply(dat$param$.param.updater.list,
                            function(u) names(u$param)))
-  found <- intersect(retired_params, c(names(dat$param), updated))
+  set <- c(names(dat$param), updated)
+  found <- intersect(retired_params, set)
   if (length(found) > 0) {
     stop("the model no longer reads ", toString(found), ": the CorporateMix ",
          "modifiers they set were removed (GlobalMix India #66). Remove them ",
          "from the parameters.", call. = FALSE)
+  }
+  found <- intersect(names(replaced_params), set)
+  if (length(found) > 0) {
+    stop("the model no longer reads ",
+         paste0(found, " (replaced by ", replaced_params[found], ")", collapse = "; "),
+         ". Remove them from the parameters (GlobalMix India).", call. = FALSE)
   }
   invisible(TRUE)
 }
