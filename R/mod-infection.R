@@ -97,7 +97,8 @@ infect_general <- function(dat, at) {
     # infector is symptomatic, by the symptomatic contact multiplier
     w <- if (is.null(weights)) 1 else weights[[layer]][cbind(band[del$sus], band[del$inf])]
     rr_ic <- if (is.null(sympt.rr)) 1 else ifelse(del$stat == "ic", sympt.rr[[layer]], 1)
-    del$finalProb <- 1 - (1 - del$transProb)^(exposure.rate[[layer]] * w * rr_ic)
+    del$acts <- exposure.rate[[layer]] * w * rr_ic
+    del$finalProb <- 1 - (1 - del$transProb)^del$acts
     del
   }
 
@@ -110,11 +111,18 @@ infect_general <- function(dat, at) {
   # 1 - exp(-H), H their total hazard, attributed in proportion to hazard).
   # Taken before any transmission draw and with no random numbers, so the run
   # is unchanged.
-  disc <- disc_counts(if (length(idsInf) > 0) lapply(seq_len(nLayers), function(layer) {
+  dels <- if (length(idsInf) > 0) lapply(seq_len(nLayers), function(layer) {
     el <- if (is.null(contacts)) get_edgelist(dat, layer) else contacts[[layer]]
     del <- discord_pairs(el, status, active, c("a", "ic", "ip"), at, shuffle = FALSE)
     if (!is.null(del)) pair_prob(del, layer)
-  }), nLayers, length(active))
+  })
+  disc <- disc_counts(dels, nLayers, length(active))
+  # The exposures of susceptibles by vaccine age group and vaccination status,
+  # with the infections they imply with and without the susceptible's own
+  # vaccine (GlobalMix India #73 acceptance; vd_exposure() in mod-vax.R)
+  if (vax_diagnostics(dat)) {
+    dat <- vd_exposure(dat, at, dels, vax, get_attr(dat, "last.dose.time"), vax.schedule)
+  }
 
   if (length(idsInf) > 0) {
     for (layer in seq_len(nLayers)) {

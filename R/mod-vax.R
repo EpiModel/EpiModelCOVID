@@ -1168,6 +1168,50 @@ vd_flows <- function(dat, at, what, ids) {
   dat
 }
 
+# The day's exposures (discordant contacts) of susceptibles, by vaccine age
+# group and vaccination status: vd.exp.<g>.<v> their number, vd.einf.<g>.<v>
+# the infections they imply (each susceptible infected with probability
+# 1 - prod(1 - p) over its contacts, before any draw) and vd.einf0.<g>.<v> the
+# same with the susceptible's own vaccine protection against infection taken
+# out. The ratio einf / einf0 among the dosed is the reduction in infection the
+# model's own exposures imply, which a per-person-day hazard ratio measured in
+# a saturating epidemic falls short of (several exposures on one day infect at
+# most once), so the cohort check judges against it rather than against the
+# per-contact VE.
+vd_exposure <- function(dat, at, dels, vax, last.dose.time, vax.schedule) {
+  n_age <- length(get_param(dat, "vax.age.breaks")) - 1
+  sus <- unlist(lapply(dels, function(d) d$sus))
+  zero <- function(what) {
+    for (k in seq_len(n_age)) for (v in c("1", "0")) dat <<- set_epi(dat, paste0("vd.", what, ".", k, ".", v), 0, at = at)
+  }
+  if (length(sus) == 0) {
+    for (what in c("exp", "einf", "einf0")) zero(what)
+    return(dat)
+  }
+  p <- unlist(lapply(dels, function(d) d$finalProb))
+  tp <- unlist(lapply(dels, function(d) d$transProb))
+  acts <- unlist(lapply(dels, function(d) d$acts))
+  rr <- compute_ve(at = at, ids = sus, vax = vax, last.dose.time = last.dose.time, vax.schedule = vax.schedule,
+                   outcome = "infect", vax.age.group = vax_age_group_for(dat))$rr
+  p0 <- 1 - (1 - pmin(1, tp / pmax(rr, 1e-12)))^acts
+  lq <- rowsum(log1p(-pmin(p, 1 - 1e-12)), sus)
+  lq0 <- rowsum(log1p(-pmin(p0, 1 - 1e-12)), sus)
+  ids <- as.integer(rownames(lq))
+  cnt <- rowsum(rep(1, length(sus)), sus)[, 1]
+  g <- vax_age_group_for(dat)[ids]
+  v <- vax[ids] >= 1
+  for (k in seq_len(n_age)) {
+    for (vv in c(TRUE, FALSE)) {
+      sel <- g == k & v == vv
+      tag <- paste0(".", k, ".", as.integer(vv))
+      dat <- set_epi(dat, paste0("vd.exp", tag), sum(cnt[sel]), at = at)
+      dat <- set_epi(dat, paste0("vd.einf", tag), sum(1 - exp(lq[sel, 1])), at = at)
+      dat <- set_epi(dat, paste0("vd.einf0", tag), sum(1 - exp(lq0[sel, 1])), at = at)
+    }
+  }
+  dat
+}
+
 get_schedule_value <- function(schedule, col, dose_i, age_group) {
   
   # If the schedule column is a list-column, each row may contain

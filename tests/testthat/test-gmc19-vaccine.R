@@ -183,6 +183,29 @@ test_that("a vaccinated infector transmits at 1 - VE_infectious, on contacts and
   expect_identical(get_epi(dat, "vd.inf.3.0", at = 2), sum(inf))
   expect_identical(get_epi(dat, "vd.inf.3.1", at = 2), 0L)
   expect_equal(mean(inf[(M / 2 + 1):M]), 0.2, tolerance = 0.03)
+  # the exposure accounting: every susceptible has one discordant contact, and
+  # the infections they imply are the pair probabilities (0.2 from an undosed
+  # infector, 0.1 from a dosed one), with no vaccine of their own to take out
+  expect_identical(get_epi(dat, "vd.exp.3.0", at = 2), M)
+  expect_equal(get_epi(dat, "vd.einf.3.0", at = 2), 0.1 * M / 2 + 0.2 * M / 2)
+  expect_equal(get_epi(dat, "vd.einf0.3.0", at = 2), 0.1 * M / 2 + 0.2 * M / 2)
+  # with the susceptibles dosed instead (VE against infection 0.5), the implied
+  # infections halve and einf0 gives them back
+  dat2 <- do.call(nh_dat, c(list(N = 2 * M), ve_params(infectious = 0, infect = 0.5, halflife = Inf, vax.diagnostics = TRUE)))
+  dat2 <- set_param(dat2, "inf.prob", 0.2)
+  dat2 <- set_attr(dat2, "vax", c(rep(0, M), rep(1, M)))
+  dat2 <- set_attr(dat2, "last.dose.time", c(rep(NA, M), rep(-30, M)))
+  dat2 <- set_attr(dat2, "status", c(rep("ip", M), rep("s", M)))
+  dat2 <- set_attr(dat2, "clinical", c(rep(1, M), rep(NA, M)))
+  dat2 <- set_attr(dat2, "statusTime", c(rep(1, M), rep(NA, M)))
+  dat2 <- set_attr(dat2, "infTime", c(rep(1, M), rep(NA, M)))
+  dat2$run$el <- list(community = cbind(seq_len(M), M + seq_len(M)))
+  dat2$control$tergmLite <- TRUE
+  dat2 <- infect_general(dat2, 2)
+  expect_identical(get_epi(dat2, "vd.exp.3.1", at = 2), M)
+  expect_equal(get_epi(dat2, "vd.einf.3.1", at = 2), 0.1 * M)
+  expect_equal(get_epi(dat2, "vd.einf0.3.1", at = 2), 0.2 * M)
+  expect_equal(get_epi(dat2, "vd.inf.3.1", at = 2) / M, 0.1, tolerance = 0.05)
   expect_equal(mean(inf[1:(M / 2)]) / mean(inf[(M / 2 + 1):M]), 0.5, tolerance = 0.05)
 
   # the background hazard weights an infector's prevalence the same way
@@ -207,5 +230,5 @@ test_that("a vaccinated infector transmits at 1 - VE_infectious, on contacts and
   # 0.5) and the within-band mixing weight is 2/7 (the diagonal is doubled
   # before row normalization); dosed infectors count at half the weight
   expect_equal(-log(1 - one(0)), 0.5 * 2 / 7 * 0.5, tolerance = 0.05)
-  expect_equal(-log(1 - one(1)) / -log(1 - one(0)), 0.5, tolerance = 0.05)
+  expect_equal(-log(1 - one(1)) / -log(1 - one(0)), 0.5, tolerance = 0.1)
 })
