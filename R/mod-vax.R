@@ -1000,9 +1000,9 @@ get_ids_eligible_for_dose <- function(
   start_age <- start_vec[vax.age.group]
 
   # Minimum interval since the previous dose (NA for dose 1).
-  interval <- dose_row$interval
+  interval <- dose_row$interval[[1]]
 
-  annual <- isTRUE(dose_row$annual)
+  annual <- isTRUE(dose_row$annual[[1]])
 
   if (annual) {
     # Annual (seasonal) revaccination: eligible once per season, reopening each
@@ -1040,82 +1040,134 @@ get_ids_eligible_for_dose <- function(
   return(idsElig)
 }
 
-# Compute current vaccine relative risk for each node, 1 - VE, from the VE
-# profile (ve.peak, ve.halflife, ve.floor, ve.delay) of its latest dose.
-# This helper is shared by mod-infection.R, mod-progress.R and mod-departure.R
-# despite saved in mod-vax.R
+# Vaccine protection (GlobalMix India #73). A node's protection comes from its
+# most recent dose: vax is the dose count and last.dose.time its step, and the
+# dose's row of vax.schedule holds, per outcome, a peak marginal VE, a half-life
+# and a floor, each one value or one per vaccine age group. Protection is 0
+# until ve.delay days after the dose (the onset delay; 0 for a passive
+# product), the peak at ve.delay, and from there
+#   VE(t) = floor + (peak - floor) x 0.5^((t - ve.delay) / half-life).
+# ve.delay used to postpone only the waning, so a dose protected at its peak
+# from the next day.
 #
-# outcome can be:
-#   "infect"   for susceptibility / transmission risk
-#   "clinical" for symptomatic disease risk
-#   "hosp"     for hospitalization risk
-#   "death"    for the disease-death hazard
+# vax_protection() gives the marginal VE against one outcome. compute_ve()
+# gives the relative risk the model draws with at one stage: per contact for a
+# susceptible ("infect", 1 - VE_infect), for the symptomatic draw given
+# infection ("clinical", (1 - VE_clinical) / (1 - VE_infect)), for the
+# admission and death draws given symptomatic disease ("hosp" and "death",
+# (1 - VE_hosp) / (1 - VE_clinical) and (1 - VE_death) / (1 - VE_clinical)),
+# and on the onward transmission probability of an infector ("infectious",
+# 1 - VE_infectious). The VE inputs are therefore marginal, as studies report
+# them; the stage relative risks used to be multiplied along the chain, so a
+# 0.40 "death VE" on top of the earlier stages was a marginal 0.71.
+vax_protection <- function(at, ids, vax, last.dose.time, vax.schedule, vax.age.group, outcome) {
+  ve <- rep(0, length(ids))
+  if (length(ids) == 0 || is.null(vax.schedule)) return(ve)
+  vax_ids <- vax[ids]
+  for (dose_i in seq_len(nrow(vax.schedule))) {
+    pos <- which(vax_ids == dose_i)
+    if (length(pos) == 0) next
+    ids_this <- ids[pos]
+    t <- at - last.dose.time[ids_this]
+    if (any(is.na(t))) stop("Missing dose time for vaccinated individuals in vax_protection().")
+    ag <- vax.age.group[ids_this]
+    peak <- get_schedule_value(vax.schedule, paste0("ve.peak.", outcome), dose_i, ag)
+    hl <- get_schedule_value(vax.schedule, paste0("ve.halflife.", outcome), dose_i, ag)
+    fl <- get_schedule_value(vax.schedule, paste0("ve.floor.", outcome), dose_i, ag)
+    delay <- get_schedule_value(vax.schedule, "ve.delay", dose_i, ag)
+    v <- fl + (peak - fl) * 0.5^(pmax(0, t - delay) / hl)
+    v[t < delay] <- 0
+    ve[pos] <- v
+  }
+  ve
+}
+
 #' @rdname moduleset-gmc19
 #' @export
 compute_ve <- function(at, ids, vax,
                        vax.age.group,
                        last.dose.time = NULL,
                        vax.schedule,
-                       outcome = c("infect", "clinical", "hosp", "death")) {
-
+                       outcome = c("infect", "clinical", "hosp", "death", "infectious")) {
   outcome <- match.arg(outcome)
-
-  ve_peak_col <- paste0("ve.peak.", outcome)
-  ve_halflife_col <- paste0("ve.halflife.", outcome)
-  ve_floor_col <- paste0("ve.floor.", outcome)
-
-  # Start everyone at no vaccine effect (rr = 1).
-  rr <- rep(1, length(ids))
-  ve <- rep(0, length(ids))
+  P <- function(o) vax_protection(at, ids, vax, last.dose.time, vax.schedule, vax.age.group, o)
+  ve <- P(outcome)
+  rr <- switch(outcome,
+               infect = 1 - ve,
+               infectious = 1 - ve,
+               clinical = cond_rr(ve, P("infect")),
+               hosp = cond_rr(ve, P("clinical")),
+               death = cond_rr(ve, P("clinical")))
   time.since.last.dose <- rep(0, length(ids))
-
-  vax_ids <- vax[ids]
-
-  # A node's protection is set by its most recent dose: last.dose.time is the
-  # timestep of that dose and vax (the dose count) selects which dose row's VE
-  # profile applies. Supports any number of doses and annual revaccination.
-  for (dose_i in seq_len(nrow(vax.schedule))) {
-
-    ids_this_dose_position <- which(vax_ids == dose_i)
-
-    if (length(ids_this_dose_position) > 0) {
-
-      ids_this_dose <- ids[ids_this_dose_position]
-
-      time_since_dose <- at - last.dose.time[ids_this_dose]
-      if (any(is.na(time_since_dose))) {
-        stop("Missing dose time for vaccinated individuals in compute_ve().")
-      }
-
-      age_group_this <- vax.age.group[ids_this_dose]
-
-      ve_peak <- get_schedule_value(vax.schedule, ve_peak_col, dose_i, age_group_this)
-      ve_halflife <- get_schedule_value(vax.schedule, ve_halflife_col, dose_i, age_group_this)
-      ve_floor <- get_schedule_value(vax.schedule, ve_floor_col, dose_i, age_group_this)
-      ve_delay <- get_schedule_value(vax.schedule, "ve.delay", dose_i, age_group_this)
-
-      # VE holds near peak until ve_delay days post-dose, then decays toward the
-      # floor by the half-life.
-      t_eff <- pmax(0, time_since_dose - ve_delay)
-      current_ve <- ve_floor + (ve_peak - ve_floor) * 0.5^(t_eff / ve_halflife)
-
-      if (any(current_ve < 0 | current_ve > 1)) {
-        warning("VE outside [0, 1] in compute_ve(). Check ve.peak, ve.floor, and ve.halflife in vax.schedule.")
-      }
-
-      ve[ids_this_dose_position] <- current_ve
-      rr[ids_this_dose_position] <- 1 - current_ve
-      time.since.last.dose[ids_this_dose_position] <- time_since_dose
-    }
+  if (length(ids) > 0) {
+    dosed <- vax[ids] >= 1
+    time.since.last.dose[dosed] <- at - last.dose.time[ids][dosed]
   }
-
-  return(list(
-    rr = rr,
-    time.since.last.dose = time.since.last.dose
-  ))
+  list(rr = rr, ve = ve, time.since.last.dose = time.since.last.dose)
 }
 
-# Helper to pull either scalar or age-specific schedule values
+# The schedule's VE profiles must be probabilities, wane over a positive
+# half-life, and not fall along the stages at the peak or at the floor (or a
+# conditional relative risk would exceed 1 and be capped): VE_infect <=
+# VE_clinical <= VE_hosp and VE_clinical <= VE_death, per dose and vaccine age
+# group. Checked at initialization for the run's pathogen.
+check_vax_schedule <- function(dat) {
+  pa <- get_pathogen(dat)
+  if (is.null(get_param(dat, paste0("vax.", pa, ".n.doses"), override.null.error = TRUE))) {
+    return(invisible(TRUE))
+  }
+  vs <- build_vax_schedule(dat, pa)
+  n_age <- length(get_param(dat, "vax.age.breaks")) - 1
+  for (dose_i in seq_len(nrow(vs))) {
+    for (o in vax_ve_outcomes) {
+      for (k in c("peak", "floor")) {
+        v <- vs[[paste0("ve.", k, ".", o)]][[dose_i]]
+        if (anyNA(v) || any(v < 0 | v > 1)) {
+          stop("vax.", pa, ".ve.", k, ".", o, ".dose", dose_i, " must be in [0, 1]", call. = FALSE)
+        }
+      }
+      hl <- vs[[paste0("ve.halflife.", o)]][[dose_i]]
+      if (anyNA(hl) || any(hl <= 0)) {
+        stop("vax.", pa, ".ve.halflife.", o, ".dose", dose_i, " must be positive", call. = FALSE)
+      }
+    }
+    delay <- vs$ve.delay[[dose_i]]
+    if (length(delay) != 1 || is.na(delay) || delay < 0) {
+      stop("vax.", pa, ".ve.delay.dose", dose_i, " must be one non-negative number of days", call. = FALSE)
+    }
+    for (k in c("peak", "floor")) {
+      v <- function(o) rep_len(vs[[paste0("ve.", k, ".", o)]][[dose_i]], n_age)
+      bad <- v("infect") > v("clinical") | v("clinical") > v("hosp") | v("clinical") > v("death")
+      if (any(bad)) {
+        stop("vaccine efficacy must not fall along the stages (infect <= clinical <= hosp, and ",
+             "clinical <= death): vax.", pa, ".ve.", k, ".*.dose", dose_i, " do in vaccine age group(s) ",
+             toString(which(bad)), call. = FALSE)
+      }
+    }
+  }
+  invisible(TRUE)
+}
+
+# Outcomes by vaccine age group and vaccination status (GlobalMix India #73
+# acceptance), with vax.diagnostics = TRUE: per step, vd.<what>.<g>.<v> for
+# what in n (the living), sus (the susceptible), inf, sympt, hosp and death,
+# g the vaccine age group and v 1 for the dosed and 0 for the rest. Realized
+# marginal VE within an age group is read off them: against infection from the
+# infections per susceptible person-day, against symptomatic disease,
+# admission and death from the events per living person.
+vax_diagnostics <- function(dat) isTRUE(as.logical(param_or(dat, "vax.diagnostics", FALSE)))
+
+vd_flows <- function(dat, at, what, ids) {
+  n_age <- length(get_param(dat, "vax.age.breaks")) - 1
+  g <- vax_age_group_for(dat)[ids]
+  v <- get_attr(dat, "vax")[ids] >= 1
+  for (k in seq_len(n_age)) {
+    dat <- set_epi(dat, paste0("vd.", what, ".", k, ".1"), sum(g == k & v, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, paste0("vd.", what, ".", k, ".0"), sum(g == k & !v, na.rm = TRUE), at = at)
+  }
+  dat
+}
+
 get_schedule_value <- function(schedule, col, dose_i, age_group) {
   
   # If the schedule column is a list-column, each row may contain
@@ -1150,7 +1202,7 @@ vax_age_group_for <- function(dat) {
       age,
       breaks = vax.age.breaks,
       right = FALSE,
-      labels = 1:5
+      labels = seq_len(length(vax.age.breaks) - 1)
     ) |> as.character() |> as.integer()
   
   return(vax.age.group)
@@ -1171,14 +1223,32 @@ get_pathogen <- function(dat) {
 build_vax_schedule <- function(dat, disease = "covid") {
   prefix <- paste0("vax.", disease, ".")
   n_doses <- get_param(dat, paste0(prefix, "n.doses"))
+  if (length(n_doses) != 1 || is.na(n_doses) || n_doses < 1) {
+    stop(prefix, "n.doses must be one dose count of at least 1", call. = FALSE)
+  }
+  br <- get_param(dat, "vax.age.breaks", override.null.error = TRUE)
+  # the vaccine age groups; without vax.age.breaks (a bare parameter list), as
+  # many as the first dose's start vector has
+  n_age <- if (is.null(br)) length(get_param(dat, paste0(prefix, "start.dose1"))) else length(br) - 1
   vax.schedule <- data.frame(dose = seq_len(n_doses))
   for (field in vax_dose_fields) {
     values <- lapply(seq_len(n_doses), function(i) {
-      get_param(dat, paste0(prefix, field, ".dose", i))
+      v <- get_param(dat, paste0(prefix, field, ".dose", i))
+      n <- length(v)
+      ok <- if (field %in% vax_dose_scalar) n == 1 else if (field %in% vax_dose_by_age) n == n_age else n %in% c(1, n_age)
+      if (!ok) {
+        stop(prefix, field, ".dose", i, " has ", n, " value(s); it needs ",
+             if (field %in% vax_dose_scalar) "one" else if (field %in% vax_dose_by_age) paste("one per vaccine age group,", n_age)
+             else paste("one, or one per vaccine age group,", n_age), " (GlobalMix India #73)", call. = FALSE)
+      }
+      v
     })
-    # start and rate hold one value per vaccine age group
-    vax.schedule[[field]] <- if (field %in% vax_dose_by_age) I(values) else sapply(values, identity)
+    # Every field is a list column: one value per dose, or one per vaccine age
+    # group (start and rate always; the VE fields optionally, #73). sapply()
+    # used to turn a one-dose schedule with an age vector into five rows.
+    vax.schedule[[field]] <- I(values)
   }
+  if (nrow(vax.schedule) != n_doses) stop("the vaccine schedule has ", nrow(vax.schedule), " rows for ", n_doses, " doses")
   vax.schedule
 }
 

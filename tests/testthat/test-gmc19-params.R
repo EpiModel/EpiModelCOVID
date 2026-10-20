@@ -101,7 +101,7 @@ test_that("build_vax_schedule() reads exactly the listed per-dose names", {
   expect_identical(nrow(vs), 2L)
   expect_setequal(names(vs), c("dose", EpiModelCOVID:::vax_dose_fields))
   expect_equal(vs$start[[2]], rep(20, 5))
-  expect_equal(vs$ve.peak.death, c(0.5, 0.5))
+  expect_equal(unlist(vs$ve.peak.death), c(0.5, 0.5))
   # every listed name is read: without it the schedule cannot be built
   for (nm in sched) {
     expect_error(EpiModelCOVID:::build_vax_schedule(create_dat_object(param = param[names(param) != nm]),

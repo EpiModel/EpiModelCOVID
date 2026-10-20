@@ -40,6 +40,7 @@ progress_general <- function(dat, at) {
   age.breaks <- get_param(dat, "age.breaks")
   vax.schedule <- build_vax_schedule(dat, get_pathogen(dat)) # get vaccination schedule
   sevdiag <- sev_diagnostics(dat)
+  vaxdiag <- vax_diagnostics(dat)
   nonfatal <- !(fatal %in% 1)
 
   ## Determine Subclinical (E to A) or Clinical (E to Ip to Ic) pathway, once per
@@ -155,6 +156,7 @@ progress_general <- function(dat, at) {
         dat <- set_epi(dat, "ipic.flow.infant.old",   sum(i_ic & a_ic >= 0.5, na.rm = TRUE), at = at)
       }
       if (sevdiag) dat <- sev_flows(dat, at, "sympt", ids.new.Ic, inf.count[ids.new.Ic] == 1)
+      if (vaxdiag) dat <- vd_flows(dat, at, "sympt", ids.new.Ic)
     }
   }
 
@@ -231,6 +233,7 @@ progress_general <- function(dat, at) {
         dat <- set_epi(dat, "ich.flow.infant.old",   sum(i_h & a_h >= 0.5, na.rm = TRUE), at = at)
       }
       if (sevdiag) dat <- sev_flows(dat, at, "hosp", ids.new.H, inf.count[ids.new.H] == 1)
+      if (vaxdiag) dat <- vd_flows(dat, at, "hosp", ids.new.H)
     }
   }
 

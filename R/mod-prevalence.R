@@ -76,6 +76,12 @@ prevalence_covid_corporate <- function(dat, at) {
   dat <- set_epi(dat, "h.num", sum(active == 1 & status == "h"), at = at)
   dat <- set_epi(dat, "v1.num", sum(active == 1 & status == "s" & vax == 1), at = at)
   dat <- set_epi(dat, "v2.num", sum(active == 1 & status == "s" & vax == 3), at = at)
+  # The living and the susceptible by vaccine age group and vaccination status
+  # (GlobalMix India #73 acceptance; vd_flows() in mod-vax.R)
+  if (vax_diagnostics(dat)) {
+    dat <- vd_flows(dat, at, "n", which(active == 1))
+    dat <- vd_flows(dat, at, "sus", which(active == 1 & status == "s"))
+  }
 
   ## Person-denominated outputs (issue #46) --------------------------------------
   ##

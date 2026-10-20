@@ -15,6 +15,19 @@ infect_general <- function(dat, at) {
   inf.prob.a.rr <- get_param(dat, "inf.prob.a.rr")
   vax.schedule <- build_vax_schedule(dat, get_pathogen(dat))
 
+  # The vaccine's protection against infectiousness (GlobalMix India #73): a
+  # vaccinated infector transmits at 1 - VE_infectious of the per-act
+  # probability, on contacts and in the background hazard alike. Before this
+  # the only effect of vaccination on onward transmission was the smaller
+  # symptomatic share of breakthrough infections.
+  inf_rr <- rep(1, length(active))
+  if (length(idsInf) > 0) {
+    inf_rr[idsInf] <- compute_ve(at = at, ids = idsInf, vax = vax,
+                                 last.dose.time = get_attr(dat, "last.dose.time"),
+                                 vax.schedule = vax.schedule, outcome = "infectious",
+                                 vax.age.group = vax_age_group_for(dat))$rr
+  }
+
   # Per-layer parameters, one value per layer and named by layer. layer_param()
   # stops if a vector no longer lines up with the layers, e.g. after an updater.
   inf.prob <- layer_param(dat, "inf.prob")
@@ -72,7 +85,7 @@ infect_general <- function(dat, at) {
     # earlier infection in the run (#69). susceptibility_rr() is in
     # mod-immunity.R; the background hazard and the imports take the same one.
     del$vaxSus <- vax[del$sus]
-    del$transProb <- del$transProb * susceptibility_rr(dat, del$sus, at, vax.schedule)
+    del$transProb <- del$transProb * susceptibility_rr(dat, del$sus, at, vax.schedule) * inf_rr[del$inf]
 
     # Asymptomatic infection
     del$stat <- status[del$inf]
@@ -167,7 +180,7 @@ infect_general <- function(dat, at) {
     if (is.null(M)) stop("bg.hazard needs an age mixing matrix (bg.mix)", call. = FALSE)
     W <- M + diag(diag(M))
     W <- W / pmax(rowSums(W), .Machine$double.xmin)
-    infw <- (status_now %in% c("ip", "ic")) + inf.prob.a.rr * (status_now == "a")
+    infw <- ((status_now %in% c("ip", "ic")) + inf.prob.a.rr * (status_now == "a")) * inf_rr
     prev <- as.numeric(tapply(infw[live], factor(bnd[live], levels = seq_len(nb)), sum)) /
       pmax(tabulate(bnd[live], nb), 1)
     prev[is.na(prev)] <- 0
@@ -246,6 +259,7 @@ infect_general <- function(dat, at) {
     dat <- set_epi(dat, paste0("se.flow.first.age", g), sum(ag == g & first, na.rm = TRUE), at = at)
   }
   if (sev_diagnostics(dat)) dat <- sev_flows(dat, at, "inf", allNewInf, first)
+  if (vax_diagnostics(dat)) dat <- vd_flows(dat, at, "inf", allNewInf)
   vaxed_new <- vax[allNewInf] >= 1
   dat <- set_epi(dat, "se.flow.vax", sum(vaxed_new, na.rm = TRUE), at = at)
   dat <- set_epi(dat, "se.flow.unvax", sum(!vaxed_new, na.rm = TRUE), at = at)

@@ -77,6 +77,7 @@ deaths_covid_gmc19 <- function(dat, at) {
         if (!is.null(is_infant)) infant_disdep <- is_infant[dd]
         age_disdep <- age[dd]   # issue #46: for the infant 0-6 / 6-12mo split
         if (sev_diagnostics(dat)) dat <- sev_flows(dat, at, "death", dd, inf.count[dd] == 1)
+        if (vax_diagnostics(dat)) dat <- vd_flows(dat, at, "death", dd)
       }
       # Mark the dead only. nwupdate.FUN removes them from every layer after
       # the arrivals module has run (EpiModel's convention), so a module that

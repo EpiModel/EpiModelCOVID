@@ -33,6 +33,7 @@ init_gmc19 <- function(x, param, init, control, s) {
   check_immunity_params(dat)
   check_import_params(dat)
   check_prior_immunity(dat)
+  check_vax_schedule(dat)
 
   # GlobalMix India #61: sex and occupation class come with the population, as
   # vertex attributes of the networks, like age and hh.ids

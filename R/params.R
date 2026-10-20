@@ -33,7 +33,7 @@ gmc19_params_common <- c(
   # vaccination and targeting; the per-dose schedule is in vax_dose_fields
   "pathogen", "vax.strategy", "vax.supply.rate", "vax.supply.total", "vax.age.breaks",
   "vax.infant.eligible", "vax.infant.product", "vax.season.length", "vax.target.uptake",
-  "vax.hybrid.frac", "vax.degree.score", "compute.degree"
+  "vax.hybrid.frac", "vax.degree.score", "compute.degree", "vax.diagnostics"
 )
 
 # Read only by the relationship model (#63): the activation step, the traits and
@@ -55,18 +55,25 @@ epimodel_params <- c("groups", "vital", "act.rate", ".param.updater.list", ".sce
 
 # The per-dose vaccine schedule, read by build_vax_schedule() as
 # vax.<pathogen>.<field>.dose<i> for doses 1 to vax.<pathogen>.n.doses. start
-# and rate hold one value per vaccine age group, the others one per dose. The
-# death VE (ve.*.death) scales the disease-death hazard of a vaccinated
-# symptomatic case, the dominant and most durable effect of the real vaccines.
+# and rate hold one value per vaccine age group; each VE field holds one value
+# per dose or one per vaccine age group (GlobalMix India #73); interval, annual
+# and ve.delay one per dose. The five VE outcomes are MARGINAL efficacies, as
+# studies report them: against infection, symptomatic disease, admission and
+# death, each relative to an unvaccinated person, and against infectiousness
+# given a breakthrough infection. compute_ve() converts the first four to the
+# conditional stage relative risks the model draws with (mod-vax.R).
 vax_dose_fields <- c(
   "start", "rate", "interval", "annual",
   "ve.peak.infect", "ve.halflife.infect", "ve.floor.infect",
   "ve.peak.clinical", "ve.halflife.clinical", "ve.floor.clinical",
   "ve.peak.hosp", "ve.halflife.hosp", "ve.floor.hosp",
   "ve.peak.death", "ve.halflife.death", "ve.floor.death",
+  "ve.peak.infectious", "ve.halflife.infectious", "ve.floor.infectious",
   "ve.delay"
 )
 vax_dose_by_age <- c("start", "rate")
+vax_ve_outcomes <- c("infect", "clinical", "hosp", "death", "infectious")
+vax_dose_scalar <- c("interval", "annual", "ve.delay")
 
 # Read only by the CorporateMix modules still in the package
 # (infect_covid_corporate(), progress_covid_corporate(), vax_covid_corporate(),
