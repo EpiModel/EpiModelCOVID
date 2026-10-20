@@ -133,12 +133,12 @@ test_that("the model carries no testing or isolation state", {
 })
 
 test_that("people returned from R to S stay eligible for vaccination", {
-  dose_row <- data.frame(dose = 1, interval = NA, annual = FALSE)
-  dose_row$start <- I(list(rep(20, 5)))
+  dat <- do.call(nh_dat, c(list(N = 4), ve_params()))
   # an R to S return used to leave dxStatus NA, which made the node ineligible
-  elig <- EpiModelCOVID:::get_ids_eligible_for_dose(
-    dose_row = dose_row, dose_i = 1, active = rep(1, 4),
-    status = c("s", "r", "ic", "h"), vax = rep(0, 4), last.dose.time = rep(NA, 4),
-    vax.age.group = rep(3, 4), at = 30)
-  expect_equal(elig, 1:2)
+  elig <- EpiModelCOVID:::vax_eligible(dat, "covid", active = rep(1, 4), status = c("s", "r", "ic", "h"), age = rep(30, 4))
+  expect_identical(elig, c(TRUE, TRUE, FALSE, FALSE))
+  dose_row <- data.frame(dose = 1, interval = NA, annual = FALSE)
+  ids <- EpiModelCOVID:::get_ids_eligible_for_dose(dose_row, 1, elig, vax = rep(0, 4), last.dose.time = rep(NA, 4),
+                                                   at = 30, start = 20)
+  expect_equal(ids, 1:2)
 })

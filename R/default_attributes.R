@@ -57,6 +57,9 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     hospit= NA,
     status="s",
     vax= 0,
+    # willing to be vaccinated (GlobalMix India #74): drawn once per person in
+    # make_computed_attrs() from vax.willing, by vaccine age group
+    vax.willing = 1L,
     vax1Time= NA,
     vax2Time= NA,
     vax3Time= NA,
@@ -245,6 +248,13 @@ make_computed_attrs <- function(dat, n_new, post_init) {
     n_attr$log_aN <- log(pmax(aN, 1e-8))
   }
 
+  # Willingness to be vaccinated (GlobalMix India #74): one flag per person,
+  # drawn at initialization and at birth with the probability of the vaccine
+  # age group (vax.willing), so every arm of a cell allocates within the same
+  # willing pool under the batch's seed. Drawn last, after the traits, so the
+  # draws before it are what they were without it.
+  n_attr$vax.willing <- draw_vax_willing(dat, age)
+
   for (attr_name in names(n_attr)) {
     dat <- set_attr(dat, attr_name, n_attr[[attr_name]], posit_ids = new_nodes_pid)
   }
@@ -252,3 +262,18 @@ make_computed_attrs <- function(dat, n_new, post_init) {
   return(dat)
 }
 
+
+# The willingness flag (GlobalMix India #74): 1 with probability vax.willing,
+# one value or one per vaccine age group (vax.age.breaks), 1 when the parameter
+# is absent
+draw_vax_willing <- function(dat, age) {
+  p <- param_or(dat, "vax.willing", 1)
+  if (length(p) > 1) {
+    br <- get_param(dat, "vax.age.breaks", override.null.error = TRUE)
+    if (is.null(br) || length(p) != length(br) - 1) {
+      stop("vax.willing must be one probability, or one per vaccine age group (GlobalMix India #74)", call. = FALSE)
+    }
+    p <- p[cut(age, br, right = FALSE, labels = FALSE)]
+  }
+  as.integer(stats::runif(length(age)) < p)
+}

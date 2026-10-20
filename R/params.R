@@ -31,8 +31,11 @@ gmc19_params_common <- c(
   "immune.peak.death", "immune.halflife.death", "immune.floor.death",
   "init.immune", "init.immune.attr",
   # vaccination and targeting; the per-dose schedule is in vax_dose_fields
-  "pathogen", "vax.strategy", "vax.supply.rate", "vax.supply.total", "vax.age.breaks",
-  "vax.infant.eligible", "vax.infant.product", "vax.season.length", "vax.target.uptake",
+  # (#73); the campaign is one budget, throughput schedule and start shared by
+  # every arm, with willingness by vaccine age group and the product's age
+  # window (#74)
+  "pathogen", "vax.strategy", "vax.budget", "vax.delivery.days", "vax.start", "vax.willing",
+  "vax.age.breaks", "vax.infant.product", "vax.season.length", "vax.target.uptake",
   "vax.hybrid.frac", "vax.degree.score", "compute.degree", "vax.diagnostics"
 )
 
@@ -54,16 +57,18 @@ gmc19_params_relationship <- c(
 epimodel_params <- c("groups", "vital", "act.rate", ".param.updater.list", ".scenario.id")
 
 # The per-dose vaccine schedule, read by build_vax_schedule() as
-# vax.<pathogen>.<field>.dose<i> for doses 1 to vax.<pathogen>.n.doses. start
-# and rate hold one value per vaccine age group; each VE field holds one value
-# per dose or one per vaccine age group (GlobalMix India #73); interval, annual
-# and ve.delay one per dose. The five VE outcomes are MARGINAL efficacies, as
+# vax.<pathogen>.<field>.dose<i> for doses 1 to vax.<pathogen>.n.doses. Each VE
+# field holds one value per dose or one per vaccine age group (GlobalMix India
+# #73); interval, annual and ve.delay one per dose. The per-age start days and
+# uptake rates are gone: the campaign (vax.budget, vax.delivery.days,
+# vax.start, vax.willing) and the product's age window (vax.<pathogen>.age.min
+# and .age.max) replaced them (#74). The five VE outcomes are MARGINAL efficacies, as
 # studies report them: against infection, symptomatic disease, admission and
 # death, each relative to an unvaccinated person, and against infectiousness
 # given a breakthrough infection. compute_ve() converts the first four to the
 # conditional stage relative risks the model draws with (mod-vax.R).
 vax_dose_fields <- c(
-  "start", "rate", "interval", "annual",
+  "interval", "annual",
   "ve.peak.infect", "ve.halflife.infect", "ve.floor.infect",
   "ve.peak.clinical", "ve.halflife.clinical", "ve.floor.clinical",
   "ve.peak.hosp", "ve.halflife.hosp", "ve.floor.hosp",
@@ -71,7 +76,7 @@ vax_dose_fields <- c(
   "ve.peak.infectious", "ve.halflife.infectious", "ve.floor.infectious",
   "ve.delay"
 )
-vax_dose_by_age <- c("start", "rate")
+vax_dose_by_age <- character(0)   # start and rate were by age; the campaign replaced them (#74)
 vax_ve_outcomes <- c("infect", "clinical", "hosp", "death", "infectious")
 vax_dose_scalar <- c("interval", "annual", "ve.delay")
 
@@ -106,7 +111,8 @@ corporate_params <- c(
 #' `groups`, `vital`, `act.rate`, `.param.updater.list` and `.scenario.id` are
 #' set by EpiModel itself, and none is a row of a parameter table. The per-dose
 #' vaccine schedule is read as `vax.<pathogen>.<field>.dose<i>`, for doses 1 to
-#' `vax.<pathogen>.n.doses`.
+#' `vax.<pathogen>.n.doses`, and each pathogen's product has an age window,
+#' `vax.<pathogen>.age.min` and `.age.max` (#74).
 #'
 #' Not listed: `hh.pairs`, the parameters of the removed CorporateMix
 #' modifiers and the parameters the redo replaced (`rs.rate`, `prop.hospit`,
@@ -130,7 +136,7 @@ gmc19_known_params <- function(design = c("all", "relationship", "legacy"),
     stop("`n.doses` must be non-negative dose counts named by pathogen", call. = FALSE)
   }
   schedule <- unlist(lapply(names(n.doses), function(p) {
-    c(paste0("vax.", p, ".n.doses"),
+    c(paste0("vax.", p, ".n.doses"), paste0("vax.", p, ".age.min"), paste0("vax.", p, ".age.max"),
       as.vector(outer(vax_dose_fields, seq_len(n.doses[[p]]),
                       function(f, i) paste0("vax.", p, ".", f, ".dose", i))))
   }))

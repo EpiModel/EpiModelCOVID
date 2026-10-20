@@ -34,6 +34,7 @@ init_gmc19 <- function(x, param, init, control, s) {
   check_import_params(dat)
   check_prior_immunity(dat)
   check_vax_schedule(dat)
+  check_vax_campaign(dat)
 
   # GlobalMix India #61: sex and occupation class come with the population, as
   # vertex attributes of the networks, like age and hh.ids
@@ -242,7 +243,16 @@ replaced_params <- c(
   prop.hospit.infant6 = "ihr on the infant severity bands (#71)",
   dis.death.rate = "ifr, deaths per infection by severity band, drawn once per episode (#71)",
   dis.death.rate.infant = "ifr on the infant severity bands (#71)",
-  dis.death.rate.infant6 = "ifr on the infant severity bands (#71)"
+  dis.death.rate.infant6 = "ifr on the infant severity bands (#71)",
+  # the allocation model (#74): one budget, throughput schedule and start for
+  # every arm, willingness, and eligibility by product
+  vax.supply.rate = "vax.budget and vax.delivery.days, a dose budget released on a calendar schedule (#74)",
+  vax.supply.total = "vax.budget, a cumulative budget in doses administered (#74)",
+  vax.infant.eligible = "vax.<pathogen>.age.min, the product's licensure age (#74)",
+  stats::setNames(as.list(rep("vax.start, one campaign start day for every arm (#74)", 9)),
+                  as.vector(outer(c("covid", "flu", "rsv"), 1:3, function(p, i) paste0("vax.", p, ".start.dose", i)))),
+  stats::setNames(as.list(rep("vax.willing by vaccine age group, and the campaign's throughput schedule (#74)", 9)),
+                  as.vector(outer(c("covid", "flu", "rsv"), 1:3, function(p, i) paste0("vax.", p, ".rate.dose", i))))
 )
 
 check_retired_params <- function(dat) {

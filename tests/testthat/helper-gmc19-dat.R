@@ -18,7 +18,7 @@ nh_dat <- function(N, age = 30, ...) {
   na <- rep(NA, N)
   attrs <- list(status = rep("s", N), statusTime = na, infTime = na, clinical = na, hospit = na,
                 fatal = na, recTime = na, inf.count = rep(0, N), ever.inf = rep(0, N),
-                ever.sympt = rep(0, N), prior.immune = rep(0, N), vax = rep(0, N),
+                ever.sympt = rep(0, N), prior.immune = rep(0, N), vax = rep(0, N), vax.willing = rep(1L, N),
                 last.dose.time = na, age = rep_len(age, N), deg_work = rep(0, N),
                 degree_quartile = rep(1, N), is_bridge = rep(FALSE, N), hh.ids = na)
   for (a in names(attrs)) dat <- set_attr(dat, a, attrs[[a]])
@@ -40,5 +40,28 @@ mock_ve <- function(ve_rr = c(infect = 1, clinical = 1, hosp = 1, death = 1, inf
     },
     vax_age_group_for = function(dat) rep(NA_integer_, length(get_attr(dat, "active"))),
     .package = "EpiModelCOVID", .env = env)
+}
+
+
+# One pathogen's schedule (the vaccine and allocation tests) of n.doses doses with marginal VE by outcome; a value
+# may be one per vaccine age group (5)
+ve_params <- function(infect = 0.3, clinical = 0.5, hosp = 0.8, death = 0.9, infectious = 0.5,
+                      halflife = 200, floor = 0, delay = 14, n.doses = 1, ...) {
+  p <- list(vax.covid.n.doses = n.doses, vax.age.breaks = c(0, 5, 18, 50, 65, Inf), pathogen = "covid",
+            # no campaign unless a test sets one (#74)
+            vax.budget = 0, vax.delivery.days = 1, vax.start = 1, vax.willing = 1,
+            vax.covid.age.min = 0, vax.covid.age.max = Inf)
+  for (i in seq_len(n.doses)) {
+    d <- paste0(".dose", i)
+    p[[paste0("vax.covid.interval", d)]] <- if (i == 1) NA else 21
+    p[[paste0("vax.covid.annual", d)]] <- FALSE
+    p[[paste0("vax.covid.ve.delay", d)]] <- delay
+    for (o in c("infect", "clinical", "hosp", "death", "infectious")) {
+      p[[paste0("vax.covid.ve.peak.", o, d)]] <- get(o)
+      p[[paste0("vax.covid.ve.halflife.", o, d)]] <- halflife
+      p[[paste0("vax.covid.ve.floor.", o, d)]] <- floor
+    }
+  }
+  utils::modifyList(p, list(...))
 }
 

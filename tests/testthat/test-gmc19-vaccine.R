@@ -2,27 +2,6 @@
 # conditional stage relative risks, the onset delay, age-specific VE, protection
 # against infectiousness, and the schedule check
 
-# One pathogen's schedule of n.doses doses with marginal VE by outcome; a value
-# may be one per vaccine age group (5)
-ve_params <- function(infect = 0.3, clinical = 0.5, hosp = 0.8, death = 0.9, infectious = 0.5,
-                      halflife = 200, floor = 0, delay = 14, n.doses = 1, ...) {
-  p <- list(vax.covid.n.doses = n.doses, vax.age.breaks = c(0, 5, 18, 50, 65, Inf), pathogen = "covid")
-  for (i in seq_len(n.doses)) {
-    d <- paste0(".dose", i)
-    p[[paste0("vax.covid.start", d)]] <- rep(1, 5)
-    p[[paste0("vax.covid.rate", d)]] <- rep(0, 5)
-    p[[paste0("vax.covid.interval", d)]] <- if (i == 1) NA else 21
-    p[[paste0("vax.covid.annual", d)]] <- FALSE
-    p[[paste0("vax.covid.ve.delay", d)]] <- delay
-    for (o in c("infect", "clinical", "hosp", "death", "infectious")) {
-      p[[paste0("vax.covid.ve.peak.", o, d)]] <- get(o)
-      p[[paste0("vax.covid.ve.halflife.", o, d)]] <- halflife
-      p[[paste0("vax.covid.ve.floor.", o, d)]] <- floor
-    }
-  }
-  utils::modifyList(p, list(...))
-}
-
 # N people, the first half dosed `since` days before day 1
 dosed_dat <- function(N, since = 30, age = 30, ...) {
   dat <- do.call(nh_dat, c(list(N = N, age = age), ve_params(...)))
@@ -58,8 +37,6 @@ test_that("a VE field holds one value per dose or one per vaccine age group, and
   expect_error(build_vax_schedule(bad, "covid"), "one, or one per vaccine age group, 5")
   bad <- do.call(nh_dat, c(list(N = 5), ve_params(vax.covid.ve.delay.dose1 = c(14, 14))))
   expect_error(build_vax_schedule(bad, "covid"), "needs one")
-  bad <- do.call(nh_dat, c(list(N = 5), ve_params(vax.covid.rate.dose1 = 0.1)))
-  expect_error(build_vax_schedule(bad, "covid"), "one per vaccine age group, 5")
 })
 
 test_that("VE is 0 before the onset delay, the peak at it, and wanes toward the floor from there", {

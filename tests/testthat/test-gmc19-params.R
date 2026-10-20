@@ -87,11 +87,13 @@ test_that("the names EpiModel sets are listed", {
 
 test_that("build_vax_schedule() reads exactly the listed per-dose names", {
   known <- gmc19_known_params(n.doses = c(covid = 2))
-  sched <- grep("^vax\\.covid\\.", known, value = TRUE)
+  # the product's age window (#74) is read by check_vax_campaign(), the rest
+  # by build_vax_schedule()
+  expect_true(all(c("vax.covid.age.min", "vax.covid.age.max") %in% known))
+  sched <- grep("^vax\\.covid\\.(n\\.doses|.+\\.dose[0-9]+)$", known, value = TRUE)
   expect_length(sched, 1 + 2 * length(EpiModelCOVID:::vax_dose_fields))
   value <- function(nm) {
-    if (grepl("\\.(start|rate)\\.dose", nm)) rep(20, 5)
-    else if (grepl("annual", nm)) FALSE
+    if (grepl("annual", nm)) FALSE
     else if (nm == "vax.covid.n.doses") 2
     else 0.5
   }
@@ -100,7 +102,7 @@ test_that("build_vax_schedule() reads exactly the listed per-dose names", {
   vs <- EpiModelCOVID:::build_vax_schedule(dat, "covid")
   expect_identical(nrow(vs), 2L)
   expect_setequal(names(vs), c("dose", EpiModelCOVID:::vax_dose_fields))
-  expect_equal(vs$start[[2]], rep(20, 5))
+  expect_equal(vs$interval[[2]], 0.5)
   expect_equal(unlist(vs$ve.peak.death), c(0.5, 0.5))
   # every listed name is read: without it the schedule cannot be built
   for (nm in sched) {
