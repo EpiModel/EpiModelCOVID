@@ -326,3 +326,79 @@ test_that("the parameters the redo replaced stop the run", {
     expect_error(EpiModelCOVID:::check_retired_params(dat), paste0("no longer reads ", p))
   }
 })
+
+# The exact severity check (GlobalMix India #71, follow-up 1). "Realized IFR and
+# IHR within 10% by band" needs about 385 events per band, which 67 of the 144
+# band-measures cannot reach at any affordable sample size. The rebuild makes
+# the error class that criterion was written for impossible by construction
+# (death is drawn once per episode and a fatal episode always dies), so what is
+# left to verify is the derivation and the plumbing, and that is deterministic:
+# the probabilities progress_general() hands rbinom() are read off the draws.
+capture_rbinom <- function(env = parent.frame()) {
+  probs <- list()
+  local_mocked_bindings(
+    rbinom = function(n, size, prob) {
+      if (n > 0) probs[[length(probs) + 1]] <<- prob
+      stats::rbinom(n, size, prob)
+    }, .package = "EpiModelCOVID", .env = env)
+  function() probs
+}
+
+# N people at symptom onset on day 1, one in each severity band
+onset_dat <- function(...) {
+  dat <- nh_dat(12, age = ages12, ...)
+  dat <- set_attr(dat, "status", rep("ic", 12))
+  dat <- set_attr(dat, "statusTime", rep(1, 12))
+  dat <- set_attr(dat, "infTime", rep(1, 12))
+  set_attr(dat, "clinical", rep(1, 12))
+}
+
+test_that("the admission and death probabilities the engine draws with are ihr / prop.clinical and ifr / prop.clinical by band, exactly", {
+  mock_ve()
+  pc <- c(0.29, 0.29, 0.29, 0.29, 0.21, 0.27, 0.33, 0.4, 0.49, 0.63, 0.69, 0.69)
+  ihr <- c(0.036, 0.0082, 0.0028, 0.0018, 0.0022, 0.0047, 0.01, 0.021, 0.044, 0.088, 0.167, 0.305)
+  ifr <- c(4.5e-5, 4.5e-5, 4.5e-5, 1.5e-5, 3e-5, 1.42e-4, 4.8e-4, 1.45e-3, 3.89e-3, 0.0108, 0.0338, 0.0829)
+  dat <- onset_dat(prop.clinical = pc, ihr = ihr, ifr = ifr)
+  expect_identical(EpiModelCOVID:::sev_band(dat, ages12), 1:12)
+  drawn <- capture_rbinom()
+  dat <- progress_general(dat, 1)
+  p <- drawn()
+  # one admission draw and one death draw, over the 12 people in band order
+  expect_length(p, 2)
+  expect_identical(p[[1]], ihr / pc)
+  expect_identical(p[[2]], ifr / pc)
+  expect_false(anyNA(get_attr(dat, "hospit")))
+  expect_false(anyNA(get_attr(dat, "fatal")))
+
+  # a band with no symptomatic disease draws neither admission nor death
+  pc0 <- pc; pc0[5] <- 0
+  dat <- onset_dat(prop.clinical = pc0, ihr = replace(ihr, 5, 0), ifr = replace(ifr, 5, 0))
+  drawn <- capture_rbinom()
+  dat <- progress_general(dat, 1)
+  expect_identical(drawn()[[1]][5], 0)
+  expect_identical(drawn()[[2]][5], 0)
+})
+
+test_that("death.hosp.rr holds the death probability per symptomatic case at any value, in every band", {
+  pc <- seq(0.2, 0.75, length.out = 12)
+  p_hosp <- pc * seq(0.01, 0.45, length.out = 12) / pc
+  p_death <- pc * seq(0.0001, 0.12, length.out = 12) / pc
+  for (rr in c(0, 0.25, 0.5, 1, 2, 5, 20, 1000)) {
+    d0 <- EpiModelCOVID:::death_given_admission(p_death, p_hosp, rep(0, 12), rr)
+    d1 <- EpiModelCOVID:::death_given_admission(p_death, p_hosp, rep(1, 12), rr)
+    expect_equal(p_hosp * d1 + (1 - p_hosp) * d0, p_death, tolerance = 1e-12)
+    if (rr > 0) expect_equal(d1 / d0, rep(rr, 12), tolerance = 1e-12)
+  }
+  # and the draw itself uses it: at rr = 3 the death draw for an admitted case
+  # is 3 times that of one not admitted
+  mock_ve()
+  set.seed(11)
+  dat <- onset_dat(prop.clinical = rep(0.5, 12), ihr = rep(0.25, 12), ifr = rep(0.05, 12), death.hosp.rr = 3)
+  drawn <- capture_rbinom()
+  dat <- progress_general(dat, 1)
+  h <- get_attr(dat, "hospit")
+  d <- drawn()[[2]]
+  base <- 0.1 / (0.5 * 3 + 0.5)
+  expect_identical(d[h == 1], rep(3 * base, sum(h == 1)))
+  expect_identical(d[h == 0], rep(base, sum(h == 0)))
+})
