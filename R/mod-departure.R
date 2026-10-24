@@ -84,6 +84,9 @@ deaths_covid_gmc19 <- function(dat, at) {
       # runs between here and nwupdate.FUN must skip active == 0.
       dat <- set_attr(dat, "active", 0, posit_ids = idsDep)
       dat <- set_attr(dat, "exitTime", at, posit_ids = idsDep)
+      # The departed who had ever been infected or symptomatic, cumulatively, so
+      # the person counts include the dead (GlobalMix India #77; mod-counts.R)
+      dat <- record_departed(dat, idsDep)
     }
   }
 
@@ -112,6 +115,26 @@ deaths_covid_gmc19 <- function(dat, at) {
                    sum(age_grp_disdep == g, na.rm = TRUE), at = at)
     dat <- set_epi(dat, paste0("d.dis.flow.unvax.age", g),
                    sum(age_grp_disdep == g & !vax_disdep, na.rm = TRUE), at = at)
+  }
+  ## Disease deaths by severity band (the infant sub-bands and the 60+ decades),
+  ## and years of life lost from exact age at death (GlobalMix India #77):
+  ## yll.le is the setting's remaining life expectancy by single year of age
+  ## (supplied at deploy, like mort.rates), undiscounted and discounted at
+  ## yll.discount (mod-counts.R). The analysis used to weight the six age bands'
+  ## deaths by one constant each, rural values for both settings.
+  nSev <- length(get_param(dat, "sev.age.breaks")) - 1
+  sev_disdep <- if (nDisDeaths > 0) tabulate(sev_band(dat, age_disdep), nSev) else numeric(nSev)
+  for (k in seq_len(nSev)) dat <- set_epi(dat, paste0("d.dis.flow.sev", k), sev_disdep[k], at = at)
+  le <- get_param(dat, "yll.le", override.null.error = TRUE)
+  if (!is.null(le)) {
+    L <- yll_remaining(age_disdep, le)
+    Ld <- yll_discounted(L, param_or(dat, "yll.discount", 0.03))
+    dat <- set_epi(dat, "yll.flow", sum(L), at = at)
+    dat <- set_epi(dat, "yll.disc.flow", sum(Ld), at = at)
+    for (g in seq_len(nAgeGrp)) {
+      dat <- set_epi(dat, paste0("yll.flow.age", g), sum(L[age_grp_disdep == g]), at = at)
+      dat <- set_epi(dat, paste0("yll.disc.flow.age", g), sum(Ld[age_grp_disdep == g]), at = at)
+    }
   }
 
   return(dat)

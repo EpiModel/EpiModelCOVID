@@ -64,6 +64,8 @@ infect_general <- function(dat, at) {
   nLayers <- length(types)
   nInf <- rep(0, nLayers)
   allNewInf <- integer(0)  # newly infected across all layers + imports, for stratified incidence
+  netNewInf <- integer(0)  # the network infections, and the tie type of each (#77)
+  netLayer <- integer(0)
 
   # Daily transmission probability on each discordant pair (sus, inf) of one tie
   # type, with every per-contact multiplier. The transmission draws and the
@@ -164,6 +166,8 @@ infect_general <- function(dat, at) {
         if (nInf[layer] > 0) {
           dat <- start_episode(dat, idsNewInf, at)
           allNewInf <- c(allNewInf, idsNewInf)
+          netNewInf <- c(netNewInf, idsNewInf)
+          netLayer <- c(netLayer, rep(layer, nInf[layer]))
         }
       }
     }
@@ -266,6 +270,19 @@ infect_general <- function(dat, at) {
     dat <- set_epi(dat, paste0("se.flow.age", g), sum(ag == g, na.rm = TRUE), at = at)
     dat <- set_epi(dat, paste0("se.flow.first.age", g), sum(ag == g & first, na.rm = TRUE), at = at)
   }
+  ## Network infections by tie type and age band (#77): se.flow.<type>.age<g>
+  ## partitions se.flow.<type>, and over the tie types se.flow.age<g> less the
+  ## imports and the background hazard. A person is attributed to the tie type
+  ## whose draw infected them, the tie types drawn in layer order with the
+  ## household last; the #68 check (tie_type_check.R) measures what that order
+  ## costs against the order-free competing-risk shares.
+  ag_net <- cut(age[netNewInf], age.breaks, labels = FALSE, right = FALSE)
+  for (k in seq_along(types)) {
+    for (g in seq_len(length(age.breaks) - 1)) {
+      dat <- set_epi(dat, paste0("se.flow.", types[k], ".age", g),
+                     sum(netLayer == k & ag_net == g, na.rm = TRUE), at = at)
+    }
+  }
   if (sev_diagnostics(dat)) dat <- sev_flows(dat, at, "inf", allNewInf, first)
   if (vax_diagnostics(dat)) dat <- vd_flows(dat, at, "inf", allNewInf)
   vaxed_new <- vax[allNewInf] >= 1
@@ -284,6 +301,14 @@ infect_general <- function(dat, at) {
     dq_new <- degree_quartile[allNewInf]
     for (q in 1:4) dat <- set_epi(dat, paste0("se.flow.degQ", q), sum(dq_new == q, na.rm = TRUE), at = at)
   }
+  # and by the baseline quartile fixed on day 2 (#77; netdegree()), with the
+  # people born since, who have none, as quartile 0 so the five sum to se.flow
+  degree_quartile_base <- get_attr(dat, "degree_quartile_base", override.null.error = TRUE)
+  if (!is.null(degree_quartile_base)) {
+    qb_new <- degree_quartile_base[allNewInf]
+    qb_new[is.na(qb_new)] <- 0L
+    for (q in 0:4) dat <- set_epi(dat, paste0("se.flow.degQb", q), sum(qb_new == q), at = at)
+  }
   is_bridge <- get_attr(dat, "is_bridge")
   if (!is.null(is_bridge)) {
     br_new <- is_bridge[allNewInf]
@@ -297,6 +322,7 @@ infect_general <- function(dat, at) {
   if (!is.null(is_infant)) {
     inf_new <- is_infant[allNewInf]
     dat <- set_epi(dat, "se.flow.infant", sum(inf_new, na.rm = TRUE), at = at)
+    dat <- set_epi(dat, "se.flow.first.infant", sum(inf_new & first, na.rm = TRUE), at = at)  # #77
     dat <- set_epi(dat, "se.flow.infant.unvax", sum(inf_new & !vaxed_new, na.rm = TRUE), at = at)
     dat <- set_epi(dat, "se.flow.infant.vax", sum(inf_new & vaxed_new, na.rm = TRUE), at = at)
     # Infant severity is sharply front-loaded, so the RSV infant contrast has to
@@ -333,13 +359,17 @@ infect_general <- function(dat, at) {
   ## study's. Emitted as two series rather than a ratio so the analysis can
   ## aggregate before dividing; a per-step ratio would be undefined whenever no
   ## household is exposed.
+  ##
+  ## Both are taken on the state at the START of the step (#77): the infectious
+  ## set is the one the transmission draws used, a, ip and ic (the admitted do
+  ## not transmit here), and the denominator counts the susceptibles exposed
+  ## before this step's infections removed them from it. The denominator used to
+  ## be read after the infections and to count admitted members as infectious.
   hh.ids <- get_attr(dat, "hh.ids")
   if (!is.null(hh.ids)) {
-    status_now <- get_attr(dat, "status")
     # NA is "in no household", not a household, so it never matches
-    hh_infectious <- unique(hh.ids[active == 1 & status_now %in% c("a", "ip", "ic", "h") &
-                                     !is.na(hh.ids)])
-    exposed_sus <- active == 1 & status_now == "s" & hh.ids %in% hh_infectious
+    hh_infectious <- unique(hh.ids[active == 1 & status %in% c("a", "ip", "ic") & !is.na(hh.ids)])
+    exposed_sus <- active == 1 & status == "s" & hh.ids %in% hh_infectious
     dat <- set_epi(dat, "hh.sar.den", sum(exposed_sus, na.rm = TRUE), at = at)
     hh <- hh_layer(dat)
     hh_type <- if (is.na(hh)) NA_integer_ else match(names(dat$run$el)[hh], types)

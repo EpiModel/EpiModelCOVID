@@ -125,6 +125,56 @@ prevalence_covid_corporate <- function(dat, at) {
     dat <- set_epi(dat, paste0("n.age", g), sum(alive & ag == g, na.rm = TRUE), at = at)
   }
 
+  ## Decedent-inclusive persons and the day-1 cohort (GlobalMix India #77;
+  ## mod-counts.R). The living-only counts above fall when an infected person
+  ## dies, while every episode they had stays in se.flow, so a person-level
+  ## attack rate built on them mixes a survivor numerator with full-run counts
+  ## (and the sickest die most). ever.inf.pers adds the departed who had ever
+  ## been infected (ever.inf.dead, by age band at death) to the living; over the
+  ## run it equals the seeds plus the cumulative first infections. The cohort is
+  ## the people present on day 1 (entrTime 1): its living members, the dead among
+  ## them, and its ever-infected living and dead, which with num on day 1 gives
+  ## the closed-cohort attack rate.
+  dep <- departed_counts(dat)
+  cohort <- alive & get_attr(dat, "entrTime") %in% 1
+  if (!is.null(ever.inf)) {
+    live_inf <- alive & ever.inf %in% 1
+    dat <- set_epi(dat, "ever.inf.dead", dep$inf, at = at)
+    dat <- set_epi(dat, "ever.inf.pers", sum(live_inf) + dep$inf, at = at)
+    for (g in seq_len(nAge)) {
+      dat <- set_epi(dat, paste0("ever.inf.dead.age", g), dep$inf.age[g], at = at)
+      dat <- set_epi(dat, paste0("ever.inf.pers.age", g),
+                     sum(live_inf & ag == g, na.rm = TRUE) + dep$inf.age[g], at = at)
+    }
+    dat <- set_epi(dat, "n.cohort", sum(cohort), at = at)
+    dat <- set_epi(dat, "d.cohort", dep$cohort, at = at)
+    dat <- set_epi(dat, "ever.inf.cohort", sum(live_inf & cohort), at = at)
+    dat <- set_epi(dat, "ever.inf.cohort.pers", sum(live_inf & cohort) + dep$inf.cohort, at = at)
+  }
+  if (!is.null(ever.sympt)) {
+    live_sy <- alive & ever.sympt %in% 1
+    dat <- set_epi(dat, "ever.sympt.dead", dep$sympt, at = at)
+    dat <- set_epi(dat, "ever.sympt.pers", sum(live_sy) + dep$sympt, at = at)
+    for (g in seq_len(nAge)) {
+      dat <- set_epi(dat, paste0("ever.sympt.pers.age", g),
+                     sum(live_sy & ag == g, na.rm = TRUE) + dep$sympt.age[g], at = at)
+    }
+  }
+
+  ## Person-time by severity band (#77): the twelve bands of #71 give the infant
+  ## sub-bands and the 60+ decades, the denominators of the age-specific
+  ## severity outcomes (d.dis.flow.sev*, sev.*), and by vaccine age group, the
+  ## denominators of coverage by band (nVax.vaxage*). Summed over time these
+  ## are person-days, like n.age*.
+  nSev <- length(get_param(dat, "sev.age.breaks")) - 1
+  n_sev <- tabulate(sev_band(dat, age[alive]), nSev)
+  for (k in seq_len(nSev)) dat <- set_epi(dat, paste0("n.sev", k), n_sev[k], at = at)
+  vax.age.breaks <- get_param(dat, "vax.age.breaks", override.null.error = TRUE)
+  if (!is.null(vax.age.breaks)) {
+    n_vax <- tabulate(cut(age[alive], vax.age.breaks, labels = FALSE, right = FALSE), length(vax.age.breaks) - 1)
+    for (k in seq_along(n_vax)) dat <- set_epi(dat, paste0("n.vaxage", k), n_vax[k], at = at)
+  }
+
   ## Infant person-time, split at 6 months (issue #46). Infant N was never
   ## stored, so the infant series had no denominator at all and infant outcomes
   ## could only be reported per 100 of the WHOLE population, which buries the
@@ -139,6 +189,9 @@ prevalence_covid_corporate <- function(dat, at) {
     dat <- set_epi(dat, "n.infant.old",   sum(inf_alive & age >= 0.5, na.rm = TRUE), at = at)
     if (!is.null(ever.inf)) {
       dat <- set_epi(dat, "ever.inf.infant", sum(inf_alive & ever.inf == 1, na.rm = TRUE), at = at)
+      # with the departed who died as infants after an infection (#77)
+      dat <- set_epi(dat, "ever.inf.pers.infant",
+                     sum(inf_alive & ever.inf == 1, na.rm = TRUE) + dep$inf.infant, at = at)
     }
     ## Infant households (GlobalMix India #65, #77): the households with a
     ## living infant, and the living people other than infants who share one,

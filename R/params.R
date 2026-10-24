@@ -36,7 +36,10 @@ gmc19_params_common <- c(
   # window (#74)
   "pathogen", "vax.strategy", "vax.budget", "vax.delivery.days", "vax.start", "vax.willing",
   "vax.age.breaks", "vax.infant.product", "vax.season.length", "vax.target.uptake",
-  "vax.hybrid.frac", "vax.degree.score", "compute.degree", "vax.diagnostics"
+  "vax.hybrid.frac", "vax.degree.score", "compute.degree", "vax.diagnostics",
+  # years of life lost from exact age at death (#77): remaining life expectancy
+  # by single year of age, and the discount rate
+  "yll.le", "yll.discount"
 )
 
 # Read only by the relationship model (#63): the activation step, the traits and

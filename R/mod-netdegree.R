@@ -89,6 +89,46 @@ netdegree <- function(dat, at) {
   dat <- set_attr(dat, "degree_quartile", degree_quartile)
   dat <- set_epi(dat, "mean_degree_daily", mean(daily_degree), at = at)
 
+  # Fixed-day scalars (GlobalMix India #77): on day 2, the first step, and on
+  # the day the campaign opens (the first step at or after vax.start), the
+  # eta-squared of degree on age band for total, non-household and
+  # hazard-weighted degree (#58 item 8: the share of network position that age
+  # carries), and each layer's mean degree. Read at a fixed day from the
+  # population then alive, rather than as time-means weighted by day-1 band
+  # sizes, so the population's drift over the run does not enter them. The
+  # hazard-weighted degree is computed for the scalar when no strategy ranks on
+  # it, two passes a run.
+  alloc_day <- max(2, param_or(dat, "vax.start", 2))
+  tags <- c(if (at == 2) "d2", if (at == alloc_day) "alloc")
+  if (length(tags) > 0) {
+    if (activation_on(dat) && !score_name %in% c("active", "hazard")) dat <- relationship_scores(dat, at)
+    hazard <- if (activation_on(dat)) get_attr(dat, "degree_hazard")
+    live <- get_attr(dat, "active") == 1
+    band <- match(age.grp, get_param(dat, "age.grps"))
+    for (tag in tags) {
+      dat <- set_epi(dat, paste0("eta2.total.", tag), eta_squared(degree_total[live], band[live]), at = at)
+      dat <- set_epi(dat, paste0("eta2.xlayer.", tag), eta_squared(degree_xlayer[live], band[live]), at = at)
+      if (!is.null(hazard)) {
+        dat <- set_epi(dat, paste0("eta2.hazard.", tag), eta_squared(hazard[live], band[live]), at = at)
+      }
+      for (nm in names(deg_net)) {
+        dat <- set_epi(dat, paste0("mean_degree_", nm, ".", tag), mean(deg_net[[nm]][live]), at = at)
+      }
+      dat <- set_epi(dat, paste0("mean_degree_hh.", tag), mean(degree_hh[live]), at = at)
+      dat <- set_epi(dat, paste0("mean_degree_total.", tag), mean(degree_total[live]), at = at)
+      dat <- set_epi(dat, paste0("mean_degree_daily.", tag), mean(daily_degree[live]), at = at)
+    }
+  }
+  # A baseline degree quartile (#77): the score's quartile on day 2 with ties
+  # broken at random, kept for the run (newborns have none). The daily quartile
+  # above follows the current score and splits ties by mid-rank. The random
+  # tie-break draws from a side stream (with_side_rng(), mod-counts.R), so the
+  # simulation's own draws are what they were without it.
+  if (at == 2) {
+    dat <- set_attr(dat, "degree_quartile_base",
+                    with_side_rng(score_quartile(score, get_attr(dat, "active") == 1)))
+  }
+
   dat
 }
 

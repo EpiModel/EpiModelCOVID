@@ -19,6 +19,9 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     degree_total=0,
     degree_xlayer=0,
     degree_quartile=NA,
+    # the score's quartile on day 2, kept for the run (GlobalMix India #77);
+    # newborns have none
+    degree_quartile_base = NA,
     # relationship traits and activation (GlobalMix India #63). never, log_aF and
     # log_aI come from the fitted networks at initialization and are drawn for
     # newborns in make_computed_attrs(); o_i is drawn there for everyone.

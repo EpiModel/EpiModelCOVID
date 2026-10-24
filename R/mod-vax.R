@@ -162,6 +162,36 @@ vax_general <- function(dat, at) {
   dat <- set_epi(dat, "nVax.sus", sum(st_new == "s" & ever.inf[ids_newly_vaxed] == 0), at = at)
   dat <- set_epi(dat, "nVax.prior", sum(st_new == "s" & ever.inf[ids_newly_vaxed] == 1), at = at)
   dat <- set_epi(dat, "nVax.rec", sum(st_new == "r"), at = at)
+  ## and two the eligibility rule should keep empty or small (#77): recipients
+  ## in an infected state at the dose (none under #74, which doses s and r only)
+  ## and recipients immune from before the run (#70; in r for the whole run, so
+  ## a subset of nVax.rec). The four states plus nVax.inf sum to daily_vax_total.
+  dat <- set_epi(dat, "nVax.inf", sum(st_new %in% c("e", "a", "ip", "ic", "h")), at = at)
+  prior.immune <- get_attr(dat, "prior.immune", override.null.error = TRUE)
+  dat <- set_epi(dat, "nVax.immune",
+                 if (is.null(prior.immune)) 0L else sum(prior.immune[ids_newly_vaxed] %in% 1), at = at)
+  ## Doses by model age band, infants and vaccine age group, per step (#77).
+  ## Summed over the run they are cumulative doses by band whatever happens to
+  ## the recipients afterwards; the cov_vax* shares below count the living
+  ## vaccinated over the living, so they fall when a vaccinated person dies.
+  age.breaks <- get_param(dat, "age.breaks")
+  ag_new <- cut(age[ids_newly_vaxed], age.breaks, labels = FALSE, right = FALSE)
+  for (g in seq_len(length(age.breaks) - 1)) {
+    dat <- set_epi(dat, paste0("nVax.age", g), sum(ag_new == g, na.rm = TRUE), at = at)
+  }
+  dat <- set_epi(dat, "nVax.infant",
+                 if (is.null(is_infant)) 0L else sum(is_infant[ids_newly_vaxed] %in% TRUE), at = at)
+  vg_new <- vax.age.group[ids_newly_vaxed]
+  for (k in seq_len(length(get_param(dat, "vax.age.breaks")) - 1)) {
+    dat <- set_epi(dat, paste0("nVax.vaxage", k), sum(vg_new == k, na.rm = TRUE), at = at)
+  }
+  ## The day the campaign opens (the first step at or after vax.start), with the
+  ## eligible and the willing eligible pools that day, which size the budget
+  if (!is.null(camp) && at == max(camp$start, 2)) {
+    dat <- set_epi(dat, "alloc.day", at, at = at)
+    dat <- set_epi(dat, "n.elig.alloc", n_elig_any, at = at)
+    dat <- set_epi(dat, "n.elig.willing.alloc", length(ids_elig_all), at = at)
+  }
 
   ## Age-specific vax coverage #TODO: this needs to be turned to loop like the above
   dat <- set_epi(dat, "cov_vax1_0to4", length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)), at = at)
@@ -187,6 +217,14 @@ vax_general <- function(dat, at) {
   if (!is.null(degree_quartile)) {
     for (q in 1:4) dat <- set_epi(dat, paste0("cov_vax1_degQ", q),
       length(which(degree_quartile == q & vax >= 1)) / max(1, length(which(degree_quartile == q))), at = at)
+  }
+  # and by the baseline quartile fixed on day 2 (#77; netdegree()): the daily
+  # quartile follows the current score, so a hub's coverage read on it moves
+  # with the hub's ties
+  degree_quartile_base <- get_attr(dat, "degree_quartile_base", override.null.error = TRUE)
+  if (!is.null(degree_quartile_base)) {
+    for (q in 1:4) dat <- set_epi(dat, paste0("cov_vax1_degQb", q),
+      length(which(degree_quartile_base == q & vax >= 1)) / max(1, length(which(degree_quartile_base == q))), at = at)
   }
   if (!is.null(is_bridge)) {
     dat <- set_epi(dat, "cov_vax1_bridge",
