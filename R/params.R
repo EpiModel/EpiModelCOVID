@@ -35,11 +35,15 @@ gmc19_params_common <- c(
   # every arm, with willingness by vaccine age group and the product's age
   # window (#74)
   "pathogen", "vax.strategy", "vax.budget", "vax.delivery.days", "vax.start", "vax.willing",
-  "vax.age.breaks", "vax.infant.product", "vax.season.length", "vax.degree.score",
+  "vax.age.breaks", "vax.season.length", "vax.degree.score",
   "compute.degree", "vax.diagnostics",
   # the strategy set (#75): the frozen degree ranking, the precision arm's rank
   # correlation, the hybrid's reserve, and the proxy_obs coefficients
   "vax.degree.frozen", "vax.rank.spearman", "vax.hybrid.f", "vax.hybrid.age", "vax.proxy.coef",
+  # the infant products' dose line and the cocoon tier (#76); the products'
+  # efficacy is in infant_prog_fields
+  "vax.infant.program", "vax.infant.coverage", "vax.infant.catchup.months", "vax.maternal.mother",
+  "vax.maternal.lead", "vax.cocoon.age.min", "vax.cocoon.age.max", "vax.cocoon.infant.months",
   # years of life lost from exact age at death (#77): remaining life expectancy
   # by single year of age, and the discount rate
   "yll.le", "yll.discount"
@@ -86,6 +90,12 @@ vax_dose_by_age <- character(0)   # start and rate were by age; the campaign rep
 vax_ve_outcomes <- c("infect", "clinical", "hosp", "death", "infectious")
 vax_dose_scalar <- c("interval", "annual", "ve.delay")
 
+# The RSV infant products (GlobalMix India #76), read by infant_prog_pars() as
+# vax.<product>.<field>: the peak marginal VE by outcome, and the onset delay,
+# the end of the plateau and the day the protection reaches 0 (passive_ve())
+infant_products <- c("nirsevimab", "maternal")
+infant_prog_fields <- c(paste0("ve.peak.", vax_ve_outcomes), "ve.delay", "ve.plateau", "ve.duration")
+
 # Read only by the CorporateMix modules still in the package
 # (infect_covid_corporate(), progress_covid_corporate(), vax_covid_corporate(),
 # dx_covid_corporate(), isolate_covid_corporate()), which are not part of the
@@ -118,7 +128,9 @@ corporate_params <- c(
 #' set by EpiModel itself, and none is a row of a parameter table. The per-dose
 #' vaccine schedule is read as `vax.<pathogen>.<field>.dose<i>`, for doses 1 to
 #' `vax.<pathogen>.n.doses`, and each pathogen's product has an age window,
-#' `vax.<pathogen>.age.min` and `.age.max` (#74).
+#' `vax.<pathogen>.age.min` and `.age.max` (#74). The RSV infant products'
+#' efficacy is read as `vax.<product>.<field>` for the products `nirsevimab` and
+#' `maternal` (#76).
 #'
 #' Not listed: `hh.pairs`, the parameters of the removed CorporateMix
 #' modifiers and the parameters the redo replaced (`rs.rate`, `prop.hospit`,
@@ -146,8 +158,10 @@ gmc19_known_params <- function(design = c("all", "relationship", "legacy"),
       as.vector(outer(vax_dose_fields, seq_len(n.doses[[p]]),
                       function(f, i) paste0("vax.", p, ".", f, ".dose", i))))
   }))
+  # the infant products' efficacy (#76)
+  infant <- as.vector(outer(infant_products, infant_prog_fields, function(p, f) paste0("vax.", p, ".", f)))
   sort(unique(c(gmc19_params_common, if (design != "legacy") gmc19_params_relationship,
-                epimodel_params, schedule)))
+                epimodel_params, schedule, infant)))
 }
 
 # The model's rates and probabilities are per day, and EpiModel no longer sets

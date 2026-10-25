@@ -111,6 +111,20 @@ test_that("build_vax_schedule() reads exactly the listed per-dose names", {
   }
 })
 
+test_that("infant_prog_pars() reads exactly the listed infant product names", {
+  known <- gmc19_known_params(n.doses = numeric(0))
+  for (pr in EpiModelCOVID:::infant_products) {
+    nm <- grep(paste0("^vax\\.", pr, "\\.ve\\."), known, value = TRUE)
+    expect_length(nm, length(EpiModelCOVID:::infant_prog_fields))
+    param <- setNames(as.list(seq_along(nm) / 10), nm)
+    expect_length(EpiModelCOVID:::infant_prog_pars(create_dat_object(param = param), pr)$peak, 5)
+    for (x in nm) {
+      expect_error(EpiModelCOVID:::infant_prog_pars(create_dat_object(param = param[names(param) != x]), pr),
+                   info = x)
+    }
+  }
+})
+
 # init_gmc19() up to its first checks; nothing after them needs the networks
 init_param <- function(...) {
   param.net(inf.prob = rep(0.1, 2), layer.names = c("community", "home"), ...)

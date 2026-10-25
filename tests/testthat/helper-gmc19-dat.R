@@ -65,3 +65,27 @@ ve_params <- function(infect = 0.3, clinical = 0.5, hosp = 0.8, death = 0.9, inf
   utils::modifyList(p, list(...))
 }
 
+
+# The RSV infant products (GlobalMix India #76) at the registry's values: the
+# program, its coverage and catch-up age, the maternal vaccine's mother, and
+# both products' efficacy profiles
+infant_params <- function(program = "nirsevimab", coverage = 0.8, ...) {
+  p <- list(vax.infant.program = program, vax.infant.coverage = coverage, vax.infant.catchup.months = 8,
+            vax.maternal.mother = TRUE, vax.maternal.lead = 35)
+  peaks <- list(nirsevimab = c(0.10, 0.50, 0.80, 0.85, 0), maternal = c(0.30, 0.70, 0.90, 0.90, 0))
+  shape <- list(nirsevimab = c(1, 180, 365), maternal = c(0, 0, 270))
+  for (pr in names(peaks)) {
+    for (k in seq_along(peaks[[pr]])) {
+      p[[paste0("vax.", pr, ".ve.peak.", c("infect", "clinical", "hosp", "death", "infectious")[k])]] <- peaks[[pr]][k]
+    }
+    p[paste0("vax.", pr, ".ve.", c("delay", "plateau", "duration"))] <- as.list(shape[[pr]])
+  }
+  utils::modifyList(p, list(...))
+}
+
+# A vaccine parameter list moved from COVID-19 to RSV
+as_rsv <- function(p) {
+  names(p) <- sub("^vax\\.covid\\.", "vax.rsv.", names(p))
+  p$pathogen <- "rsv"
+  p
+}

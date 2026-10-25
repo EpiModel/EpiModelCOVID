@@ -25,7 +25,7 @@ infect_general <- function(dat, at) {
     inf_rr[idsInf] <- compute_ve(at = at, ids = idsInf, vax = vax,
                                  last.dose.time = get_attr(dat, "last.dose.time"),
                                  vax.schedule = vax.schedule, outcome = "infectious",
-                                 vax.age.group = vax_age_group_for(dat))$rr
+                                 vax.age.group = vax_age_group_for(dat), iprog = infant_prog_state(dat))$rr
   }
 
   # Per-layer parameters, one value per layer and named by layer. layer_param()

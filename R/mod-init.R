@@ -35,6 +35,8 @@ init_gmc19 <- function(x, param, init, control, s) {
   check_prior_immunity(dat)
   check_vax_schedule(dat)
   check_vax_campaign(dat)
+  # #76: the infant products' dose line and efficacy
+  check_infant_program(dat)
   # #77: the life expectancy and discount rate of the years-of-life-lost flow
   check_yll_params(dat)
 
@@ -73,7 +75,10 @@ init_gmc19 <- function(x, param, init, control, s) {
   # #65: the mothers of the youngest children, who cannot give birth again
   # within the birth interval
   if (births_placed(dat)) dat <- init_last_birth(dat)
-  
+  # #76: a maternal vaccine program already running protects the covered
+  # infants of the starting population from their birth
+  dat <- init_infant_program(dat)
+
   # # Infection status and related
   # dat <- init_status_gmc19(dat)
   
@@ -257,7 +262,9 @@ replaced_params <- c(
                   as.vector(outer(c("covid", "flu", "rsv"), 1:3, function(p, i) paste0("vax.", p, ".rate.dose", i)))),
   # the strategy set (#75)
   vax.target.uptake = "vax.rank.spearman, fixed per-person rank noise on the degree score (#75)",
-  vax.hybrid.frac = "vax.hybrid.f, the share of the willing 60+ the hybrid's reserve covers (#75)"
+  vax.hybrid.frac = "vax.hybrid.f, the share of the willing 60+ the hybrid's reserve covers (#75)",
+  # the infant products (#76)
+  vax.infant.product = "vax.infant.program, an infant product with its own efficacy and dose line (#76)"
 )
 
 check_retired_params <- function(dat) {

@@ -169,19 +169,16 @@ immune_rr <- function(dat, ids, stage, at = NULL) {
 }
 
 # Relative per-contact acquisition probability of susceptibles `ids`: the
-# vaccine (with no infection VE for infants on the direct infant product,
-# #41), the age band (susc.age.rr), young infants (susc.infant.rr) and immunity
-# from an earlier infection (#69). Network contacts, the background hazard and
-# imports all take it; imports used to take none of it (#70).
+# vaccine and the infant product (#76, with its own infection efficacy; the
+# direct infant arm of #41 stripped the adult product's), the age band
+# (susc.age.rr), young infants (susc.infant.rr) and immunity from an earlier
+# infection (#69). Network contacts, the background hazard and imports all take
+# it; imports used to take none of it (#70).
 susceptibility_rr <- function(dat, ids, at, vax.schedule = build_vax_schedule(dat, get_pathogen(dat))) {
   if (length(ids) == 0) return(numeric(0))
   rr <- compute_ve(at = at, ids = ids, vax = get_attr(dat, "vax"),
                    last.dose.time = get_attr(dat, "last.dose.time"), vax.schedule = vax.schedule,
-                   outcome = "infect", vax.age.group = vax_age_group_for(dat))$rr
-  is_infant <- get_attr(dat, "is_infant", override.null.error = TRUE)
-  if (isTRUE(as.logical(param_or(dat, "vax.infant.product", FALSE))) && !is.null(is_infant)) {
-    rr[is_infant[ids]] <- 1
-  }
+                   outcome = "infect", vax.age.group = vax_age_group_for(dat), iprog = infant_prog_state(dat))$rr
   age <- get_attr(dat, "age")
   susc.age.rr <- get_param(dat, "susc.age.rr", override.null.error = TRUE)
   if (!is.null(susc.age.rr) && !all(is.na(susc.age.rr)) && any(susc.age.rr != 1, na.rm = TRUE)) {

@@ -156,24 +156,59 @@ test_that("the strategies are orderings of the willing eligibles", {
   expect_identical(dosed(run_vax(dat, 1)), 2L)
 })
 
-test_that("the infant products dose infants only, never more than the infant pool", {
-  N <- 500
-  a <- ages[1:N]
-  dat <- alloc_dat(N, age = a, budget = 0.5, strategy = "infant_direct")
-  dat <- set_attr(dat, "hh.ids", rep(1:100, length.out = N))
-  dat <- run_vax(dat, 1)
-  infants <- which(a < 1)
-  expect_identical(dosed(dat), infants)
-  expect_equal(get_epi(dat, "nVax1")[1], as.numeric(length(infants)))
-  # cocooning: infants first, then their households' adults, then the rest
-  dat <- alloc_dat(N, age = a, budget = 0.2, strategy = "infant_direct_cocoon")
-  hh <- rep(1:100, length.out = N)
-  dat <- set_attr(dat, "hh.ids", hh)
-  dat <- run_vax(dat, 1)
+test_that("cocoon doses the 18-49 of young-infant households first, at random, then the oldest (#76)", {
+  # 100 households of 4: in households 1-20 the first member is under 6 months,
+  # in 21-30 between 6 and 12 months (no cocoon), elsewhere an adult
+  set.seed(76)
+  N <- 400
+  hh <- rep(1:100, each = 4)
+  a <- runif(N, 18, 80)
+  first <- seq(1, N, by = 4)
+  a[first[1:20]] <- 0.3
+  a[first[21:30]] <- 0.8
+  tier <- hh <= 20 & a >= 18 & a < 50
+  cocoon_dat <- function(budget, days = 1) {
+    d <- alloc_dat(N, age = a, budget = budget, days = days, strategy = "cocoon", age.min = 18)
+    set_attr(d, "hh.ids", hh)
+  }
+  expect_identical(EpiModelCOVID:::cocoon_tier(cocoon_dat(0)), as.integer(tier))
+  dat <- run_vax(cocoon_dat(0.25), 1)                  # 100 doses
   got <- dosed(dat)
-  expect_true(all(infants %in% got))
-  rest <- setdiff(got, infants)
-  expect_true(all(hh[rest] %in% hh[infants]))
+  expect_true(all(which(tier) %in% got))
+  expect_equal(get_epi(dat, "nVax.cocoon")[1], sum(tier))
+  expect_equal(get_epi(dat, "n.cocoon.tier")[1], sum(tier))
+  expect_equal(get_epi(dat, "n.cocoon.elig")[1], sum(tier))
+  # the rest oldest first, with the infants (outside the product's window) left out
+  rest <- setdiff(got, which(tier))
+  others <- setdiff(which(!tier & a >= 18), got)
+  expect_length(rest, 100 - sum(tier))
+  expect_gte(min(a[rest]), max(a[others]))
+  # at random within the tier: with 8 doses a day, every member is dosed in some draw
+  hits <- integer(N)
+  for (r in 1:50) {
+    g <- dosed(run_vax(cocoon_dat(0.02), 1))
+    expect_true(all(tier[g]))
+    hits[g] <- hits[g] + 1L
+  }
+  expect_true(all(hits[tier] > 0))
+  # the tier is read each day: a newborn in household 50 brings its adults in
+  dat <- run_vax(cocoon_dat(0.25, days = 2), 1)
+  a2 <- a
+  a2[first[50]] <- 0.01
+  dat <- set_attr(dat, "age", a2)
+  new_tier <- hh == 50 & a2 >= 18 & a2 < 50 & !seq_len(N) %in% dosed(dat)
+  dat <- run_vax(dat, 2)
+  expect_true(all(which(new_tier) %in% dosed(dat)))
+  # every arm reads the tier, and the oldest-first arm gives it nothing here
+  dat <- alloc_dat(N, age = a, budget = 0.1, strategy = "age_oldest", age.min = 18)
+  dat <- run_vax(set_attr(dat, "hh.ids", hh), 1)
+  expect_equal(get_epi(dat, "n.cocoon.tier")[1], sum(tier))
+  expect_equal(get_epi(dat, "nVax.cocoon")[1], sum(tier[dosed(dat)]))
+  # a product that does not cover the tier stops the run; the knobs are checked
+  expect_error(check_vax_campaign(alloc_dat(5, strategy = "cocoon", age.min = 60)), "does not cover")
+  expect_true(check_vax_campaign(alloc_dat(5, strategy = "cocoon", age.min = 5)))
+  expect_error(check_vax_campaign(alloc_dat(5, vax.cocoon.age.min = 50)), "vax.cocoon.age.min")
+  expect_error(check_vax_campaign(alloc_dat(5, vax.cocoon.infant.months = 0)), "vax.cocoon.infant.months")
 })
 
 test_that("a second dose counts against the same budget, and an annual dose reopens each season", {
@@ -207,7 +242,8 @@ test_that("check_vax_campaign() stops a bad campaign", {
 
 test_that("the retired supply caps, uptake rates and infant gate stop the run", {
   dat <- alloc_dat(5)
-  for (nm in c("vax.supply.total", "vax.supply.rate", "vax.infant.eligible", "vax.covid.rate.dose1", "vax.flu.start.dose1")) {
+  for (nm in c("vax.supply.total", "vax.supply.rate", "vax.infant.eligible", "vax.covid.rate.dose1", "vax.flu.start.dose1",
+               "vax.infant.product")) {
     expect_error(EpiModelCOVID:::check_retired_params(set_param(dat, nm, 1)), "replaced by", info = nm)
   }
 })
@@ -215,7 +251,8 @@ test_that("the retired supply caps, uptake rates and infant gate stop the run", 
 # The strategy set (GlobalMix India #75) -------------------------------------
 
 test_that("retired and unknown strategies stop the run, and the knobs are checked", {
-  for (s in c("age", "bridge", "age_then_degree", "proxy_hh", "proxy_fit", "age_plus_proxy", "age_plus_degree")) {
+  for (s in c("age", "bridge", "age_then_degree", "proxy_hh", "proxy_fit", "age_plus_proxy", "age_plus_degree",
+              "infant_hh", "infant_direct", "infant_direct_cocoon")) {
     expect_error(check_vax_campaign(alloc_dat(5, strategy = s)), "was retired", info = s)
   }
   expect_error(check_vax_campaign(alloc_dat(5, strategy = "oldest")), "unknown vax.strategy")

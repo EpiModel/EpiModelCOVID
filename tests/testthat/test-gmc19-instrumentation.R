@@ -299,7 +299,7 @@ act_pars_i <- list(o = c(0.9, 0.95, 0.9, 0.85, 0.9, 0.8), kappa = 5, q = rep(0.7
                    p11 = 0.5, s = 0.05, pi = c(0.1, 0, 0, 0.2, 0, 0.3), theta_F = rep(2, 6),
                    theta_I = 0.3, rho = -0.5, new_rate = rep(0.1, 6), new_share = 0.5,
                    new_mix = matrix(1, 6, 6) + diag(4, 6))
-run_small <- function(nsteps = 40, seed = 77, ...) {
+run_small <- function(nsteps = 40, seed = 77, young = 0, rsv = FALSE, ...) {
   N <- 600
   set.seed(5)
   band <- rep(1:6, length.out = N)
@@ -307,7 +307,10 @@ run_small <- function(nsteps = 40, seed = 77, ...) {
   occ <- c("child", "student", "worker", "home")[c(1, 2, 3, 3, 4, 4)][band]
   tr <- draw_relationship_traits(band, act_pars_i, seed = 6)
   nw <- network_initialize(n = N)
-  nw <- set_vertex_attribute(nw, "age", c(5, 15, 25, 35, 50, 70)[band] + runif(N, -4, 4))
+  age <- c(5, 15, 25, 35, 50, 70)[band] + runif(N, -4, 4)
+  # `young` infants in the youngest band, for the infant products (#76)
+  if (young > 0) age[which(band == 1)[seq_len(young)]] <- seq(0.02, 0.98, length.out = young)
+  nw <- set_vertex_attribute(nw, "age", age)
   nw <- set_vertex_attribute(nw, "age.grp", bands_i[band])
   nw <- set_vertex_attribute(nw, "never", tr$never)
   nw <- set_vertex_attribute(nw, "log_aF", tr$log_aF)
@@ -325,6 +328,8 @@ run_small <- function(nsteps = 40, seed = 77, ...) {
   nw_hh <- set_vertex_attribute(nw_hh, "hh.ids", rep(seq_len(N / 4), each = 4))
   x <- list(freq = fit("log_aF", 900), infreq = fit("log_aI", 600),
             home = netclique(nw_hh, "hh.ids", arrivals = "join", arrivals.FUN = hh_join_birth))
+  vp <- ve_params(vax.budget = 0.3, vax.delivery.days = 5, vax.start = 5, vax.strategy = "degree")
+  if (rsv) vp <- as_rsv(vp)
   param <- do.call(param.net, c(list(
     time.unit = 1, inf.prob = rep(0.15, 4), exposure.rate = rep(1, 4), inf.prob.a.rr = 0.5,
     layer.names = c("freq", "infreq", "new", "home"),
@@ -340,8 +345,7 @@ run_small <- function(nsteps = 40, seed = 77, ...) {
     birth.hh.coef = setNames(rep(0, 7), EpiModelCOVID:::birth_hh_terms), birth.interval.min = 304,
     yll.le = seq(80, 5, length.out = 86), yll.discount = 0.03),
     sev_test_params(prop.clinical = rep(0.5, 12), ihr = rep(0.1, 12), ifr = rep(0.1, 12)),
-    utils::modifyList(ve_params(vax.budget = 0.3, vax.delivery.days = 5, vax.start = 5, vax.strategy = "degree"),
-                      list(...))))
+    utils::modifyList(vp, list(...))))
   control <- control.net(
     type = NULL, nsteps = nsteps, nsims = 1, ncores = 1, verbose = FALSE,
     initialize.FUN = init_gmc19, aging.FUN = aging, departures.FUN = deaths_covid_gmc19,
@@ -454,4 +458,35 @@ test_that("every #75 arm runs end to end and delivers the same doses on the same
   expect_equal(sum(runs$age_oldest$nVax.reserve[-1]), 0)
   # the non-household hazard is part of the hazard, and age carries less of it
   expect_true(is.finite(runs$degree$eta2.hazard_xlayer.d2[2]))
+})
+
+test_that("the infant products run end to end beside the adult arms, and only the cocoon moves the adult doses (#76)", {
+  # 40 infants in the youngest band, on the all-ages RSV product (the cocoon's)
+  base <- list(nsteps = 20, young = 40, rsv = TRUE, vax.rsv.age.min = 5, vax.budget = 0.1)
+  arms <- list(
+    direct = c(infant_params("nirsevimab"), vax.strategy = "age_oldest"),
+    combined = c(infant_params("nirsevimab"), vax.strategy = "cocoon"),
+    mat_direct = c(infant_params("maternal"), vax.strategy = "age_oldest"),
+    mat_combined = c(infant_params("maternal"), vax.strategy = "cocoon"))
+  runs <- lapply(arms, function(a) as.data.frame(do.call(run_small, c(base, a))))
+  # the adult line: the same doses on the same days under each program
+  expect_identical(runs$direct$nVax1, runs$combined$nVax1)
+  expect_identical(runs$mat_direct$nVax1, runs$mat_combined$nVax1)
+  expect_gt(sum(runs$direct$nVax1, na.rm = TRUE), 50)
+  # the infant line: the catch-up on the open day, the same in both arms
+  cu <- runs$direct$nVax.iprog.catchup
+  expect_identical(cu, runs$combined$nVax.iprog.catchup)
+  expect_identical(which(cu > 0), 5L)
+  expect_equal(runs$direct$n.iprog.infant[c(4, 6)] > 0, c(FALSE, TRUE))
+  # the cocoon arm doses the tier first; the oldest-first arm reaches no one in it here
+  d <- runs$combined[runs$combined$time == 5, ]
+  expect_gt(d$n.cocoon.elig, 0)
+  expect_equal(d$nVax.cocoon, min(d$nVax1, d$n.cocoon.elig))
+  expect_equal(sum(runs$direct$nVax.cocoon, na.rm = TRUE), 0)
+  # the maternal program holds from the first day, with mothers on record vaccinated
+  m <- runs$mat_direct
+  expect_gt(max(m$iprog.init, na.rm = TRUE), 0)
+  expect_gt(max(m$iprog.init.mother, na.rm = TRUE), 0)
+  expect_gt(m$n.iprog.infant[2], 0)
+  expect_equal(sum(m$nVax.iprog.catchup, na.rm = TRUE), 0)
 })

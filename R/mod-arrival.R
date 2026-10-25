@@ -27,13 +27,14 @@ arrival <- function(dat, at) {
   # its mother's (place_births(), GlobalMix India #65); on the household clique
   # layer, nwupdate.FUN then keeps that household with the layer's arrival rule
   # (hh_join_birth) and connects the newborn to its co-residents.
+  new_ids <- integer(0)
   if (nNew > 0) {
     dat <- init_new_nodes_attrs(dat, nNew)
-    if (births_placed(dat)) {
-      n <- length(get_attr(dat, "active"))
-      dat <- place_births(dat, at, n - nNew + seq_len(nNew))
-    }
+    new_ids <- length(get_attr(dat, "active")) - nNew + seq_len(nNew)
+    if (births_placed(dat)) dat <- place_births(dat, at, new_ids)
   }
+  # the infant program's birth doses, and the maternal vaccine's mothers (#76)
+  dat <- infant_program_births(dat, at, new_ids)
 
   ## Output
   dat <- set_epi(dat, "nNew", nNew, at = at)
@@ -207,8 +208,12 @@ place_births <- function(dat, at, new_ids) {
   mothers <- ids[sample.int(length(ids), length(new_ids), prob = w)]
   hh[new_ids] <- hh[mothers]
   last.birth[mothers] <- at
+  # the mother on record, which the maternal vaccine reads (#76)
+  mu <- get_attr(dat, "mother.uid")
+  mu[new_ids] <- get_attr(dat, "unique_id")[mothers]
   dat <- set_attr(dat, "hh.ids", hh)
   dat <- set_attr(dat, "last.birth", last.birth)
+  dat <- set_attr(dat, "mother.uid", mu)
   by_age <- tabulate(findInterval(age[mothers], birth_age_breaks), nbins = length(birth_age_breaks) - 1)
   for (g in seq_along(by_age)) {
     dat <- set_epi(dat, paste0("nNew.mage", g), by_age[g], at = at)
@@ -223,15 +228,18 @@ place_births <- function(dat, at, new_ids) {
 # is not a mother again within the interval. A second such child in a household
 # (a cousin, or a twin) goes to another woman who was 15-49 at the birth if
 # there is one, and otherwise has no mother on record. last.birth is the step
-# of the birth: 1 less the child's age in days.
+# of the birth: 1 less the child's age in days. The child's mother.uid is hers
+# (#76).
 init_last_birth <- function(dat) {
   active <- get_attr(dat, "active")
   age <- get_attr(dat, "age")
   sex <- get_attr(dat, "sex")
   hh <- get_attr(dat, "hh.ids")
+  uid <- get_attr(dat, "unique_id")
   gap <- get_param(dat, "birth.interval.min")
   w <- get_param(dat, "birth.age.weight")
   last.birth <- rep(NA_real_, length(active))
+  mu <- get_attr(dat, "mother.uid")
   kids <- which(active == 1 & age * days_per_year < gap & !is.na(hh))
   kids <- kids[order(age[kids])]
   women <- which(active == 1 & sex == "F" & !is.na(hh))
@@ -243,7 +251,9 @@ init_last_birth <- function(dat) {
     if (!any(p > 0)) next
     m <- cand[sample.int(length(cand), 1, prob = p)]
     last.birth[m] <- 1 - round(age[k] * days_per_year)
+    mu[k] <- uid[m]
   }
+  dat <- set_attr(dat, "mother.uid", mu)
   set_attr(dat, "last.birth", last.birth)
 }
 

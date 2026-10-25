@@ -38,7 +38,9 @@ design alone.
 set by EpiModel itself, and none is a row of a parameter table. The per-dose
 vaccine schedule is read as `vax.<pathogen>.<field>.dose<i>`, for doses 1 to
 `vax.<pathogen>.n.doses`, and each pathogen's product has an age window,
-`vax.<pathogen>.age.min` and `.age.max` (#74).
+`vax.<pathogen>.age.min` and `.age.max` (#74). The RSV infant products'
+efficacy is read as `vax.<product>.<field>` for the products `nirsevimab` and
+`maternal` (#76).
 
 Not listed: `hh.pairs`, the parameters of the removed CorporateMix
 modifiers and the parameters the redo replaced (`rs.rate`, `prop.hospit`,

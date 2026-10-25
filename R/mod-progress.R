@@ -39,6 +39,7 @@ progress_general <- function(dat, at) {
   immune.full <- param_or(dat, "immune.full", Inf)
   age.breaks <- get_param(dat, "age.breaks")
   vax.schedule <- build_vax_schedule(dat, get_pathogen(dat)) # get vaccination schedule
+  iprog <- infant_prog_state(dat)  # the infant product (#76)
   sevdiag <- sev_diagnostics(dat)
   vaxdiag <- vax_diagnostics(dat)
   nonfatal <- !(fatal %in% 1)
@@ -60,7 +61,8 @@ progress_general <- function(dat, at) {
       last.dose.time = last.dose.time,
       vax.schedule = vax.schedule,
       outcome = "clinical",
-      vax.age.group = vax.age.group
+      vax.age.group = vax.age.group,
+      iprog = iprog
     )
     prop.clin.vec <- prop.clin.vec * vax_eff_clinical$rr * immune_rr(dat, ids.newInf, "clinical")
 
@@ -186,11 +188,12 @@ progress_general <- function(dat, at) {
       last.dose.time = last.dose.time,
       vax.schedule = vax.schedule,
       outcome = "hosp",
-      vax.age.group = vax.age.group
+      vax.age.group = vax.age.group,
+      iprog = iprog
     )
     vax_eff_death <- compute_ve(
       at = at, ids = ids.newIc, vax = vax, last.dose.time = last.dose.time,
-      vax.schedule = vax.schedule, outcome = "death", vax.age.group = vax.age.group)
+      vax.schedule = vax.schedule, outcome = "death", vax.age.group = vax.age.group, iprog = iprog)
     prop.hosp.vec <- pmin(1, prop.hosp.vec * vax_eff_hosp$rr * immune_rr(dat, ids.newIc, "hosp"))
     prop.death.vec <- prop.death.vec * vax_eff_death$rr * immune_rr(dat, ids.newIc, "death")
 

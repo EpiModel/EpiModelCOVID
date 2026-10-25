@@ -22,7 +22,10 @@ vax_general <- function(dat, at) {
   ## (#54); the uptake rates made the age arm rank by rate (#55) and gave the
   ## network arms perfect compliance while the age and random arms waited for
   ## show-ups (#56). The strategy set is #75's: what an arm ranks on is fixed
-  ## when the campaign opens where the arm is frozen (vax_campaign_rank()).
+  ## when the campaign opens where the arm is frozen (vax_campaign_rank()). The
+  ## infant products are a dose line of their own beside this budget (#76,
+  ## infant_program_catchup() here and infant_program_births() at birth), and
+  ## the cocoon is an ordering of this budget like any other.
 
   ######## attributes ########
   active <- get_attr(dat, "active")
@@ -41,9 +44,10 @@ vax_general <- function(dat, at) {
   if (is.null(degree_rank)) degree_rank <- degree_total
   is_bridge <- get_attr(dat, "is_bridge")
   n_layers_active <- get_attr(dat, "n_layers_active")
-  hh.ids <- get_attr(dat, "hh.ids")
   is_infant <- get_attr(dat, "is_infant")
   uid <- get_attr(dat, "unique_id")
+  # the cocoon tier (#76): the adults of the households with a young infant today
+  tier <- cocoon_tier(dat)
 
   ######## parameters ########
   vax.strategy <- get_param(dat, "vax.strategy")
@@ -56,6 +60,9 @@ vax_general <- function(dat, at) {
 
   ######## the campaign ########
   dat <- vax_campaign_open(dat, at, active)
+  # the infant program's catch-up, on the day the campaign opens (#76)
+  cu <- infant_program_catchup(dat, at)
+  dat <- cu$dat
   camp <- dat$run$vax.campaign
   start <- get_param(dat, "vax.start")
   n_today <- if (is.null(camp)) 0L else max(0L, vax_allowed(camp, at) - camp$given)
@@ -72,7 +79,10 @@ vax_general <- function(dat, at) {
   if (!is.null(camp) && is.null(camp$ranked)) {
     camp <- vax_campaign_rank(dat, camp, vax.strategy, eligible, degree_rank, age)
   }
-  score <- if (n_today > 0) strategy_score(dat, camp, vax.strategy, degree_rank, age, uid)
+  score <- if (n_today > 0) {
+    if (vax.strategy == "cocoon") tier else strategy_score(dat, camp, vax.strategy, degree_rank, age, uid)
+  }
+  n_cocoon_elig <- sum(tier == 1 & eligible & vax == 0)
   n_reserve <- if (vax.strategy == "hybrid" && !is.null(camp)) hybrid_quota(camp, at) else 0L
   reserve.age <- param_or(dat, "vax.hybrid.age", 60)
 
@@ -91,7 +101,7 @@ vax_general <- function(dat, at) {
     if (length(idsElig) == 0 || n_today == 0) next
     idsVax <- allocation_strategy(
       idsElig = idsElig, n_take = n_today, vax.strategy = vax.strategy, age = age, score = score,
-      n_reserve = n_reserve, reserve.age = reserve.age, hh.ids = hh.ids, is_infant = is_infant)
+      n_reserve = n_reserve, reserve.age = reserve.age)
     n_res <- if (is.null(attr(idsVax, "n_reserve"))) 0L else attr(idsVax, "n_reserve")
     idsVax <- as.vector(idsVax)
     n_reserve <- n_reserve - n_res
@@ -170,6 +180,13 @@ vax_general <- function(dat, at) {
   }
   ## doses from the hybrid's 60+ reserve (#75; 0 on every other arm)
   dat <- set_epi(dat, "nVax.reserve", nVax_reserve, at = at)
+  ## The cocoon tier (#76), on every arm: its living members, those of them
+  ## willing, eligible and undosed before today's doses, and the doses they got
+  dat <- set_epi(dat, "n.cocoon.tier", sum(tier == 1), at = at)
+  dat <- set_epi(dat, "n.cocoon.elig", n_cocoon_elig, at = at)
+  dat <- set_epi(dat, "nVax.cocoon", sum(tier[ids_newly_vaxed] == 1), at = at)
+  ## The infant program's dose line (#76)
+  dat <- infant_program_outputs(dat, at, cu$n)
 
   ## Age-specific vax coverage #TODO: this needs to be turned to loop like the above
   dat <- set_epi(dat, "cov_vax1_0to4", length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)), at = at)
@@ -786,16 +803,19 @@ get_ids_eligible_for_dose <- function(dose_row, dose_i, eligible, vax, last.dose
 #                     and over (60) on the day the campaign opens, released in
 #                     step with the budget, oldest first, and the rest by the
 #                     degree score over everyone not taken by the reserve
-#   infant_hh, infant_direct, infant_direct_cocoon  the infant arms, unchanged
-#                     until #76: infant-household co-residents first; infants
-#                     only, never more than the infant pool; infants, then
-#                     infant-household adults, then the rest
+#   cocoon            the adults vax.cocoon.age.min to .age.max (18-49) of the
+#                     households with a living infant under
+#                     vax.cocoon.infant.months (6) that day, at random, then
+#                     everyone else oldest first (#76); the tier is read each
+#                     day, so a newborn brings its household in
 # Retired by #75 (retired_strategies): age (renamed age_oldest), bridge,
 # age_then_degree, proxy_hh, proxy_fit, and the hybrids age_plus_proxy and
 # age_plus_degree; vax.target.uptake gave way to the rank noise and
-# vax.hybrid.frac to vax.hybrid.f.
+# vax.hybrid.frac to vax.hybrid.f. Retired by #76: the infant arms, which drew
+# the infant products from the adult budget; the infant products are now a dose
+# line of their own (vax.infant.program) beside any arm.
 vax_strategies <- c("age_oldest", "age_transmission", "random", "degree", "acquaintance", "proxy_obs",
-                    "hybrid", "infant_hh", "infant_direct", "infant_direct_cocoon")
+                    "hybrid", "cocoon")
 retired_strategies <- c(
   age = "age_oldest, the same ordering under its #75 name",
   bridge = "nothing: on the relationship networks every bridge measure is non-household degree under another name (#75)",
@@ -803,15 +823,19 @@ retired_strategies <- c(
   proxy_hh = "proxy_obs, fit once on traits a program could record (#75)",
   proxy_fit = "proxy_obs, fit once on traits a program could record (#75)",
   age_plus_proxy = "hybrid, with the reserve defined on the 60+ (#75)",
-  age_plus_degree = "hybrid, with the reserve defined on the 60+ (#75)"
+  age_plus_degree = "hybrid, with the reserve defined on the 60+ (#75)",
+  infant_hh = "cocoon, the adults 18-49 of the households with an infant under 6 months, then oldest first (#76)",
+  infant_direct = paste("vax.infant.program 'nirsevimab' or 'maternal' beside an adult arm such as age_oldest:",
+                        "the infant products are a dose line of their own (#76)"),
+  infant_direct_cocoon = "vax.infant.program 'nirsevimab' or 'maternal' with vax.strategy 'cocoon' (#76)"
 )
 
 allocation_strategy <- function(idsElig, n_take, vax.strategy, age, score = NULL, n_reserve = 0L,
-                                reserve.age = 60, hh.ids = NULL, is_infant = NULL) {
+                                reserve.age = 60) {
   nElig <- length(idsElig)
   if (nElig == 0 || n_take <= 0) return(integer(0))
   by_desc <- function(ids, s) ids[order(-s, stats::runif(length(ids)))]
-  need_score <- c("degree", "age_transmission", "proxy_obs", "acquaintance", "hybrid")
+  need_score <- c("degree", "age_transmission", "proxy_obs", "acquaintance", "hybrid", "cocoon")
   if (vax.strategy %in% need_score && is.null(score)) {
     stop("vax.strategy '", vax.strategy, "' requires a score", call. = FALSE)
   }
@@ -824,12 +848,6 @@ allocation_strategy <- function(idsElig, n_take, vax.strategy, age, score = NULL
     attr(out, "n_reserve") <- length(ids_age)
     return(out)
   }
-  if (vax.strategy == "infant_direct") {
-    if (is.null(is_infant)) stop("vax.strategy 'infant_direct' requires is_infant")
-    inf_ids <- idsElig[is_infant[idsElig]]
-    if (length(inf_ids) == 0) return(integer(0))
-    return(inf_ids[sample.int(length(inf_ids), min(n_take, length(inf_ids)))])
-  }
 
   ids_ranked <- switch(vax.strategy,
     age_oldest = by_desc(idsElig, age[idsElig]),
@@ -841,16 +859,10 @@ allocation_strategy <- function(idsElig, n_take, vax.strategy, age, score = NULL
       key <- ifelse(w > 0, stats::rexp(nElig) / w, Inf)
       idsElig[order(key, stats::runif(nElig))]
     },
-    infant_hh = {
-      if (is.null(hh.ids) || is.null(is_infant)) stop("vax.strategy 'infant_hh' requires hh.ids and is_infant")
-      hh_with_infant <- unique(hh.ids[which(is_infant & !is.na(hh.ids))])
-      by_desc(idsElig, as.integer(hh.ids[idsElig] %in% hh_with_infant))
-    },
-    infant_direct_cocoon = {
-      if (is.null(hh.ids) || is.null(is_infant)) stop("vax.strategy 'infant_direct_cocoon' requires hh.ids and is_infant")
-      hh_with_infant <- unique(hh.ids[which(is_infant & !is.na(hh.ids))])
-      tier <- ifelse(is_infant[idsElig], 2L, ifelse(hh.ids[idsElig] %in% hh_with_infant, 1L, 0L))
-      by_desc(idsElig, tier)
+    cocoon = {
+      # the tier (score 1) at random, then the rest oldest first
+      in_tier <- score[idsElig] == 1
+      idsElig[order(!in_tier, ifelse(in_tier, 0, -age[idsElig]), stats::runif(nElig))]
     },
     stop("Unknown vax.strategy: ", vax.strategy))
   ids_ranked[seq_len(min(n_take, nElig))]
@@ -1054,6 +1066,27 @@ check_vax_strategy <- function(dat) {
     stop("the acquaintance strategy names a frequent relationship, which needs the relationship model (#75)",
          call. = FALSE)
   }
+  cmin <- param_or(dat, "vax.cocoon.age.min", 18)
+  cmax <- param_or(dat, "vax.cocoon.age.max", 50)
+  cm <- param_or(dat, "vax.cocoon.infant.months", 6)
+  if (length(cmin) != 1 || length(cmax) != 1 || anyNA(c(cmin, cmax)) || cmin < 0 || cmin >= cmax) {
+    stop("vax.cocoon.age.min and .age.max must be two ages in years, the first below the second (#76)", call. = FALSE)
+  }
+  if (length(cm) != 1 || is.na(cm) || cm <= 0 || cm > 12) {
+    stop("vax.cocoon.infant.months must be one number of months in (0, 12] (#76)", call. = FALSE)
+  }
+  if (s == "cocoon") {
+    # under licensure no RSV product covers the tier (the older-adult vaccine is
+    # 60 and over), so the cocoon is run on the all-ages product
+    pa <- get_pathogen(dat)
+    amin <- get_param(dat, paste0("vax.", pa, ".age.min"), override.null.error = TRUE)
+    amax <- get_param(dat, paste0("vax.", pa, ".age.max"), override.null.error = TRUE)
+    if (!is.null(amin) && !is.null(amax) && (amin >= cmax || amax <= cmin)) {
+      stop("the cocoon strategy doses adults ", cmin, " to ", cmax, ", whom the ", pa, " product (ages ", amin,
+           " to ", amax, ") does not cover; run it on a product whose age window includes them (#76)",
+           call. = FALSE)
+    }
+  }
   invisible(TRUE)
 }
 
@@ -1077,9 +1110,19 @@ check_vax_strategy <- function(dat) {
 # 1 - VE_infectious). The VE inputs are therefore marginal, as studies report
 # them; the stage relative risks used to be multiplied along the chain, so a
 # 0.40 "death VE" on top of the earlier stages was a marginal 0.71.
-vax_protection <- function(at, ids, vax, last.dose.time, vax.schedule, vax.age.group, outcome) {
+#
+# An infant product (#76; iprog, from infant_prog_state()) protects from its
+# own profile (passive_ve()), and a person holding both takes the larger
+# protection outcome by outcome, which keeps the stages ordered.
+vax_protection <- function(at, ids, vax, last.dose.time, vax.schedule, vax.age.group, outcome, iprog = NULL) {
   ve <- rep(0, length(ids))
-  if (length(ids) == 0 || is.null(vax.schedule)) return(ve)
+  if (length(ids) == 0) return(ve)
+  if (!is.null(iprog)) {
+    t <- at - iprog$time[ids]
+    has <- !is.na(t)
+    if (any(has)) ve[has] <- passive_ve(t[has], iprog$pars, outcome)
+  }
+  if (is.null(vax.schedule)) return(ve)
   vax_ids <- vax[ids]
   for (dose_i in seq_len(nrow(vax.schedule))) {
     pos <- which(vax_ids == dose_i)
@@ -1094,7 +1137,7 @@ vax_protection <- function(at, ids, vax, last.dose.time, vax.schedule, vax.age.g
     delay <- get_schedule_value(vax.schedule, "ve.delay", dose_i, ag)
     v <- fl + (peak - fl) * 0.5^(pmax(0, t - delay) / hl)
     v[t < delay] <- 0
-    ve[pos] <- v
+    ve[pos] <- pmax(ve[pos], v)
   }
   ve
 }
@@ -1105,9 +1148,10 @@ compute_ve <- function(at, ids, vax,
                        vax.age.group,
                        last.dose.time = NULL,
                        vax.schedule,
-                       outcome = c("infect", "clinical", "hosp", "death", "infectious")) {
+                       outcome = c("infect", "clinical", "hosp", "death", "infectious"),
+                       iprog = NULL) {
   outcome <- match.arg(outcome)
-  P <- function(o) vax_protection(at, ids, vax, last.dose.time, vax.schedule, vax.age.group, o)
+  P <- function(o) vax_protection(at, ids, vax, last.dose.time, vax.schedule, vax.age.group, o, iprog)
   ve <- P(outcome)
   rr <- switch(outcome,
                infect = 1 - ve,
@@ -1243,7 +1287,7 @@ vd_exposure <- function(dat, at, dels, vax, last.dose.time, vax.schedule) {
   tp <- unlist(lapply(dels, function(d) d$transProb))
   acts <- unlist(lapply(dels, function(d) d$acts))
   rr <- compute_ve(at = at, ids = sus, vax = vax, last.dose.time = last.dose.time, vax.schedule = vax.schedule,
-                   outcome = "infect", vax.age.group = vax_age_group_for(dat))$rr
+                   outcome = "infect", vax.age.group = vax_age_group_for(dat), iprog = infant_prog_state(dat))$rr
   p0 <- 1 - (1 - pmin(1, tp / pmax(rr, 1e-12)))^acts
   lq <- rowsum(log1p(-pmin(p, 1 - 1e-12)), sus)
   lq0 <- rowsum(log1p(-pmin(p0, 1 - 1e-12)), sus)

@@ -42,7 +42,8 @@ compute_ve(
   vax.age.group,
   last.dose.time = NULL,
   vax.schedule,
-  outcome = c("infect", "clinical", "hosp", "death", "infectious")
+  outcome = c("infect", "clinical", "hosp", "death", "infectious"),
+  iprog = NULL
 )
 
 vax_age_group_for(dat)

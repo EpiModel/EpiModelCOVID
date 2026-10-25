@@ -87,7 +87,14 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     fatal = NA,
     recTime = NA,
     inf.count = 0,
-    prior.immune = 0
+    prior.immune = 0,
+    # The infant program (GlobalMix India #76): the day a person's infant
+    # product was given (or, for the maternal vaccine, the day of their birth),
+    # NA for none; the coverage draw, made in make_computed_attrs(); and the
+    # unique id of the mother on record (place_births(), init_last_birth())
+    iprog.time = NA_real_,
+    iprog.u = NA_real_,
+    mother.uid = NA_real_
 
   )
   # The propensity attributes prior immunity is drawn with (init.immune.attr,
@@ -258,6 +265,9 @@ make_computed_attrs <- function(dat, n_new, post_init) {
   # willing pool under the batch's seed. Drawn last, after the traits, so the
   # draws before it are what they were without it.
   n_attr$vax.willing <- draw_vax_willing(dat, age)
+  # The infant program's coverage draw (GlobalMix India #76), on a side stream so
+  # the run's own draws are what they were without it
+  n_attr$iprog.u <- with_side_rng(stats::runif(n_new))
 
   for (attr_name in names(n_attr)) {
     dat <- set_attr(dat, attr_name, n_attr[[attr_name]], posit_ids = new_nodes_pid)
