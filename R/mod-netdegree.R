@@ -74,7 +74,7 @@ netdegree <- function(dat, at) {
   # The expected-contact scores cost a pass over every relationship each step,
   # so they are computed only when the degree strategies rank on one of them
   score_name <- as.character(param_or(dat, "vax.degree.score", "total"))
-  if (activation_on(dat) && score_name %in% c("active", "hazard")) dat <- relationship_scores(dat, at)
+  if (activation_on(dat) && score_name %in% expected_scores) dat <- relationship_scores(dat, at)
   score <- degree_score(dat)
   dat <- set_attr(dat, "degree_score", score)
 
@@ -92,8 +92,9 @@ netdegree <- function(dat, at) {
   # Fixed-day scalars (GlobalMix India #77): on day 2, the first step, and on
   # the day the campaign opens (the first step at or after vax.start), the
   # eta-squared of degree on age band for total, non-household and
-  # hazard-weighted degree (#58 item 8: the share of network position that age
-  # carries), and each layer's mean degree. Read at a fixed day from the
+  # hazard-weighted degree, with and without the household ties (#58 item 8,
+  # #75: the share of network position that age carries), and each layer's
+  # mean degree. Read at a fixed day from the
   # population then alive, rather than as time-means weighted by day-1 band
   # sizes, so the population's drift over the run does not enter them. The
   # hazard-weighted degree is computed for the scalar when no strategy ranks on
@@ -101,8 +102,9 @@ netdegree <- function(dat, at) {
   alloc_day <- max(2, param_or(dat, "vax.start", 2))
   tags <- c(if (at == 2) "d2", if (at == alloc_day) "alloc")
   if (length(tags) > 0) {
-    if (activation_on(dat) && !score_name %in% c("active", "hazard")) dat <- relationship_scores(dat, at)
+    if (activation_on(dat) && !score_name %in% expected_scores) dat <- relationship_scores(dat, at)
     hazard <- if (activation_on(dat)) get_attr(dat, "degree_hazard")
+    hazard_x <- if (activation_on(dat)) get_attr(dat, "degree_hazard_xlayer")
     live <- get_attr(dat, "active") == 1
     band <- match(age.grp, get_param(dat, "age.grps"))
     for (tag in tags) {
@@ -110,6 +112,7 @@ netdegree <- function(dat, at) {
       dat <- set_epi(dat, paste0("eta2.xlayer.", tag), eta_squared(degree_xlayer[live], band[live]), at = at)
       if (!is.null(hazard)) {
         dat <- set_epi(dat, paste0("eta2.hazard.", tag), eta_squared(hazard[live], band[live]), at = at)
+        dat <- set_epi(dat, paste0("eta2.hazard_xlayer.", tag), eta_squared(hazard_x[live], band[live]), at = at)
       }
       for (nm in names(deg_net)) {
         dat <- set_epi(dat, paste0("mean_degree_", nm, ".", tag), mean(deg_net[[nm]][live]), at = at)
@@ -159,7 +162,11 @@ edge_sum <- function(el, x, n) {
 #                  being met times its per-contact hazard, -log(1 - inf.prob)
 #                  times exposure.rate times the age pair's relative intensity,
 #                  plus the household ties, met every day
-# New contacts cannot be anticipated and are in neither.
+#   degree_hazard_xlayer  the same without the household ties: the degree arm's
+#                  score (#75, decided October 25, 2026). Households carry about
+#                  three quarters of degree_hazard, so ranking on it ranked by
+#                  household size and put the doses into the largest households
+# New contacts cannot be anticipated and are in none of them.
 relationship_scores <- function(dat, at) {
   pars <- activation_params(dat)
   el <- dat$run$el
@@ -179,20 +186,25 @@ relationship_scores <- function(dat, at) {
     w * exposure.rate[[type]] * -log(1 - inf.prob[[type]])
   }
   hh <- hh_layer(dat)
-  degree_hazard <- edge_sum(eF, pF * wt(rel_layers[["freq"]], eF), n) +
+  degree_hazard_xlayer <- edge_sum(eF, pF * wt(rel_layers[["freq"]], eF), n) +
     edge_sum(eI, pI * wt(rel_layers[["infreq"]], eI), n)
+  degree_hazard <- degree_hazard_xlayer
   if (!is.na(hh)) {
     eH <- el[[hh]]
     degree_hazard <- degree_hazard + edge_sum(eH, wt(names(el)[hh], eH), n)
   }
   dat <- set_attr(dat, "degree_active", degree_active)
   dat <- set_attr(dat, "degree_hazard", degree_hazard)
+  dat <- set_attr(dat, "degree_hazard_xlayer", degree_hazard_xlayer)
   dat <- set_epi(dat, "mean_degree_active", mean(degree_active), at = at)
   dat
 }
 
 # The scores vax.degree.score can name
-degree_scores <- c("total", "xlayer", "relationship", "all", "active", "hazard", "recent", "new", "out")
+degree_scores <- c("total", "xlayer", "relationship", "all", "active", "hazard", "hazard_xlayer", "recent",
+                   "new", "out")
+# The scores relationship_scores() computes, a pass over every relationship
+expected_scores <- c("active", "hazard", "hazard_xlayer")
 
 #' The score the degree strategies rank on
 #'
@@ -200,7 +212,9 @@ degree_scores <- c("total", "xlayer", "relationship", "all", "active", "hazard",
 #' included; the default), "xlayer" (non-household ties), and on the
 #' relationship model "relationship" (frequent relationships: the people seen
 #' at least weekly), "all" (frequent and infrequent relationships), "active"
-#' (`degree_active`), "hazard" (`degree_hazard`), "recent" (out-of-home
+#' (`degree_active`), "hazard" (`degree_hazard`), "hazard_xlayer"
+#' (`degree_hazard_xlayer`, the hazard without the household ties; the degree
+#' arm's score since GlobalMix India #75), "recent" (out-of-home
 #' contacts met over the last `act.window` days), "new" (new contacts over the
 #' last `act.window` days) and "out" (o_i, the propensity to go out).
 #'
@@ -209,7 +223,7 @@ degree_scores <- c("total", "xlayer", "relationship", "all", "active", "hazard",
 #' @keywords internal
 degree_score <- function(dat) {
   score <- as.character(param_or(dat, "vax.degree.score", "total"))
-  rel_only <- c("relationship", "all", "active", "hazard", "recent", "new", "out")
+  rel_only <- setdiff(degree_scores, c("total", "xlayer"))
   if (score %in% rel_only && !activation_on(dat)) {
     stop("vax.degree.score \"", score, "\" needs the relationship model", call. = FALSE)
   }
@@ -221,6 +235,7 @@ degree_score <- function(dat) {
       get_attr(dat, paste0("degree_", rel_layers[["infreq"]])),
     active = get_attr(dat, "degree_active"),
     hazard = get_attr(dat, "degree_hazard"),
+    hazard_xlayer = get_attr(dat, "degree_hazard_xlayer"),
     recent = get_attr(dat, "act.recent"),
     new = get_attr(dat, "act.recent.new"),
     out = get_attr(dat, "o_i") * (1 - get_attr(dat, "never")),

@@ -17,7 +17,9 @@ Numeric score per node.
 included; the default), "xlayer" (non-household ties), and on the
 relationship model "relationship" (frequent relationships: the people seen
 at least weekly), "all" (frequent and infrequent relationships), "active"
-(`degree_active`), "hazard" (`degree_hazard`), "recent" (out-of-home
+(`degree_active`), "hazard" (`degree_hazard`), "hazard_xlayer"
+(`degree_hazard_xlayer`, the hazard without the household ties; the degree
+arm's score since GlobalMix India #75), "recent" (out-of-home
 contacts met over the last `act.window` days), "new" (new contacts over the
 last `act.window` days) and "out" (o_i, the propensity to go out).
 }

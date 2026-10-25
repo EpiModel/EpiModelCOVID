@@ -254,7 +254,10 @@ replaced_params <- c(
   stats::setNames(as.list(rep("vax.start, one campaign start day for every arm (#74)", 9)),
                   as.vector(outer(c("covid", "flu", "rsv"), 1:3, function(p, i) paste0("vax.", p, ".start.dose", i)))),
   stats::setNames(as.list(rep("vax.willing by vaccine age group, and the campaign's throughput schedule (#74)", 9)),
-                  as.vector(outer(c("covid", "flu", "rsv"), 1:3, function(p, i) paste0("vax.", p, ".rate.dose", i))))
+                  as.vector(outer(c("covid", "flu", "rsv"), 1:3, function(p, i) paste0("vax.", p, ".rate.dose", i)))),
+  # the strategy set (#75)
+  vax.target.uptake = "vax.rank.spearman, fixed per-person rank noise on the degree score (#75)",
+  vax.hybrid.frac = "vax.hybrid.f, the share of the willing 60+ the hybrid's reserve covers (#75)"
 )
 
 check_retired_params <- function(dat) {

@@ -21,7 +21,8 @@ vax_general <- function(dat, at) {
   ## freed a dose and the age arm delivered 35% more doses than the degree arm
   ## (#54); the uptake rates made the age arm rank by rate (#55) and gave the
   ## network arms perfect compliance while the age and random arms waited for
-  ## show-ups (#56).
+  ## show-ups (#56). The strategy set is #75's: what an arm ranks on is fixed
+  ## when the campaign opens where the arm is frozen (vax_campaign_rank()).
 
   ######## attributes ########
   active <- get_attr(dat, "active")
@@ -42,54 +43,12 @@ vax_general <- function(dat, at) {
   n_layers_active <- get_attr(dat, "n_layers_active")
   hh.ids <- get_attr(dat, "hh.ids")
   is_infant <- get_attr(dat, "is_infant")
+  uid <- get_attr(dat, "unique_id")
 
   ######## parameters ########
   vax.strategy <- get_param(dat, "vax.strategy")
-  if (vax.strategy == "bridge" && activation_on(dat)) {
-    stop("the bridge strategy counts layers, which on the relationship model is not a ",
-         "position measure; #75 redefines it", call. = FALSE)
-  }
   season.length <- param_or(dat, "vax.season.length", days_per_year)
-  # Imperfect hub-targeting (issue #40 / degraded-uptake arm): the share of
-  # today's doses that reach the top-ranked targets under a ranked network
-  # strategy; the rest go to random eligibles. 1 is perfect targeting.
-  vax.target.uptake <- param_or(dat, "vax.target.uptake", 1)
-  # Parallel multi-criteria hybrid (issue #41 / age_plus_* arms): the share of
-  # today's doses reserved for the elderly queue. 0 is no reserve.
-  vax.hybrid.frac <- param_or(dat, "vax.hybrid.frac", 0)
   pa <- get_pathogen(dat)
-
-  # Field-deployable proxy score (issue #40), computed once per call from cheaply
-  # observable covariates only (NOT the true contact degree). NULL for every
-  # non-proxy strategy. proxy_hh ranks by active household size; proxy_fit ranks
-  # by the predicted degree from a regression of true degree on household size,
-  # school enrollment and employment (the best linear proxy a planner could fit
-  # from survey data, then apply using only the observables).
-  proxy_score <- NULL
-  if (vax.strategy %in% c("proxy_hh", "proxy_fit", "age_plus_proxy")) {
-    active_hh <- hh.ids[active == 1]
-    hh_counts <- table(active_hh)
-    hh_size <- as.numeric(hh_counts[match(hh.ids, names(hh_counts))]) # active co-residents
-    hh_size[is.na(hh.ids)] <- 1 # in no household: lives alone
-    if (vax.strategy == "proxy_hh") {
-      proxy_score <- hh_size
-    } else {
-      if (activation_on(dat) || !all(c("school", "work") %in% names(dat$run$el))) {
-        stop("proxy_fit and age_plus_proxy read the school and work layers, which the ",
-             "relationship model does not have (its proxy arm is #75's proxy_obs)", call. = FALSE)
-      }
-      degree_school <- get_attr(dat, "degree_school")
-      degree_work   <- get_attr(dat, "degree_work")
-      student  <- as.integer(degree_school > 0)  # enrolled (observable)
-      employed <- as.integer(degree_work > 0)    # employed (observable)
-      fit_df <- data.frame(deg = degree_total, hh_size = hh_size,
-                           student = student, employed = employed)
-      ok <- active == 1 & is.finite(degree_total) & is.finite(hh_size)
-      proxy_lm <- stats::lm(deg ~ hh_size + student + employed,
-                            data = fit_df[ok, , drop = FALSE])
-      proxy_score <- as.numeric(stats::predict(proxy_lm, newdata = fit_df))
-    }
-  }
 
   # The dose schedule: one row per dose with interval, annual and the VE
   # profile (read downstream through compute_ve())
@@ -108,9 +67,19 @@ vax_general <- function(dat, at) {
     stop("vaccine eligibility is NA for ", sum(is.na(eligible)), " node(s) (GlobalMix India #74)", call. = FALSE)
   }
 
+  # What the strategy ranks on (#75), fixed on the day the campaign opens where
+  # the arm is frozen, and the hybrid's reserve doses for today
+  if (!is.null(camp) && is.null(camp$ranked)) {
+    camp <- vax_campaign_rank(dat, camp, vax.strategy, eligible, degree_rank, age)
+  }
+  score <- if (n_today > 0) strategy_score(dat, camp, vax.strategy, degree_rank, age, uid)
+  n_reserve <- if (vax.strategy == "hybrid" && !is.null(camp)) hybrid_quota(camp, at) else 0L
+  reserve.age <- param_or(dat, "vax.hybrid.age", 60)
+
   ids_newly_vaxed <- integer(0)
   ids_elig_all <- integer(0)
   n_elig_any <- 0L
+  nVax_reserve <- 0L
   daily_vax_by_dose <- rep(0L, nrow(vax.schedule))
 
   for (dose_i in seq_len(nrow(vax.schedule))) {
@@ -121,10 +90,12 @@ vax_general <- function(dat, at) {
     ids_elig_all <- c(ids_elig_all, idsElig)
     if (length(idsElig) == 0 || n_today == 0) next
     idsVax <- allocation_strategy(
-      idsElig = idsElig, n_take = n_today, vax.strategy = vax.strategy, age = age,
-      vax.age.group = vax.age.group, degree_total = degree_rank, is_bridge = is_bridge,
-      n_layers_active = n_layers_active, hh.ids = hh.ids, is_infant = is_infant,
-      proxy_score = proxy_score, vax.target.uptake = vax.target.uptake, vax.hybrid.frac = vax.hybrid.frac)
+      idsElig = idsElig, n_take = n_today, vax.strategy = vax.strategy, age = age, score = score,
+      n_reserve = n_reserve, reserve.age = reserve.age, hh.ids = hh.ids, is_infant = is_infant)
+    n_res <- if (is.null(attr(idsVax, "n_reserve"))) 0L else attr(idsVax, "n_reserve")
+    idsVax <- as.vector(idsVax)
+    n_reserve <- n_reserve - n_res
+    nVax_reserve <- nVax_reserve + n_res
     nVax <- length(idsVax)
     if (nVax > n_today || any(!idsVax %in% idsElig) || anyDuplicated(idsVax)) {
       stop("vax.strategy ", vax.strategy, " handed out ", nVax, " doses for ", n_today,
@@ -139,6 +110,7 @@ vax_general <- function(dat, at) {
       ids_newly_vaxed <- c(ids_newly_vaxed, idsVax)
     }
   }
+  if (!is.null(camp$reserve)) camp$reserve_given <- camp$reserve_given + nVax_reserve
   if (!is.null(camp)) dat$run$vax.campaign <- camp
 
   dat <- set_attr(dat, "vax", vax)
@@ -191,7 +163,13 @@ vax_general <- function(dat, at) {
     dat <- set_epi(dat, "alloc.day", at, at = at)
     dat <- set_epi(dat, "n.elig.alloc", n_elig_any, at = at)
     dat <- set_epi(dat, "n.elig.willing.alloc", length(ids_elig_all), at = at)
+    ## the precision arm's realized rank correlation with the score over that
+    ## day's willing eligibles, and the hybrid's reserve (#75)
+    dat <- set_epi(dat, "vax.rank.spearman.alloc", if (is.null(camp$spearman)) NA_real_ else camp$spearman, at = at)
+    dat <- set_epi(dat, "vax.reserve.doses", if (is.null(camp$reserve)) NA_integer_ else camp$reserve, at = at)
   }
+  ## doses from the hybrid's 60+ reserve (#75; 0 on every other arm)
+  dat <- set_epi(dat, "nVax.reserve", nVax_reserve, at = at)
 
   ## Age-specific vax coverage #TODO: this needs to be turned to loop like the above
   dat <- set_epi(dat, "cov_vax1_0to4", length(which(vax.age.group == 1 & vax >= 1)) / length(which(vax.age.group == 1)), at = at)
@@ -779,42 +757,72 @@ get_ids_eligible_for_dose <- function(dose_row, dose_i, eligible, vax, last.dose
   }
 }
 
-# A strategy is an ordering of the willing eligibles (GlobalMix India #74;
-# the strategy set itself is #75): the first n_take of its order get today's
-# doses. Ties are broken at random everywhere. age ranks by continuous age,
-# oldest first (it used to rank by the uptake rate of the vaccine age group,
-# #55); random is a uniform permutation (sample(x, n) misbehaved with one
-# eligible); degree, bridge and the proxies rank by their score; infant_hh
-# puts the co-residents of infants first, at random within the tier (the
-# cocoon tier is rebuilt in #76); age_then_degree puts the 50 and over first by
-# age and then ranks by degree. The hybrids (age_plus_proxy, age_plus_degree)
-# are two queues from the same willing pool: floor(vax.hybrid.frac x n_take)
-# doses to the 65 and over, oldest first, the rest by the transmission score
-# over everyone not taken by the reserve (they used to bypass the show-up
-# filter the other arms faced). infant_direct doses infants only, at random,
-# and never more than the infant pool; infant_direct_cocoon puts infants
-# first, then infant-household adults, then the rest. Under
-# vax.target.uptake < 1 a ranked network strategy keeps that share of today's
-# doses for its top-ranked and gives the rest to random eligibles.
-allocation_strategy <- function(idsElig, n_take, vax.strategy, age, vax.age.group,
-                                degree_total, is_bridge, n_layers_active,
-                                hh.ids = NULL, is_infant = NULL, proxy_score = NULL,
-                                vax.target.uptake = 1, vax.hybrid.frac = 0) {
+# The strategy set (GlobalMix India #75, decided October 25, 2026). A strategy
+# is an ordering of the willing eligibles of the product's age window (#74):
+# the first n_take of its order get today's doses, and ties are broken at
+# random everywhere.
+#   age_oldest        continuous age, oldest first
+#   age_transmission  five-year age bands, the band with the highest mean
+#                     degree score among the willing eligibles on the day the
+#                     campaign opens first (fixed then), at random within a band:
+#                     the best order an age-only rule could pick (#58 item 9)
+#   random            a uniform permutation
+#   degree            the degree score (vax.degree.score), ranked on the day the
+#                     campaign opens when vax.degree.frozen, and with fixed
+#                     per-person rank noise calibrated to the Spearman
+#                     correlation vax.rank.spearman (the precision arm)
+#   acquaintance      everyone alive names one of their frequent relationships
+#                     at random, and the nominees are taken in the order named:
+#                     successive sampling of the eligibles in proportion to
+#                     w_j = sum over j's frequent partners i of 1 / degree_i,
+#                     redrawn each day; the eligibles nobody can name come last,
+#                     at random
+#   proxy_obs         a score from traits a program could record (age band, sex,
+#                     occupation class, roster household size), with
+#                     coefficients fit once to the GlobalMix diary
+#                     (vax.proxy.coef), fixed on the day the campaign opens
+#   hybrid            two queues from the same willing pool: a reserve of
+#                     vax.hybrid.f x the willing eligibles aged vax.hybrid.age
+#                     and over (60) on the day the campaign opens, released in
+#                     step with the budget, oldest first, and the rest by the
+#                     degree score over everyone not taken by the reserve
+#   infant_hh, infant_direct, infant_direct_cocoon  the infant arms, unchanged
+#                     until #76: infant-household co-residents first; infants
+#                     only, never more than the infant pool; infants, then
+#                     infant-household adults, then the rest
+# Retired by #75 (retired_strategies): age (renamed age_oldest), bridge,
+# age_then_degree, proxy_hh, proxy_fit, and the hybrids age_plus_proxy and
+# age_plus_degree; vax.target.uptake gave way to the rank noise and
+# vax.hybrid.frac to vax.hybrid.f.
+vax_strategies <- c("age_oldest", "age_transmission", "random", "degree", "acquaintance", "proxy_obs",
+                    "hybrid", "infant_hh", "infant_direct", "infant_direct_cocoon")
+retired_strategies <- c(
+  age = "age_oldest, the same ordering under its #75 name",
+  bridge = "nothing: on the relationship networks every bridge measure is non-household degree under another name (#75)",
+  age_then_degree = "nothing: under gradual rollout it was the age arm (#58 item 13)",
+  proxy_hh = "proxy_obs, fit once on traits a program could record (#75)",
+  proxy_fit = "proxy_obs, fit once on traits a program could record (#75)",
+  age_plus_proxy = "hybrid, with the reserve defined on the 60+ (#75)",
+  age_plus_degree = "hybrid, with the reserve defined on the 60+ (#75)"
+)
+
+allocation_strategy <- function(idsElig, n_take, vax.strategy, age, score = NULL, n_reserve = 0L,
+                                reserve.age = 60, hh.ids = NULL, is_infant = NULL) {
   nElig <- length(idsElig)
   if (nElig == 0 || n_take <= 0) return(integer(0))
-  by_desc <- function(ids, score) ids[order(-score, stats::runif(length(ids)))]
+  by_desc <- function(ids, s) ids[order(-s, stats::runif(length(ids)))]
+  need_score <- c("degree", "age_transmission", "proxy_obs", "acquaintance", "hybrid")
+  if (vax.strategy %in% need_score && is.null(score)) {
+    stop("vax.strategy '", vax.strategy, "' requires a score", call. = FALSE)
+  }
 
-  if (vax.strategy %in% c("age_plus_proxy", "age_plus_degree")) {
-    if (vax.strategy == "age_plus_proxy" && is.null(proxy_score)) {
-      stop("vax.strategy 'age_plus_proxy' requires proxy_score")
-    }
-    n_age <- floor(vax.hybrid.frac * n_take)
-    age_pool <- idsElig[vax.age.group[idsElig] == 5]
-    ids_age <- utils::head(by_desc(age_pool, age[age_pool]), n_age)
-    trans <- if (vax.strategy == "age_plus_proxy") proxy_score else degree_total
+  if (vax.strategy == "hybrid") {
+    old <- idsElig[age[idsElig] >= reserve.age]
+    ids_age <- utils::head(by_desc(old, age[old]), max(0L, min(n_reserve, n_take)))
     rest <- setdiff(idsElig, ids_age)
-    ids_rest <- utils::head(by_desc(rest, trans[rest]), n_take - length(ids_age))
-    return(c(ids_age, ids_rest))
+    out <- c(ids_age, utils::head(by_desc(rest, score[rest]), n_take - length(ids_age)))
+    attr(out, "n_reserve") <- length(ids_age)
+    return(out)
   }
   if (vax.strategy == "infant_direct") {
     if (is.null(is_infant)) stop("vax.strategy 'infant_direct' requires is_infant")
@@ -824,26 +832,19 @@ allocation_strategy <- function(idsElig, n_take, vax.strategy, age, vax.age.grou
   }
 
   ids_ranked <- switch(vax.strategy,
-    degree = by_desc(idsElig, degree_total[idsElig]),
-    bridge = {
-      max_deg <- max(degree_total) + 1 # so n_layers_active outranks degree_total
-      by_desc(idsElig, as.integer(is_bridge[idsElig]) * ((max(n_layers_active) + 1) * max_deg) +
-                n_layers_active[idsElig] * max_deg + degree_total[idsElig])
-    },
-    age = by_desc(idsElig, age[idsElig]),
+    age_oldest = by_desc(idsElig, age[idsElig]),
     random = idsElig[sample.int(nElig)],
-    age_then_degree = {
-      old <- vax.age.group[idsElig] >= 4
-      c(by_desc(idsElig[old], age[idsElig[old]]), by_desc(idsElig[!old], degree_total[idsElig[!old]]))
+    degree = , age_transmission = , proxy_obs = by_desc(idsElig, score[idsElig]),
+    acquaintance = {
+      # Exponential keys: the order of a weighted draw without replacement
+      w <- score[idsElig]
+      key <- ifelse(w > 0, stats::rexp(nElig) / w, Inf)
+      idsElig[order(key, stats::runif(nElig))]
     },
     infant_hh = {
       if (is.null(hh.ids) || is.null(is_infant)) stop("vax.strategy 'infant_hh' requires hh.ids and is_infant")
       hh_with_infant <- unique(hh.ids[which(is_infant & !is.na(hh.ids))])
       by_desc(idsElig, as.integer(hh.ids[idsElig] %in% hh_with_infant))
-    },
-    proxy_hh = , proxy_fit = {
-      if (is.null(proxy_score)) stop("vax.strategy '", vax.strategy, "' requires proxy_score")
-      by_desc(idsElig, proxy_score[idsElig])
     },
     infant_direct_cocoon = {
       if (is.null(hh.ids) || is.null(is_infant)) stop("vax.strategy 'infant_direct_cocoon' requires hh.ids and is_infant")
@@ -852,16 +853,208 @@ allocation_strategy <- function(idsElig, n_take, vax.strategy, age, vax.age.grou
       by_desc(idsElig, tier)
     },
     stop("Unknown vax.strategy: ", vax.strategy))
+  ids_ranked[seq_len(min(n_take, nElig))]
+}
 
-  n_take <- min(n_take, nElig)
-  if (vax.target.uptake < 1 && vax.strategy %in% c("degree", "bridge", "proxy_hh", "proxy_fit")) {
-    n_targeted <- round(vax.target.uptake * n_take)
-    ids_top <- ids_ranked[seq_len(n_targeted)]
-    pool <- setdiff(idsElig, ids_top)
-    n_rand <- min(n_take - n_targeted, length(pool))
-    return(c(ids_top, if (n_rand > 0) pool[sample.int(length(pool), n_rand)]))
+# What each person is ranked on when the campaign opens (#75), kept in the
+# campaign by unique id, so a person keeps their value as nodes are removed and
+# added, and a person born afterwards ranks last: the degree score of a frozen
+# degree or hybrid arm, the five-year band means of age_transmission, the
+# proxy_obs score, the hybrid's reserve, and the precision arm's noise.
+vax_campaign_rank <- function(dat, camp, vax.strategy, eligible, degree_rank, age) {
+  ids <- which(get_attr(dat, "active") == 1)
+  pool <- which(eligible)
+  camp$uid <- get_attr(dat, "unique_id")[ids]
+  camp$frozen <- isTRUE(as.logical(param_or(dat, "vax.degree.frozen", FALSE)))
+  if (vax.strategy %in% c("degree", "hybrid") && camp$frozen) camp$score <- degree_rank[ids]
+  if (vax.strategy == "degree") {
+    rho <- param_or(dat, "vax.rank.spearman", 1)
+    camp$sigma <- 0
+    camp$spearman <- 1
+    if (rho < 1 && length(pool) > 1) {
+      # The noise is drawn on a side stream, so the arms of a cell keep a common
+      # random stream through the opening day and every precision level of a
+      # simulation shares the same noise
+      camp$ref <- sort(degree_rank[pool])
+      z <- with_side_rng(stats::rnorm(length(ids)))
+      camp$z <- z
+      ns <- normal_score(degree_rank[pool], camp$ref)
+      zp <- z[match(pool, ids)]
+      camp$sigma <- calibrate_rank_noise(ns, zp, rho)
+      camp$spearman <- spearman(ns, ns + camp$sigma * zp)
+    }
   }
-  ids_ranked[seq_len(n_take)]
+  if (vax.strategy == "age_transmission") {
+    camp$band_mean <- tapply(degree_rank[pool], age_band5(age[pool]), mean)
+  }
+  if (vax.strategy == "proxy_obs") camp$proxy <- proxy_obs_score(dat)[ids]
+  if (vax.strategy == "hybrid") {
+    f <- param_or(dat, "vax.hybrid.f", 0)
+    a0 <- param_or(dat, "vax.hybrid.age", 60)
+    camp$reserve <- min(camp$budget, as.integer(round(f * sum(eligible & age >= a0))))
+    camp$reserve_given <- 0L
+  }
+  camp$ranked <- TRUE
+  camp
+}
+
+# The score today's ordering uses (#75); NULL for the arms that rank on age or
+# at random. Frozen values are looked up by unique id; NA (born since the
+# campaign opened) ranks last.
+strategy_score <- function(dat, camp, vax.strategy, degree_rank, age, uid) {
+  if (is.null(camp)) return(NULL)
+  m <- match(uid, camp$uid)
+  frozen_value <- function(x) {
+    v <- x[m]
+    v[is.na(v)] <- -Inf
+    v
+  }
+  switch(vax.strategy,
+    degree = {
+      s <- if (camp$frozen) frozen_value(camp$score) else degree_rank
+      if (camp$sigma > 0) {
+        z <- camp$z[m]
+        z[is.na(z)] <- 0
+        s <- normal_score(s, camp$ref) + camp$sigma * z
+      }
+      s
+    },
+    hybrid = if (camp$frozen) frozen_value(camp$score) else degree_rank,
+    age_transmission = {
+      v <- unname(camp$band_mean[as.character(age_band5(age))])
+      v[is.na(v)] <- -Inf
+      v
+    },
+    proxy_obs = frozen_value(camp$proxy),
+    acquaintance = acquaintance_weight(dat),
+    NULL)
+}
+
+# The hybrid's reserve doses for today: the reserve is released in step with the
+# budget, so by day t of the campaign floor(reserve x allowed / budget) of them
+# may have gone to the 60+; a day when the 60+ queue runs short gives the rest to
+# the degree queue, and the reserve catches up later if it can.
+hybrid_quota <- function(camp, at) {
+  if (is.null(camp$reserve) || camp$budget == 0) return(0L)
+  target <- floor(camp$reserve * vax_allowed(camp, at) / camp$budget)
+  as.integer(max(0, target - camp$reserve_given))
+}
+
+# Five-year age bands (the lower limit, 75 and over in one band)
+age_band5 <- function(age) pmin(floor(age / 5), 15) * 5
+
+# Normal score of x on the reference distribution ref (sorted): the mid-rank
+# of x among ref, as a share, through the normal quantile. A block of tied
+# values takes the score of its mid-rank.
+normal_score <- function(x, ref) {
+  n <- length(ref)
+  p <- (findInterval(x, ref, left.open = TRUE) + findInterval(x, ref)) / (2 * n)
+  stats::qnorm(pmin(pmax(p, 0.5 / n), 1 - 0.5 / n))
+}
+
+spearman <- function(x, y) stats::cor(rank(x), rank(y))
+
+# The noise scale that gives the target Spearman correlation between a score
+# and its noisy version, ns + sigma z, over one population, by bisection with
+# the noise fixed (the precision arm, #75). The correlation falls as sigma grows.
+calibrate_rank_noise <- function(ns, z, rho, tol = 1e-4) {
+  if (rho >= 1) return(0)
+  g <- function(s) spearman(ns, ns + s * z) - rho
+  hi <- 1
+  while (g(hi) > 0 && hi < 1e4) hi <- hi * 2
+  lo <- 0
+  for (i in 1:60) {
+    mid <- (lo + hi) / 2
+    if (g(mid) > 0) lo <- mid else hi <- mid
+    if (hi - lo < tol) break
+  }
+  (lo + hi) / 2
+}
+
+# The acquaintance weight of every node (#75): the chance, up to a constant,
+# that a person drawn at random among the living names this one when naming a
+# frequent relationship at random, sum over frequent partners i of 1 / degree_i.
+# The frequent relationships are the contacts a person can name: the infrequent
+# ones are rarely met, and new contacts are strangers.
+acquaintance_weight <- function(dat) {
+  if (!activation_on(dat)) {
+    stop("the acquaintance strategy names a frequent relationship, which needs the relationship model (#75)",
+         call. = FALSE)
+  }
+  n <- length(get_attr(dat, "active"))
+  w <- numeric(n)
+  e <- dat$run$el[[rel_layers[["freq"]]]]
+  if (is.null(e) || nrow(e) == 0) return(w)
+  deg <- tabulate(e, nbins = n)
+  s <- rowsum(c(1 / deg[e[, 2]], 1 / deg[e[, 1]]), c(e[, 1], e[, 2]))
+  w[as.integer(rownames(s))] <- s[, 1]
+  w
+}
+
+# The proxy_obs score (#75): the linear predictor of a log-linear fit of daily
+# non-household contacts on traits a program could record, from the GlobalMix
+# diary (vax.proxy.coef, named as stats::glm() names them: "(Intercept)",
+# "band<age.grp>", "sex<F|M>", "occ<class>" and "hh_size"; a level with no
+# coefficient is the reference). Household size counts the living members.
+proxy_obs_score <- function(dat) {
+  coef <- get_param(dat, "vax.proxy.coef", override.null.error = TRUE)
+  check_proxy_coef(dat, coef)
+  active <- get_attr(dat, "active")
+  hh <- get_attr(dat, "hh.ids")
+  sex <- get_attr(dat, "sex", override.null.error = TRUE)
+  occ <- get_attr(dat, "occ", override.null.error = TRUE)
+  if (is.null(sex) || is.null(occ)) {
+    stop("proxy_obs reads sex and occupation class, which this population does not carry (#61)", call. = FALSE)
+  }
+  counts <- table(hh[active == 1])
+  hh_size <- as.numeric(counts[match(hh, names(counts))])
+  hh_size[is.na(hh_size)] <- 1
+  term <- function(nm) {
+    v <- coef[nm]
+    v[is.na(v)] <- 0
+    unname(v)
+  }
+  unname(coef[["(Intercept)"]] + term(paste0("band", get_attr(dat, "age.grp"))) + term(paste0("sex", sex)) +
+           term(paste0("occ", occ)) + coef[["hh_size"]] * hh_size)
+}
+
+check_proxy_coef <- function(dat, coef) {
+  known <- c("(Intercept)", "hh_size", paste0("band", param_or(dat, "age.grps", character(0))),
+             paste0("sex", sex_levels), paste0("occ", occ_levels))
+  if (is.null(coef) || !is.numeric(coef) || is.null(names(coef)) || anyNA(coef) ||
+      !all(c("(Intercept)", "hh_size") %in% names(coef)) || !all(names(coef) %in% known)) {
+    stop("vax.proxy.coef must be named coefficients among ", toString(known),
+         ", with an intercept and hh_size (#75)", call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+# The strategy and its knobs, checked at initialization (#75)
+check_vax_strategy <- function(dat) {
+  s <- get_param(dat, "vax.strategy", override.null.error = TRUE)
+  if (is.null(s)) return(invisible(TRUE))
+  if (s %in% names(retired_strategies)) {
+    stop("vax.strategy '", s, "' was retired; use ", retired_strategies[[s]], call. = FALSE)
+  }
+  if (!s %in% vax_strategies) {
+    stop("unknown vax.strategy '", s, "'; the strategies are ", toString(vax_strategies), call. = FALSE)
+  }
+  rho <- param_or(dat, "vax.rank.spearman", 1)
+  if (length(rho) != 1 || is.na(rho) || rho <= 0 || rho > 1) {
+    stop("vax.rank.spearman must be one number in (0, 1] (#75)", call. = FALSE)
+  }
+  f <- param_or(dat, "vax.hybrid.f", 0)
+  if (length(f) != 1 || is.na(f) || f < 0 || f > 1) stop("vax.hybrid.f must be one number in [0, 1] (#75)", call. = FALSE)
+  a0 <- param_or(dat, "vax.hybrid.age", 60)
+  if (length(a0) != 1 || is.na(a0) || a0 < 0) stop("vax.hybrid.age must be one age in years (#75)", call. = FALSE)
+  fr <- param_or(dat, "vax.degree.frozen", FALSE)
+  if (length(fr) != 1 || is.na(as.logical(fr))) stop("vax.degree.frozen must be TRUE or FALSE (#75)", call. = FALSE)
+  if (s == "proxy_obs") check_proxy_coef(dat, get_param(dat, "vax.proxy.coef", override.null.error = TRUE))
+  if (s == "acquaintance" && !activation_on(dat)) {
+    stop("the acquaintance strategy names a frequent relationship, which needs the relationship model (#75)",
+         call. = FALSE)
+  }
+  invisible(TRUE)
 }
 
 # Vaccine protection (GlobalMix India #73). A node's protection comes from its
@@ -979,6 +1172,7 @@ check_vax_schedule <- function(dat) {
 # probability or one per vaccine age group, and the product's age window
 # vax.<pathogen>.age.min < .age.max in years.
 check_vax_campaign <- function(dat) {
+  check_vax_strategy(dat)
   pa <- get_pathogen(dat)
   if (is.null(get_param(dat, paste0("vax.", pa, ".n.doses"), override.null.error = TRUE))) {
     return(invisible(TRUE))

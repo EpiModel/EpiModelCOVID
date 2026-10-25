@@ -35,6 +35,7 @@ get_default_attrs <- function(dat) { # all attributes should be listed here
     degree_infreq = 0,
     degree_active = 0,
     degree_hazard = 0,
+    degree_hazard_xlayer = 0,
     degree_score = 0,
     act.out.days = 0,
     act.contact.days = 0,

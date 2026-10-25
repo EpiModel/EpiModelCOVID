@@ -340,8 +340,8 @@ run_small <- function(nsteps = 40, seed = 77, ...) {
     birth.hh.coef = setNames(rep(0, 7), EpiModelCOVID:::birth_hh_terms), birth.interval.min = 304,
     yll.le = seq(80, 5, length.out = 86), yll.discount = 0.03),
     sev_test_params(prop.clinical = rep(0.5, 12), ihr = rep(0.1, 12), ifr = rep(0.1, 12)),
-    ve_params(vax.budget = 0.3, vax.delivery.days = 5, vax.start = 5, vax.strategy = "degree"),
-    list(...)))
+    utils::modifyList(ve_params(vax.budget = 0.3, vax.delivery.days = 5, vax.start = 5, vax.strategy = "degree"),
+                      list(...))))
   control <- control.net(
     type = NULL, nsteps = nsteps, nsims = 1, ncores = 1, verbose = FALSE,
     initialize.FUN = init_gmc19, aging.FUN = aging, departures.FUN = deaths_covid_gmc19,
@@ -429,4 +429,29 @@ test_that("the new flows partition on a full small run, and persons ever infecte
   expect_true(any(born))
   expect_true(all(is.na(attr$degree_quartile_base[born])))
   expect_true(all(attr$degree_quartile_base[!born] %in% 1:4))
+})
+
+test_that("every #75 arm runs end to end and delivers the same doses on the same days", {
+  coef <- c("(Intercept)" = 1, "band10-19y" = 0.2, sexM = 0.05, occstudent = 0.6, occworker = 0.2, hh_size = -0.1)
+  hx <- list(vax.degree.score = "hazard_xlayer")
+  arms <- list(
+    age_oldest = list(vax.strategy = "age_oldest"),
+    age_transmission = c(list(vax.strategy = "age_transmission"), hx),
+    random = list(vax.strategy = "random"),
+    degree = c(list(vax.strategy = "degree", vax.degree.frozen = TRUE), hx),
+    precision = c(list(vax.strategy = "degree", vax.degree.frozen = TRUE, vax.rank.spearman = 0.5), hx),
+    acquaintance = list(vax.strategy = "acquaintance"),
+    proxy_obs = list(vax.strategy = "proxy_obs", vax.proxy.coef = coef),
+    hybrid = c(list(vax.strategy = "hybrid", vax.hybrid.f = 0.5), hx))
+  runs <- lapply(arms, function(a) as.data.frame(do.call(run_small, c(list(nsteps = 20), a))))
+  doses <- sapply(runs, function(d) d$nVax1[-1])
+  for (k in seq_len(ncol(doses))[-1]) expect_identical(doses[, k], doses[, 1], info = names(arms)[k])
+  expect_gt(sum(doses[, 1]), 170)
+  # the precision arm's realized rank correlation on its opening day, and the hybrid's reserve
+  expect_equal(max(runs$precision$vax.rank.spearman.alloc, na.rm = TRUE), 0.5, tolerance = 0.01)
+  expect_gt(max(runs$hybrid$vax.reserve.doses, na.rm = TRUE), 0)
+  expect_equal(sum(runs$hybrid$nVax.reserve[-1]), max(runs$hybrid$vax.reserve.doses, na.rm = TRUE))
+  expect_equal(sum(runs$age_oldest$nVax.reserve[-1]), 0)
+  # the non-household hazard is part of the hazard, and age carries less of it
+  expect_true(is.finite(runs$degree$eta2.hazard_xlayer.d2[2]))
 })

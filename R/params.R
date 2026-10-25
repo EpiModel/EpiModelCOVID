@@ -35,8 +35,11 @@ gmc19_params_common <- c(
   # every arm, with willingness by vaccine age group and the product's age
   # window (#74)
   "pathogen", "vax.strategy", "vax.budget", "vax.delivery.days", "vax.start", "vax.willing",
-  "vax.age.breaks", "vax.infant.product", "vax.season.length", "vax.target.uptake",
-  "vax.hybrid.frac", "vax.degree.score", "compute.degree", "vax.diagnostics",
+  "vax.age.breaks", "vax.infant.product", "vax.season.length", "vax.degree.score",
+  "compute.degree", "vax.diagnostics",
+  # the strategy set (#75): the frozen degree ranking, the precision arm's rank
+  # correlation, the hybrid's reserve, and the proxy_obs coefficients
+  "vax.degree.frozen", "vax.rank.spearman", "vax.hybrid.f", "vax.hybrid.age", "vax.proxy.coef",
   # years of life lost from exact age at death (#77): remaining life expectancy
   # by single year of age, and the discount rate
   "yll.le", "yll.discount"

@@ -37,10 +37,12 @@ design alone.
 `groups`, `vital`, `act.rate`, `.param.updater.list` and `.scenario.id` are
 set by EpiModel itself, and none is a row of a parameter table. The per-dose
 vaccine schedule is read as `vax.<pathogen>.<field>.dose<i>`, for doses 1 to
-`vax.<pathogen>.n.doses`.
+`vax.<pathogen>.n.doses`, and each pathogen's product has an age window,
+`vax.<pathogen>.age.min` and `.age.max` (#74).
 
-Not listed: `hh.pairs` and the parameters of the removed CorporateMix
-modifiers, which are read only to stop a run that sets them, and the
+Not listed: `hh.pairs`, the parameters of the removed CorporateMix
+modifiers and the parameters the redo replaced (`rs.rate`, `prop.hospit`,
+`dis.death.rate`, ...), which are read only to stop a run that sets them, and the
 parameters read only by the CorporateMix modules still in the package
 (`vax1.rate`, `half.life`, ...), which are not part of the GMC19 model.
 }
