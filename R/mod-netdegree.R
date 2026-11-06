@@ -31,8 +31,13 @@ netdegree <- function(dat, at) {
   # the diary.
   age.grp <- get_attr(dat, item = "age.grp")
   daily_degree <- degree_total
+  daily_xlayer <- degree_xlayer
   if (activation_on(dat) && identical(dat$run$contacts_at, at)) {
-    daily_degree <- Reduce(`+`, lapply(dat$run$contacts, degree_of, n = n_nodes))
+    daily_by_type <- lapply(dat$run$contacts, degree_of, n = n_nodes)
+    daily_degree <- Reduce(`+`, daily_by_type)
+    # the day's contacts outside the household (the survey's non-household degree)
+    hh_type <- if (is.na(hh)) character(0) else names(el)[hh]
+    daily_xlayer <- Reduce(`+`, daily_by_type[setdiff(names(daily_by_type), hh_type)], numeric(n_nodes))
   }
   mean_degree_age <- tapply(daily_degree, age.grp, mean)
 
@@ -113,6 +118,10 @@ netdegree <- function(dat, at) {
       if (!is.null(hazard)) {
         dat <- set_epi(dat, paste0("eta2.hazard.", tag), eta_squared(hazard[live], band[live]), at = at)
         dat <- set_epi(dat, paste0("eta2.hazard_xlayer.", tag), eta_squared(hazard_x[live], band[live]), at = at)
+        # the day's contacts rather than the ties (GlobalMix India #82): the
+        # model side of the survey's eta-squared of daily degree on age band
+        dat <- set_epi(dat, paste0("eta2.daily.", tag), eta_squared(daily_degree[live], band[live]), at = at)
+        dat <- set_epi(dat, paste0("eta2.daily_xlayer.", tag), eta_squared(daily_xlayer[live], band[live]), at = at)
       }
       for (nm in names(deg_net)) {
         dat <- set_epi(dat, paste0("mean_degree_", nm, ".", tag), mean(deg_net[[nm]][live]), at = at)
@@ -122,6 +131,32 @@ netdegree <- function(dat, at) {
       dat <- set_epi(dat, paste0("mean_degree_daily.", tag), mean(daily_degree[live]), at = at)
     }
   }
+  # Two-day degree (GlobalMix India #82). The survey's momentary degree is the
+  # mean of a participant's two diary days, which removes part of the day-to-day
+  # variation one day of contacts keeps, so the model quantity matched to it is
+  # the eta-squared of the mean of two consecutive days' contacts: days 2 and 3,
+  # and the day before the campaign opens with its opening day. A person not
+  # alive on both days is left out. Persons are matched by unique id, since
+  # nwupdate removes the dead between the two days. No draw is made.
+  if (activation_on(dat) && identical(dat$run$contacts_at, at)) {
+    tags2 <- c(if (at == 3) "d3", if (at == alloc_day && alloc_day >= 3) "alloc")
+    prev <- dat$run$daily_prev
+    if (length(tags2) > 0 && !is.null(prev) && isTRUE(prev$at == at - 1)) {
+      j <- match(get_unique_ids(dat), prev$uid)
+      both <- get_attr(dat, "active") == 1 & !is.na(j)
+      band2 <- match(age.grp, get_param(dat, "age.grps"))
+      two <- daily_degree + prev$total[j]
+      two_x <- daily_xlayer + prev$xlayer[j]
+      for (tag in tags2) {
+        dat <- set_epi(dat, paste0("eta2.daily2.", tag), eta_squared(two[both], band2[both]), at = at)
+        dat <- set_epi(dat, paste0("eta2.daily2_xlayer.", tag), eta_squared(two_x[both], band2[both]), at = at)
+      }
+    }
+    dat$run$daily_prev <- if ((at + 1) %in% c(3, alloc_day)) {
+      list(at = at, uid = get_unique_ids(dat), total = daily_degree, xlayer = daily_xlayer)
+    }
+  }
+
   # A baseline degree quartile (#77): the score's quartile on day 2 with ties
   # broken at random, kept for the run (newborns have none). The daily quartile
   # above follows the current score and splits ties by mid-rank. The random

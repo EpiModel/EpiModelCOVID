@@ -425,6 +425,15 @@ test_that("the new flows partition on a full small run, and persons ever infecte
     expect_true(all(is.na(v[d$time != 2])))
     expect_true(!is.na(d[[paste0("eta2.", s, ".alloc")]][d$time == 5]))
   }
+  # eta-squared of the day's contacts (#82): one day on day 2 and the opening
+  # day, the mean of two consecutive days ending on day 3 and on the opening day
+  for (s in c("daily", "daily_xlayer", "daily2", "daily2_xlayer")) {
+    first <- if (grepl("daily2", s)) 3 else 2
+    v <- d[[paste0("eta2.", s, ".", if (first == 3) "d3" else "d2")]]
+    expect_true(!is.na(v[d$time == first]) && v[d$time == first] >= 0 && v[d$time == first] <= 1)
+    expect_true(all(is.na(v[d$time != first])))
+    expect_true(!is.na(d[[paste0("eta2.", s, ".alloc")]][d$time == 5]))
+  }
   expect_equal(d$mean_degree_freq.d2[d$time == 2], d$mean_degree_freq[d$time == 2])
   expect_equal(d$mean_degree_hh.alloc[d$time == 5], d$mean_degree_hh[d$time == 5])
   # the baseline quartile: every survivor of day 1 holds one, nobody born since does
